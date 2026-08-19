@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mahjong Solitaire — Free Online Mahjong, Full Screen, No Download</title>
+<meta name="description" content="Play free Mahjong Solitaire online — no download, no sign-up, no time limit. Large, easy-to-read tiles, unlimited undo, hints, and full-screen play on any device.">
+<link rel="canonical" href="https://your-domain.com/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Mahjong Solitaire — Free Online Mahjong, Full Screen, No Download">
+<meta property="og:description" content="Play free Mahjong Solitaire online — no download, no sign-up, no time limit. Large, easy-to-read tiles and unlimited undo.">
+<meta property="og:image" content="https://your-domain.com/og-image.png">
+<meta property="og:url" content="https://your-domain.com/">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- 파비콘: 인라인 SVG data URI (이미지 파일 없음) -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23146b4c'/%3E%3Crect x='18' y='18' width='64' height='64' rx='10' fill='%23fbf7ec'/%3E%3Ctext x='50' y='66' font-size='46' text-anchor='middle' font-family='serif' fill='%23146b4c'%3E中%3C/text%3E%3C/svg%3E">
+
+<link rel="stylesheet" href="style.css">
+
+<!-- JSON-LD: WebApplication/게임 스키마 -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Mahjong Solitaire",
+  "alternateName": "Free Mahjong Solitaire",
+  "url": "https://your-domain.com/",
+  "description": "Free online Mahjong Solitaire with large tiles, unlimited undo, hints, and no time limit. No download or account required.",
+  "applicationCategory": "GameApplication",
+  "genre": "Puzzle",
+  "operatingSystem": "Any (web browser)",
+  "browserRequirements": "Requires JavaScript",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+
+<!-- JSON-LD: FAQPage 스키마 (아래 FAQ 섹션과 내용 일치) -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is Mahjong Solitaire free to play?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. This mahjong solitaire game is completely free to play, with no purchases, subscriptions, or hidden fees." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need to download anything?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No download is required. It runs directly in your web browser on desktop, tablet, or phone — just open the page and play." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a time limit?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. There is no time limit and no countdown. A small timer quietly tracks your play time if you want to see it, but you can take as long as you like, and you can hide the timer entirely in Settings." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I undo a move?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, undo is unlimited. You can step back through your entire move history, including after a shuffle." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it save my game?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Your board, move history, and elapsed time are saved automatically in your browser, so you can close the tab and pick up right where you left off." }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens if I get stuck with no matching tiles left?",
+      "acceptedAnswer": { "@type": "Answer", "text": "If no more matching pairs are available, you'll be offered three options: shuffle the remaining tiles into a new solvable arrangement, undo your last move, or start a new game." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I play in full screen?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, use the Full Screen button to expand the board to fill your entire screen, which many players find easier on the eyes." }
+    }
+  ]
+}
+</script>
+</head>
+<body data-tile-size="large" data-tileset="big" data-show-free="true" data-show-timer="true">
+<a class="skip-link" href="#main">Skip to game</a>
+
+<header class="site-header">
+  <h1>Free Mahjong Solitaire</h1>
+  <p class="tagline">Match tiles, clear the board — no download, no time limit.</p>
+</header>
+
+<main id="main">
+  <div class="game-shell">
+    <div class="game-column">
+      <div class="toolbar" role="toolbar" aria-label="Game controls">
+        <div class="toolbar-buttons">
+          <button type="button" class="btn btn-accent" id="btn-new-game" title="Start a new game (N)">
+            <span class="btn-icon" aria-hidden="true">🀄</span> New Game
+          </button>
+          <button type="button" class="btn" id="btn-undo" title="Undo last move (U)">
+            <span class="btn-icon" aria-hidden="true">↶</span> Undo
+          </button>
+          <button type="button" class="btn" id="btn-hint" title="Show a hint (H)">
+            <span class="btn-icon" aria-hidden="true">💡</span> Hint
+          </button>
+          <button type="button" class="btn" id="btn-fullscreen" title="Toggle full screen">
+            <span class="btn-icon" aria-hidden="true">⛶</span> Full Screen
+          </button>
+          <button type="button" class="btn btn-ghost" id="btn-settings" title="Settings" aria-haspopup="dialog">
+            <span class="btn-icon" aria-hidden="true">⚙️</span> Settings
+          </button>
+        </div>
+        <div class="status-strip">
+          <span class="pairs-stat"><span class="visually-hidden">Possible matching pairs remaining: </span>Pairs: <span class="stat-value" id="pairs-count">0</span></span>
+          <span class="timer-stat">Time: <span class="stat-value timer-value" id="timer-display">00:00</span></span>
+        </div>
+      </div>
+
+      <div class="board-viewport" id="board-viewport">
+        <div class="board-scale-wrap">
+          <div class="board" id="board" role="group" aria-label="Mahjong board"></div>
+        </div>
+      </div>
+
+      <p id="live-region" class="visually-hidden" role="status" aria-live="polite"></p>
+    </div>
+
+    <aside class="sidebar" aria-label="Advertisement">
+      <!-- AD SLOT: adsense (desktop sidebar 300x250) -->
+      <div class="ad-slot ad-slot--300x250 ad-slot-desktop-only" aria-hidden="true">Advertisement</div>
+    </aside>
+  </div>
+
+  <!-- AD SLOT: adsense (desktop footer 728x90) -->
+  <div class="ad-slot ad-slot--728x90 ad-slot-desktop-only" aria-hidden="true">Advertisement</div>
+
+  <section class="content">
+    <h2>Play Free Mahjong Solitaire Online</h2>
+    <p>
+      This free mahjong solitaire game brings the classic tile-matching puzzle to your browser —
+      no download, no installer, and no account required. If you remember the mahjong tile game
+      that used to come bundled with Windows, laying out 144 tiles in a turtle-shaped stack, this
+      will feel instantly familiar. Just open the page and start matching tiles.
+    </p>
+    <p>
+      Every board is generated to be fully solvable, so you'll never get stuck with a puzzle that
+      can't be finished. There's no time limit and no countdown clock pushing you to hurry — play
+      at your own pace, on your phone, tablet, or desktop. Tap Full Screen at any time to fill your
+      whole display and remove distractions.
+    </p>
+    <p>
+      Tiles are extra large and clearly color-coded by default, with unlimited undo and a hint
+      button whenever you want a nudge, so getting stuck is never frustrating.
+    </p>
+
+    <!-- AD SLOT: adsense (mobile inline 320x100) -->
+    <div class="ad-slot ad-slot--320x100 ad-slot-mobile-only" aria-hidden="true">Advertisement</div>
+
+    <h2>How to Play Mahjong Solitaire</h2>
+    <p>
+      The goal is to remove all 144 tiles from the board by matching them in pairs.
+    </p>
+    <ul>
+      <li><strong>Match tiles:</strong> tap a tile to select it, then tap a matching tile to remove
+        both. Flower tiles all look the same and match with any other flower, and season tiles
+        all look the same and match with any other season — so there's nothing to compare, any
+        two flowers or any two seasons are always a pair. Everything else must match exactly.</li>
+      <li><strong>Only open tiles can be selected:</strong> a tile is selectable only if nothing is
+        stacked on top of it, and at least one side (left or right) is free. Open tiles look
+        brighter; locked tiles look dimmer.</li>
+      <li><strong>Undo</strong> as many moves as you like, with no limit.</li>
+      <li><strong>Hint</strong> highlights one matching pair if you're stuck deciding what to do
+        next.</li>
+      <li><strong>Shuffle</strong> rearranges the remaining tiles into a fresh, solvable layout if
+        no more matches are available.</li>
+    </ul>
+
+    <h2>Frequently Asked Questions</h2>
+
+    <div class="faq-item">
+      <h3>Is Mahjong Solitaire free to play?</h3>
+      <p>Yes. This mahjong solitaire game is completely free to play, with no purchases,
+        subscriptions, or hidden fees.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Do I need to download anything?</h3>
+      <p>No download is required. It runs directly in your web browser on desktop, tablet, or
+        phone — just open the page and play.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Is there a time limit?</h3>
+      <p>No. There is no time limit and no countdown. A small timer quietly tracks your play time
+        if you want to see it, but you can take as long as you like, and you can hide the timer
+        entirely in Settings.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Can I undo a move?</h3>
+      <p>Yes, undo is unlimited. You can step back through your entire move history, including
+        after a shuffle.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Does it save my game?</h3>
+      <p>Yes. Your board, move history, and elapsed time are saved automatically in your browser,
+        so you can close the tab and pick up right where you left off.</p>
+    </div>
+    <div class="faq-item">
+      <h3>What happens if I get stuck with no matching tiles left?</h3>
+      <p>If no more matching pairs are available, you'll be offered three options: shuffle the
+        remaining tiles into a new solvable arrangement, undo your last move, or start a new
+        game.</p>
+    </div>
+    <div class="faq-item">
+      <h3>Can I play in full screen?</h3>
+      <p>Yes, use the Full Screen button to expand the board to fill your entire screen, which many
+        players find easier on the eyes.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>Free Mahjong Solitaire — a lightweight, no-download tile matching game. No account needed.</p>
+</footer>
+
+<!-- 설정 패널 -->
+<div class="settings-panel" id="settings-panel" data-open="false">
+  <div class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <h2 id="settings-title">Settings</h2>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label">Tile size</legend>
+      <div class="segmented" id="tile-size-group">
+        <label><input type="radio" name="tile-size" value="normal"><span>Normal</span></label>
+        <label><input type="radio" name="tile-size" value="large" checked><span>Large</span></label>
+        <label><input type="radio" name="tile-size" value="xlarge"><span>Extra Large</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label">Tile style</legend>
+      <div class="segmented" id="tileset-group">
+        <label><input type="radio" name="tileset" value="classic"><span>Classic</span></label>
+        <label><input type="radio" name="tileset" value="big" checked><span>Big &amp; Bold</span></label>
+      </div>
+    </fieldset>
+
+    <div class="settings-row toggle-row">
+      <label for="toggle-free">Highlight open tiles</label>
+      <input type="checkbox" id="toggle-free" checked>
+    </div>
+
+    <div class="settings-row toggle-row">
+      <label for="toggle-timer">Show timer</label>
+      <input type="checkbox" id="toggle-timer" checked>
+    </div>
+
+    <div class="settings-row toggle-row">
+      <label for="toggle-sound">Sound effects</label>
+      <input type="checkbox" id="toggle-sound">
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label">Statistics</span>
+      <dl class="settings-stats">
+        <dt>Games played</dt>
+        <dd id="stat-games">0</dd>
+        <dt>Games won</dt>
+        <dd id="stat-wins">0</dd>
+        <dt>Best time</dt>
+        <dd id="stat-best">—</dd>
+      </dl>
+    </div>
+
+    <button type="button" class="btn btn-accent settings-close" id="btn-settings-close">Close</button>
+  </div>
+</div>
+
+<!-- "더 이상 짝이 없습니다" 모달 — 평소엔 버튼 없이 자동 셔플을 기다리는
+     안내만 보여주고(탭하면 즉시 진행), 재배치가 불가능하거나 셔플이
+     계속 반복될 때만 "New Game" 버튼이 있는 안내로 바뀐다(아래 game.js
+     handleNoMoreMatches 참고). -->
+<div class="modal-overlay" id="modal-stuck" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="stuck-title">
+    <h2 id="stuck-title">No more matches</h2>
+    <p id="stuck-message">No more matches — shuffling the tiles...</p>
+    <div class="modal-actions" id="stuck-actions" hidden>
+      <button type="button" class="btn btn-accent" id="btn-stuck-newgame">New Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- 승리 모달 -->
+<div class="modal-overlay" id="modal-win" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="win-title">
+    <h2 id="win-title">Well played!</h2>
+    <p>You cleared the board in <strong id="win-time">00:00</strong>.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="btn-win-newgame">New Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- 이어하기 모달 -->
+<div class="modal-overlay" id="modal-resume" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="resume-title">
+    <h2 id="resume-title">Welcome back</h2>
+    <p>You have a game in progress. Continue where you left off, or start a new game?</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="btn-resume-continue">Continue</button>
+      <button type="button" class="btn btn-ghost" id="btn-resume-newgame">New Game</button>
+    </div>
+  </div>
+</div>
+
+<script src="tiles.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
