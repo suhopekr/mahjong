@@ -217,6 +217,10 @@ a:visited { color: #5c3d99; }
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: background-color 0.15s ease, color 0.15s ease, transform 0.05s ease;
+  /* .btn is also used on <a> (Daily Challenge entry points, win-screen CTA) —
+   * without this they'd keep the browser's default link underline and look
+   * out of place next to the real <button> ones beside them. */
+  text-decoration: none;
 }
 .btn:hover { background: var(--btn-bg-hover); }
 .btn:active {
@@ -635,6 +639,149 @@ body.ads-off .sidebar {
 .settings-stats dt { font-weight: 600; }
 .settings-stats dd { margin: 0 0 8px; }
 
+/* ---- 업적(배지) 그리드 — 설정 패널 안 -------------------------------------
+ * 획득 전엔 회색 실루엣(빈 별 아이콘 + 조건 문구), 획득하면 카드룸 톤으로
+ * 채워진다(별 아이콘 + "Unlocked"). 색상은 기존 버튼 팔레트를 그대로 써서
+ * 새 색을 늘리지 않는다. */
+.achievements-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+.achievement-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 4px;
+  padding: 12px 10px;
+  border: 1.5px solid #cfc6ab;
+  border-radius: var(--radius-md);
+  background: var(--paper-dim);
+  color: #6b6558;
+}
+.achievement-badge-icon { font-size: 22px; line-height: 1; }
+.achievement-badge-label { font-size: 14px; font-weight: 700; }
+.achievement-badge-desc { font-size: 12px; }
+.achievement-badge.is-unlocked {
+  border-color: var(--btn-border);
+  background: var(--btn-bg);
+  color: var(--btn-text);
+}
+.achievement-badge.is-unlocked .achievement-badge-desc { color: var(--felt); font-weight: 600; }
+
+/* ---- 업적 획득 토스트 — 화면 상단, 소리/이펙트 없이 짧게 --------------------- */
+.achievement-toast {
+  position: fixed;
+  top: max(14px, env(safe-area-inset-top));
+  left: 50%;
+  transform: translate(-50%, -140%);
+  z-index: 300; /* 모달(200)보다도 위 — 진행 중인 무엇이든 가리지 않고 보임 */
+  background: var(--felt-dark);
+  color: #fdfbf4;
+  padding: 12px 20px;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 600;
+  box-shadow: var(--shadow-md);
+  max-width: calc(100vw - 32px);
+  text-align: center;
+  opacity: 0;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none;
+}
+.achievement-toast.is-visible {
+  opacity: 1;
+  transform: translate(-50%, 0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .achievement-toast { transition: none; }
+}
+
+/* ---- 백업/복원 코드 입력창 -------------------------------------------------- */
+.backup-code-area {
+  display: block;
+  width: 100%;
+  margin: 8px 0;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--ink);
+  background: var(--paper-dim);
+  border: 1.5px solid #cfc6ab;
+  border-radius: var(--radius-md);
+  resize: vertical;
+}
+.backup-restore-label {
+  display: block;
+  margin-top: 14px;
+}
+#btn-backup-export, #btn-backup-copy, #btn-backup-import {
+  width: 100%;
+  justify-content: center;
+  margin: 2px 0;
+}
+#backup-status:empty { display: none; }
+
+/* ---- 홈 화면 추가 안내 카드 안의 단계 설명 --------------------------------- */
+.install-hint-steps {
+  font-size: 15px;
+  text-align: left;
+}
+
+/* ---- 데일리 챌린지 달력(daily.html) ---------------------------------------
+ * 완료한 날짜에만 체크 표시. 스트릭 숫자·"놓쳤다" 같은 압박 문구는 의도적
+ * 으로 없다. */
+.daily-calendar-section {
+  max-width: 420px;
+  margin: 0 auto 8px;
+  padding: 8px clamp(12px, 3vw, 28px) 0;
+}
+.daily-calendar-title {
+  text-align: center;
+  font-size: 18px;
+  margin: 0 0 10px;
+}
+.daily-calendar-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+.daily-calendar-weekday {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #6b6558;
+  padding-bottom: 2px;
+}
+.daily-calendar-day {
+  position: relative;
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--paper-dim);
+  font-size: 13px;
+  color: var(--ink);
+}
+.daily-calendar-day.is-blank { background: transparent; }
+.daily-calendar-day.is-today { box-shadow: inset 0 0 0 2px var(--felt); font-weight: 700; }
+.daily-calendar-day.is-completed {
+  background: var(--btn-bg);
+  border: 1.5px solid var(--btn-border);
+  color: var(--btn-text);
+  font-weight: 700;
+}
+.daily-calendar-day-check {
+  position: absolute;
+  bottom: 1px;
+  right: 3px;
+  font-size: 10px;
+  color: var(--felt);
+}
+
 .settings-close {
   margin-top: 8px;
   width: 100%;
@@ -761,7 +908,7 @@ body.ads-off .sidebar {
   font-size: 19px;
   margin-top: 28px;
 }
-.content .meta-note {
+.meta-note {
   color: #5c665e;
   font-size: 15px;
 }

@@ -320,6 +320,43 @@
     return Math.random();
   }
 
+  /* ---- Daily Challenge 시드 -------------------------------------------------
+   * "오늘 날짜 → 결정적 정수 시드"만 담당하는 순수 함수들. DOM에 전혀
+   * 의존하지 않아 Node에서 바로 단위 테스트할 수 있다(같은 날짜 문자열은
+   * 항상 같은 시드를, 다른 날짜는 사실상 다른 시드를 낸다는 게 이
+   * 기능 전체의 전제).
+   * ------------------------------------------------------------------------- */
+
+  // FNV-1a 32비트 해시 — 문자열을 결정적 32비트 정수로 축약한다. 암호학적
+  // 강도는 필요 없고(공격 대상이 아님), 짧은 날짜 문자열들이 서로 다른
+  // makeRng 시드로 잘 퍼지기만 하면 충분하다.
+  function hashStringToSeed(str) {
+    var h = 0x811c9dc5; // FNV offset basis
+    for (var i = 0; i < str.length; i++) {
+      h ^= str.charCodeAt(i);
+      h = Math.imul(h, 0x01000193);
+    }
+    return h >>> 0;
+  }
+
+  // Date 객체 → "YYYY-MM-DD" (로컬 타임존 기준, UTC 아님) — 자정을 넘기면
+  // 이 문자열이 바뀌므로 그 시점에 자연스럽게 다음 날 챌린지로 넘어간다.
+  // 같은 달력 날짜를 보내는 두 사용자는(시간대가 달라 그 순간의 실제
+  // UTC 시각은 서로 달라도) 항상 같은 문자열 → 같은 시드 → 같은 판을 받는다.
+  function dateStringFor(d) {
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  // 버전 접두사(mahjong-daily-v1-)를 넣어, 나중에 챌린지 생성 방식이 바뀌면
+  // (레이아웃 추가 등) 접두사만 올려서 과거 날짜와 겹치지 않는 새 시드
+  // 공간으로 옮겨갈 수 있게 해뒀다.
+  function dailySeedForDateString(dateStr) {
+    return hashStringToSeed('mahjong-daily-v1-' + dateStr);
+  }
+
   function shuffleArray(arr, rng) {
     rng = rng || defaultRng;
     for (var i = arr.length - 1; i > 0; i--) {
@@ -749,6 +786,9 @@
     countAvailablePairs: countAvailablePairs,
     makeRng: makeRng,
     shuffleArray: shuffleArray,
+    hashStringToSeed: hashStringToSeed,
+    dateStringFor: dateStringFor,
+    dailySeedForDateString: dailySeedForDateString,
     buildPairPool: buildPairPool,
     generateSolvableBoard: generateSolvableBoard,
     verifySolvableByReplay: verifySolvableByReplay,
@@ -785,10 +825,22 @@
    * 메모리상에서만 동작(저장/이어하기만 비활성화)한다.
    * ======================================================================= */
 
+  // 저장 데이터 스키마 버전. 각 JSON 덩어리에 v를 함께 저장해두면, 나중에
+  // 구조가 바뀌었을 때 "이 버전은 우리가 아는 모양이 아니다"를 안전하게
+  // 구분할 수 있다(요구사항 12) — 지금(v1)은 마이그레이션할 과거 버전이
+  // 없으니 버전이 안 맞으면 그냥 기본값으로 시작하는 것으로 충분하지만,
+  // 다음에 스키마가 바뀔 때는 여기서 v1→v2 변환을 끼워 넣을 자리가 된다.
+  var SCHEMA_VERSION = 1;
+
   var STORAGE_KEYS = {
     save: 'mahjongSolitaire.v1.save',
+    dailySave: 'mahjongSolitaire.v1.dailySave',
     settings: 'mahjongSolitaire.v1.settings',
     stats: 'mahjongSolitaire.v1.stats',
+    achievements: 'mahjongSolitaire.v1.achievements',
+    daily: 'mahjongSolitaire.v1.dailyCompletions',
+    orientationHint: 'mahjongSolitaire.v1.orientationHintShown',
+    installHint: 'mahjongSolitaire.v1.installHintShown',
   };
 
   var storageAvailable = (function () {
@@ -826,27 +878,325 @@
     try { window.localStorage.removeItem(key); } catch (e) { /* ignore */ }
   }
 
+  // 버전 필드가 있는 JSON을 읽는다 — 없거나(예전 데이터) 버전이 다르면
+  // (미래의 스키마 변경) 기본값으로 조용히 되돌아간다. 손상된/낯선 데이터로
+  // 게임이 깨지는 대신 "처음부터"로 안전하게 저하되는 쪽을 택한다.
+  function loadVersioned(key, defaults) {
+    var raw = loadJSON(key, null);
+    if (!raw || typeof raw !== 'object' || raw.v !== SCHEMA_VERSION) {
+      return Object.assign({}, defaults);
+    }
+    return Object.assign({}, defaults, raw);
+  }
+  function saveVersioned(key, data) {
+    saveJSON(key, Object.assign({ v: SCHEMA_VERSION }, data));
+  }
+
   var DEFAULT_SETTINGS = { tileSize: 'large', tileset: 'big', showFree: true, showTimer: true, sound: false };
   var settings = Object.assign({}, DEFAULT_SETTINGS, loadJSON(STORAGE_KEYS.settings, {}));
 
   var DEFAULT_STATS = { gamesPlayed: 0, gamesWon: 0, bestTimeMs: null };
-  var stats = Object.assign({}, DEFAULT_STATS, loadJSON(STORAGE_KEYS.stats, {}));
+  var stats = Object.assign({}, DEFAULT_STATS, loadVersioned(STORAGE_KEYS.stats, DEFAULT_STATS));
+
+  // achievements.unlocked: { [배지 id]: 처음 잠금 해제된 시각(ms) }
+  var DEFAULT_ACHIEVEMENTS = { unlocked: {} };
+  var achievements = Object.assign({}, DEFAULT_ACHIEVEMENTS, loadVersioned(STORAGE_KEYS.achievements, DEFAULT_ACHIEVEMENTS));
+
+  // daily.completions: { "YYYY-MM-DD": { elapsedMs, completedAt } } — 압박 요소
+  // (연속 기록·"놓쳤다" 문구) 없이 그냥 "완료한 날짜 집합"으로만 쓴다.
+  var DEFAULT_DAILY = { completions: {} };
+  var dailyCompletions = Object.assign({}, DEFAULT_DAILY, loadVersioned(STORAGE_KEYS.daily, DEFAULT_DAILY));
 
   function saveSettings() { saveJSON(STORAGE_KEYS.settings, settings); }
-  function saveStats() { saveJSON(STORAGE_KEYS.stats, stats); }
+  function saveStats() { saveVersioned(STORAGE_KEYS.stats, stats); }
+  function saveAchievements() { saveVersioned(STORAGE_KEYS.achievements, achievements); }
+  function saveDailyCompletions() { saveVersioned(STORAGE_KEYS.daily, dailyCompletions); }
+
+  // 오늘 날짜(daily.html 등 데일리 모드에서 쓰는 로컬 기준 문자열)
+  function todayDateString() { return dateStringFor(new Date()); }
 
   function saveGameProgress() {
     if (!state) return;
-    saveJSON(STORAGE_KEYS.save, {
+    // 데일리 모드에서는 일반 이어하기 저장과 완전히 분리된 슬롯을 쓴다 —
+    // 일반 판을 하다가 데일리를 열어도 서로 덮어쓰지 않게 하기 위함.
+    // dateStr을 같이 저장해서, 다음에 열었을 때 "그 판이 오늘 것인지"
+    // 판정할 수 있게 한다(자정이 지났으면 오늘 것이 아니므로 버림).
+    var key = dailyMode ? STORAGE_KEYS.dailySave : STORAGE_KEYS.save;
+    var payload = {
       layoutId: state.layoutId,
       tiles: state.tiles,
       history: state.history,
       elapsedMsBase: currentElapsedMs(),
       savedAt: Date.now(),
-    });
+      hintUsed: hintUsedThisGame,
+    };
+    if (dailyMode) payload.dateStr = state.dailyDateStr;
+    saveJSON(key, payload);
   }
   function clearSavedGame() { removeKey(STORAGE_KEYS.save); }
   function loadSavedGame() { return loadJSON(STORAGE_KEYS.save, null); }
+  function clearDailySavedGame() { removeKey(STORAGE_KEYS.dailySave); }
+  function loadDailySavedGame() { return loadJSON(STORAGE_KEYS.dailySave, null); }
+
+  /* =======================================================================
+   * [PROGRESS] 데일리 챌린지 완료 기록 · 업적(배지) · 백업/복원 · 영구 저장
+   *
+   * 전부 로컬(브라우저) 전용, 서버 없음. 배지/데일리 완료는 압박 요소
+   * (스트릭 숫자, "놓쳤다" 같은 문구, 소리·이펙트) 없이 조용한 확인용으로만
+   * 쓴다 — 요구사항 취지("조용한 성취")를 지키는 게 목적이라 UI도 그렇게
+   * 절제해서 만든다.
+   * ======================================================================= */
+
+  var ACHIEVEMENT_DEFS = [
+    { id: 'first-win', label: 'First Win', desc: 'Clear your first board.' },
+    { id: 'wins-10', label: '10 Wins', desc: 'Clear 10 boards in total.' },
+    { id: 'wins-50', label: '50 Wins', desc: 'Clear 50 boards in total.' },
+    { id: 'no-hint-win', label: 'No-Hint Win', desc: 'Clear a board without using Hint.' },
+    { id: 'under-5-min', label: 'Under 5 Minutes', desc: 'Clear a board in under 5 minutes.' },
+    { id: 'daily-7', label: '7 Daily Challenges', desc: 'Complete 7 Daily Challenges.' },
+  ];
+
+  function isAchievementUnlocked(id) { return !!achievements.unlocked[id]; }
+
+  function unlockAchievement(id) {
+    if (isAchievementUnlocked(id)) return false; // 이미 있음 — 조용히 무시(멱등)
+    achievements.unlocked[id] = Date.now();
+    saveAchievements();
+    return true;
+  }
+
+  function dailyCompletionCount() {
+    return Object.keys(dailyCompletions.completions).length;
+  }
+
+  function recordDailyCompletion(dateStr, elapsedMs) {
+    if (dailyCompletions.completions[dateStr]) return false; // 하루 1회만 집계(중복 완료 방지)
+    dailyCompletions.completions[dateStr] = { elapsedMs: elapsedMs, completedAt: Date.now() };
+    saveDailyCompletions();
+    return true;
+  }
+  function isDailyCompletedOn(dateStr) { return !!dailyCompletions.completions[dateStr]; }
+
+  // 승리 직후(onWin)에만 호출한다 — 그 시점엔 stats.gamesWon과(데일리라면)
+  // dailyCompletions 기록이 이미 반영돼 있어야 조건들이 정확히 맞는다.
+  function checkAchievementsOnWin(elapsedMs) {
+    var newly = [];
+    function tryUnlock(id) { if (unlockAchievement(id)) newly.push(id); }
+
+    tryUnlock('first-win');
+    if (stats.gamesWon >= 10) tryUnlock('wins-10');
+    if (stats.gamesWon >= 50) tryUnlock('wins-50');
+    if (!hintUsedThisGame) tryUnlock('no-hint-win');
+    if (elapsedMs < 5 * 60 * 1000) tryUnlock('under-5-min');
+    if (dailyMode && dailyCompletionCount() >= 7) tryUnlock('daily-7');
+
+    if (newly.length) {
+      renderAchievements();
+      queueAchievementToasts(newly);
+      maybeShowInstallHint();
+    }
+  }
+
+  // ---- 획득 토스트: 화면 상단에 짧게 하나씩만(요구사항 — 소리/이펙트 없음) ----
+  var toastQueue = [];
+  var toastShowing = false;
+  function queueAchievementToasts(ids) {
+    ids.forEach(function (id) {
+      var def = null;
+      for (var i = 0; i < ACHIEVEMENT_DEFS.length; i++) {
+        if (ACHIEVEMENT_DEFS[i].id === id) { def = ACHIEVEMENT_DEFS[i]; break; }
+      }
+      if (def) toastQueue.push(def);
+    });
+    showNextToast();
+  }
+  function showNextToast() {
+    if (toastShowing || !toastQueue.length) return;
+    var el = document.getElementById('achievement-toast');
+    if (!el) { toastQueue = []; return; }
+    var def = toastQueue.shift();
+    toastShowing = true;
+    el.textContent = 'Achievement unlocked: ' + def.label;
+    el.classList.add('is-visible');
+    announce('Achievement unlocked: ' + def.label);
+    setTimeout(function () {
+      el.classList.remove('is-visible');
+      setTimeout(function () {
+        toastShowing = false;
+        showNextToast();
+      }, 300);
+    }, 2600);
+  }
+
+  // ---- 배지 그리드(설정 패널 안) ----
+  function renderAchievements() {
+    var grid = document.getElementById('achievements-grid');
+    if (!grid) return;
+    grid.innerHTML = '';
+    ACHIEVEMENT_DEFS.forEach(function (def) {
+      var unlocked = isAchievementUnlocked(def.id);
+      var cell = document.createElement('div');
+      cell.className = 'achievement-badge' + (unlocked ? ' is-unlocked' : '');
+      var icon = document.createElement('span');
+      icon.className = 'achievement-badge-icon';
+      icon.setAttribute('aria-hidden', 'true');
+      icon.textContent = unlocked ? '★' : '☆';
+      var label = document.createElement('span');
+      label.className = 'achievement-badge-label';
+      label.textContent = def.label;
+      var desc = document.createElement('span');
+      desc.className = 'achievement-badge-desc';
+      desc.textContent = unlocked ? 'Unlocked' : def.desc;
+      cell.appendChild(icon);
+      cell.appendChild(label);
+      cell.appendChild(desc);
+      grid.appendChild(cell);
+    });
+  }
+
+  // ---- 데일리 챌린지 달력(daily.html 전용) — 완료한 날짜에 체크 표시만
+  // 한다. 스트릭 숫자나 "놓쳤다" 같은 문구는 의도적으로 넣지 않는다
+  // (요구사항: 압박 금지). #daily-calendar-grid가 없는 페이지(index.html)
+  // 에서는 조용히 아무 일도 하지 않는다.
+  var CALENDAR_WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  var CALENDAR_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'];
+
+  function renderDailyCalendar() {
+    var gridEl = document.getElementById('daily-calendar-grid');
+    if (!gridEl) return;
+    var titleEl = document.getElementById('daily-calendar-title');
+
+    var now = new Date();
+    var year = now.getFullYear();
+    var month = now.getMonth();
+    if (titleEl) titleEl.textContent = CALENDAR_MONTH_NAMES[month] + ' ' + year;
+
+    gridEl.innerHTML = '';
+    CALENDAR_WEEKDAY_LABELS.forEach(function (label) {
+      var head = document.createElement('div');
+      head.className = 'daily-calendar-weekday';
+      head.textContent = label;
+      head.setAttribute('aria-hidden', 'true');
+      gridEl.appendChild(head);
+    });
+
+    var startWeekday = new Date(year, month, 1).getDay();
+    var daysInMonth = new Date(year, month + 1, 0).getDate();
+    var todayStr = todayDateString();
+
+    for (var i = 0; i < startWeekday; i++) {
+      var blank = document.createElement('div');
+      blank.className = 'daily-calendar-day is-blank';
+      blank.setAttribute('aria-hidden', 'true');
+      gridEl.appendChild(blank);
+    }
+    for (var d = 1; d <= daysInMonth; d++) {
+      var dateStr = dateStringFor(new Date(year, month, d));
+      var completed = isDailyCompletedOn(dateStr);
+      var isToday = dateStr === todayStr;
+      var cell = document.createElement('div');
+      cell.className = 'daily-calendar-day'
+        + (completed ? ' is-completed' : '')
+        + (isToday ? ' is-today' : '');
+      var num = document.createElement('span');
+      num.className = 'daily-calendar-day-num';
+      num.textContent = String(d);
+      cell.appendChild(num);
+      if (completed) {
+        var check = document.createElement('span');
+        check.className = 'daily-calendar-day-check';
+        check.setAttribute('aria-hidden', 'true');
+        check.textContent = '✓';
+        cell.appendChild(check);
+        cell.setAttribute('aria-label', CALENDAR_MONTH_NAMES[month] + ' ' + d + ', completed');
+      } else {
+        cell.setAttribute('aria-label', CALENDAR_MONTH_NAMES[month] + ' ' + d);
+      }
+      gridEl.appendChild(cell);
+    }
+  }
+
+  /* ---- 진행 데이터 보호(요구사항 D) ----------------------------------------
+   * 9) 첫 승리 시점에 한 번만 지속 저장(navigator.storage.persist) 요청.
+   * 10) 배지 3개 이상 모으면(=충분히 애착이 생겼을 시점) 홈 화면 추가 안내를
+   *     딱 한 번 보여준다. 지원 여부·허용 여부와 무관하게 게임 진행에는
+   *     전혀 영향이 없다 — 실패해도 조용히 무시.
+   * ------------------------------------------------------------------------- */
+  function requestPersistentStorageOnce() {
+    if (!(navigator.storage && navigator.storage.persist)) return;
+    navigator.storage.persist().then(function (granted) {
+      console.log('[storage] persist() granted=' + granted);
+      if (navigator.storage.persisted) {
+        navigator.storage.persisted().then(function (persisted) {
+          console.log('[storage] persisted()=' + persisted);
+        });
+      }
+    }).catch(function () { /* 미지원/거부 — 조용히 무시 */ });
+  }
+
+  function hasSeenInstallHint() {
+    try { return !!window.localStorage.getItem(STORAGE_KEYS.installHint); } catch (e) { return false; }
+  }
+  function markInstallHintSeen() {
+    try { window.localStorage.setItem(STORAGE_KEYS.installHint, '1'); } catch (e) { /* ignore */ }
+  }
+  // 다른 안내(모달)들과 같은 modal-overlay/openModal·closeModal 틀을 그대로
+  // 쓴다 — 보드 영역을 영구히 차지하는 배너 대신, 한 번 뜨고 닫으면 끝나는
+  // 대화상자라 모바일의 "보드가 화면 대부분을 차지" 원칙을 해치지 않는다.
+  function maybeShowInstallHint() {
+    var el = document.getElementById('modal-install-hint');
+    if (!el || hasSeenInstallHint()) return;
+    if (Object.keys(achievements.unlocked).length < 3) return;
+    openModal(el);
+  }
+  function dismissInstallHint() {
+    var el = document.getElementById('modal-install-hint');
+    if (el) closeModal(el);
+    markInstallHintSeen();
+  }
+
+  /* ---- 백업/복원(요구사항 11) ------------------------------------------------
+   * 서버 없이, 통계+배지+데일리 완료 기록을 base64 문자열 하나로 내보내고
+   * 그대로 붙여넣어 복원할 수 있게 한다. 체크섬(해시)을 같이 실어서, 오타나
+   * 손상된 코드를 조용히 잘못 적용하는 대신 "코드가 올바르지 않다"고
+   * 알 수 있게 한다.
+   * ------------------------------------------------------------------------- */
+  function buildBackupPayload() {
+    return { v: SCHEMA_VERSION, stats: stats, achievements: achievements, daily: dailyCompletions };
+  }
+  function exportBackupCode() {
+    try {
+      var payload = buildBackupPayload();
+      var json = JSON.stringify(payload);
+      var checksum = hashStringToSeed(json).toString(36);
+      var wrapped = { c: checksum, d: payload };
+      return btoa(unescape(encodeURIComponent(JSON.stringify(wrapped))));
+    } catch (e) {
+      return '';
+    }
+  }
+  function importBackupCode(code) {
+    try {
+      var wrapped = JSON.parse(decodeURIComponent(escape(atob(String(code || '').trim()))));
+      var json = JSON.stringify(wrapped.d);
+      var checksum = hashStringToSeed(json).toString(36);
+      if (checksum !== wrapped.c) return { ok: false, reason: 'checksum' };
+      var payload = wrapped.d;
+      if (!payload || payload.v !== SCHEMA_VERSION) return { ok: false, reason: 'version' };
+      stats = Object.assign({}, DEFAULT_STATS, payload.stats || {});
+      achievements = Object.assign({}, DEFAULT_ACHIEVEMENTS, payload.achievements || {});
+      dailyCompletions = Object.assign({}, DEFAULT_DAILY, payload.daily || {});
+      saveStats();
+      saveAchievements();
+      saveDailyCompletions();
+      renderStats();
+      renderAchievements();
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, reason: 'parse' };
+    }
+  }
 
   /* =======================================================================
    * [RENDER] DOM/SVG 렌더링
@@ -1186,6 +1536,17 @@
   var audioCtx = null;
   var pendingResume = null;
 
+  // 이 페이지가 daily.html(데일리 챌린지)로 열렸는지 — initApp에서
+  // document.body.dataset.daily를 읽어 딱 한 번 정해진다. 이 값에 따라
+  // startNewGame이 매번 다른 무작위 판 대신 "오늘의 시드"로 같은 판을
+  // 만들고, 저장 슬롯도 일반 게임과 분리되고, 승리 화면 문구와 완료
+  // 기록(달력) 처리가 달라진다 — 그 외 매칭/되돌리기/힌트/셔플 로직은
+  // 완전히 동일한 코드를 그대로 공유한다.
+  var dailyMode = false;
+  // 이번 판에서 힌트를 한 번이라도 썼는지 — "힌트 없이 클리어" 배지 판정에
+  // 쓴다. 새 판을 시작할 때마다 리셋.
+  var hintUsedThisGame = false;
+
   function rng() { return Math.random(); }
 
   function formatTime(ms) {
@@ -1383,11 +1744,38 @@
     stats.gamesWon++;
     if (stats.bestTimeMs == null || elapsed < stats.bestTimeMs) stats.bestTimeMs = elapsed;
     saveStats();
-    clearSavedGame();
+    if (stats.gamesWon === 1) requestPersistentStorageOnce(); // 요구사항 D-9: 딱 첫 승리 시점에만
+
+    if (dailyMode && state.dailyDateStr) {
+      recordDailyCompletion(state.dailyDateStr, elapsed);
+      clearDailySavedGame();
+      renderDailyCalendar();
+    } else {
+      clearSavedGame();
+    }
+
     renderStats();
+    checkAchievementsOnWin(elapsed);
+
+    var titleEl = document.getElementById('win-title');
+    var newGameBtn = document.getElementById('btn-win-newgame');
+    if (dailyMode) {
+      if (titleEl) titleEl.textContent = "Today's Challenge complete!";
+      if (newGameBtn) newGameBtn.textContent = 'Replay Today';
+    } else {
+      if (titleEl) titleEl.textContent = 'Well played!';
+      if (newGameBtn) newGameBtn.textContent = 'New Game';
+      // 요구사항 8: 메인 게임 승리 화면에서, 오늘 데일리를 아직 안 끝냈으면
+      // 가벼운 버튼 하나만 노출(daily.html에는 이 엘리먼트 자체가 없음).
+      var ctaEl = document.getElementById('win-daily-cta');
+      if (ctaEl) ctaEl.hidden = isDailyCompletedOn(todayDateString());
+    }
     document.getElementById('win-time').textContent = formatTime(elapsed);
+
     openModal(modalWin);
-    announce('Congratulations! You cleared the board in ' + formatTime(elapsed) + '.');
+    announce(dailyMode
+      ? ("Today's challenge complete! Cleared in " + formatTime(elapsed) + '.')
+      : ('Congratulations! You cleared the board in ' + formatTime(elapsed) + '.'));
   }
 
   // ---- 게임 동작 ------------------------------------------------------------
@@ -1412,16 +1800,24 @@
     clearPendingStuckTimeout();
     modalStuckMode = null;
     consecutiveAutoShuffles = 0;
+    hintUsedThisGame = false;
     closeModal(modalWin);
     closeModal(modalStuck);
     closeModal(modalResume);
     closeModal(modalNewGameConfirm);
-    var gen = createGameState(pickLayoutForNewGame(), rng);
+    // 데일리 모드에서는 매번 다른 무작위 판 대신, "오늘 날짜"에서 뽑은
+    // 결정적 시드로 판을 만든다 — 같은 날짜를 보내는 사람은 모두 같은
+    // 시드를 받으므로(레이아웃이 같다면) 같은 판이 나온다. 레이아웃
+    // 선택 자체(세로/가로)는 기존 pickLayoutForNewGame을 그대로 쓴다.
+    var layoutId = pickLayoutForNewGame();
+    var genRng = dailyMode ? makeRng(dailySeedForDateString(todayDateString())) : rng;
+    var gen = createGameState(layoutId, genRng);
     if (!gen) {
       announce('Could not generate a board. Please try again.');
       return;
     }
     state = gen;
+    if (dailyMode) state.dailyDateStr = todayDateString();
     graph = getSlotGraph(state.layoutId);
     hintSlots.clear();
     fullRender();
@@ -1431,7 +1827,9 @@
     }
     afterStateChange();
     startTimerLoop();
-    if (!isSilent) announce('New game started. 144 tiles on the board.');
+    if (!isSilent) {
+      announce(dailyMode ? "Today's challenge started. 144 tiles on the board." : 'New game started. 144 tiles on the board.');
+    }
   }
 
   // 새 게임 버튼/N 단축키의 실제 진입점. 이동을 1회 이상 한, 아직 안 끝난
@@ -1450,6 +1848,7 @@
     clearPendingStuckTimeout();
     modalStuckMode = null;
     consecutiveAutoShuffles = 0;
+    hintUsedThisGame = !!saved.hintUsed;
     closeModal(modalStuck);
     state = {
       layoutId: saved.layoutId || 'turtle',
@@ -1466,6 +1865,45 @@
     updateStatusStrip();
     startTimerLoop();
     announce('Game resumed.');
+  }
+
+  // daily.html 전용 부트스트랩 — 일반 게임의 "이어하기?" 확인 모달과 달리,
+  // 데일리는 고를 수 있는 다른 판이 없으므로(오늘 판 하나뿐) 물어보지 않고
+  // 조용히 이어간다: 저장된 판이 있고 그 날짜가 오늘이면 그대로 이어서
+  // 보여주고, 없거나 어제 이전 날짜 것(자정을 넘겨 무효가 된 판)이면
+  // 조용히 버리고 오늘 시드로 새로 시작한다.
+  function bootstrapDailyMode() {
+    var saved = loadDailySavedGame();
+    var today = todayDateString();
+    if (saved && saved.dateStr === today && Array.isArray(saved.tiles)) {
+      var g = getSlotGraph(saved.layoutId && LAYOUTS[saved.layoutId] ? saved.layoutId : 'turtle');
+      var looksValid = saved.tiles.length === g.n && !saved.tiles.every(function (t) { return t == null; });
+      if (looksValid) {
+        clearPendingStuckTimeout();
+        modalStuckMode = null;
+        consecutiveAutoShuffles = 0;
+        hintUsedThisGame = !!saved.hintUsed;
+        state = {
+          layoutId: saved.layoutId || 'turtle',
+          tiles: saved.tiles.slice(),
+          history: saved.history || [],
+          selected: -1,
+          startedAt: Date.now(),
+          elapsedMsBase: saved.elapsedMsBase || 0,
+          timerPaused: false,
+          dailyDateStr: today,
+        };
+        graph = getSlotGraph(state.layoutId);
+        hintSlots.clear();
+        fullRender();
+        updateStatusStrip();
+        startTimerLoop();
+        announce("Today's challenge resumed.");
+        return;
+      }
+    }
+    clearDailySavedGame();
+    startNewGame();
   }
 
   function doUndo() {
@@ -1503,6 +1941,7 @@
   function doHint() {
     var pair = findHintPair(graph, state.tiles, rng);
     if (!pair) { announce('No hints available right now.'); return; }
+    hintUsedThisGame = true; // "힌트 없이 클리어" 배지 판정용
     if (pendingHintTimeoutId) { clearTimeout(pendingHintTimeoutId); pendingHintTimeoutId = null; }
     hintSlots = new Set(pair);
     syncBoard(false);
@@ -1674,6 +2113,7 @@
    * Bootstrap
    * ======================================================================= */
   function initApp() {
+    dailyMode = document.body.dataset.daily === 'true';
     boardEl = document.getElementById('board');
     viewportEl = document.getElementById('board-viewport');
     boardScaleWrapEl = document.querySelector('.board-scale-wrap');
@@ -1833,6 +2273,68 @@
       else { return; }
       e.preventDefault();
     });
+
+    // ---- 업적(배지) 그리드 — index.html/daily.html 둘 다 설정 패널 안에
+    // 그리드 컨테이너가 있으면 채운다(없는 페이지에서는 아무 일도 안 함). --
+    renderAchievements();
+
+    // ---- 홈 화면 추가 안내 카드(요구사항 D-10) --------------------------------
+    var installHintCloseBtn = document.getElementById('install-hint-close');
+    if (installHintCloseBtn) installHintCloseBtn.addEventListener('click', dismissInstallHint);
+    maybeShowInstallHint(); // 이전 세션에서 이미 배지 3개 이상이었다면 이번에 처음 보여줌
+
+    // ---- 백업/복원(요구사항 D-11) — 있는 페이지에서만 동작 -------------------
+    var backupExportBtn = document.getElementById('btn-backup-export');
+    var backupCodeEl = document.getElementById('backup-export-code');
+    var backupCopyBtn = document.getElementById('btn-backup-copy');
+    var backupImportInput = document.getElementById('backup-import-input');
+    var backupImportBtn = document.getElementById('btn-backup-import');
+    var backupStatusEl = document.getElementById('backup-status');
+    if (backupExportBtn && backupCodeEl) {
+      backupExportBtn.addEventListener('click', function () {
+        backupCodeEl.value = exportBackupCode();
+        backupCodeEl.focus();
+        backupCodeEl.select();
+      });
+    }
+    if (backupCopyBtn && backupCodeEl) {
+      backupCopyBtn.addEventListener('click', function () {
+        if (!backupCodeEl.value) return;
+        var done = function () {
+          if (backupStatusEl) backupStatusEl.textContent = 'Copied.';
+        };
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(backupCodeEl.value).then(done).catch(function () {
+            backupCodeEl.select();
+            if (backupStatusEl) backupStatusEl.textContent = 'Could not copy automatically — code is selected, press Ctrl/Cmd+C.';
+          });
+        } else {
+          backupCodeEl.select();
+          if (backupStatusEl) backupStatusEl.textContent = 'Code is selected — press Ctrl/Cmd+C to copy.';
+        }
+      });
+    }
+    if (backupImportBtn && backupImportInput) {
+      backupImportBtn.addEventListener('click', function () {
+        var result = importBackupCode(backupImportInput.value);
+        if (!backupStatusEl) return;
+        if (result.ok) {
+          backupStatusEl.textContent = 'Restored — your stats, badges, and daily history are back.';
+          renderDailyCalendar();
+        } else {
+          backupStatusEl.textContent = "That code doesn't look right — please check it and try again.";
+        }
+      });
+    }
+
+    if (dailyMode) {
+      // 데일리는 "이어하기?"를 묻지 않는다 — 오늘 판은 하나뿐이라 다른
+      // 선택지가 없으므로, 저장돼 있으면 조용히 이어가고 없으면 오늘
+      // 시드로 조용히 새로 시작한다(bootstrapDailyMode 참고).
+      bootstrapDailyMode();
+      renderDailyCalendar();
+      return;
+    }
 
     // 이어하기 프롬프트: 저장된 게임이 있으면 먼저 물어보고, 없으면 바로 새 게임.
     // saved 데이터는 미리 변수에 담아둔다 — startNewGame()이 뒤에서 즉시

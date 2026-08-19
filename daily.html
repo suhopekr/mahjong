@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily Mahjong Challenge — New Puzzle Every Day</title>
+<meta name="description" content="A new Mahjong Solitaire board every day, the same puzzle for everyone playing today. Free, no download, no account — just today's challenge.">
+<link rel="canonical" href="https://easymahjongsolitaire.com/daily.html">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Daily Mahjong Challenge — New Puzzle Every Day">
+<meta property="og:description" content="A new Mahjong Solitaire board every day, the same puzzle for everyone playing today. Free, no download, no account required.">
+<meta property="og:image" content="https://easymahjongsolitaire.com/og-image.png">
+<meta property="og:url" content="https://easymahjongsolitaire.com/daily.html">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- 파비콘: 인라인 SVG data URI (이미지 파일 없음) -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23146b4c'/%3E%3Crect x='18' y='18' width='64' height='64' rx='10' fill='%23fbf7ec'/%3E%3Ctext x='50' y='66' font-size='46' text-anchor='middle' font-family='serif' fill='%23146b4c'%3E中%3C/text%3E%3C/svg%3E">
+
+<link rel="stylesheet" href="style.css">
+
+<script defer src="/_vercel/insights/script.js"></script>
+</head>
+<!-- data-daily="true" — game.js가 이 플래그로 "오늘의 시드로 보드 생성 +
+     별도 저장 슬롯 + 완료 시 달력 기록" 데일리 전용 동작을 켠다. 그 외
+     매칭/되돌리기/힌트/셔플/설정/전체화면 등은 index.html과 완전히 같은
+     코드를 그대로 공유한다. -->
+<body class="ads-off" data-daily="true" data-tile-size="large" data-tileset="big" data-show-free="true" data-show-timer="true">
+<a class="skip-link" href="#main">Skip to game</a>
+
+<div class="achievement-toast" id="achievement-toast" role="status" aria-live="polite"></div>
+
+<header class="site-header">
+  <h1>Daily Mahjong Challenge</h1>
+  <p class="tagline"><a class="back-link" href="/">← Play the full game</a></p>
+</header>
+
+<main id="main">
+  <div class="game-shell">
+    <div class="game-column">
+      <div class="toolbar" role="toolbar" aria-label="Game controls">
+        <div class="toolbar-buttons">
+          <button type="button" class="btn" id="btn-undo" title="Undo last move (U)">Undo</button>
+          <button type="button" class="btn" id="btn-hint" title="Show a hint (H)">Hint</button>
+          <button type="button" class="btn" id="btn-fullscreen" title="Toggle full screen"><span id="btn-fullscreen-label">Full Screen</span></button>
+          <button type="button" class="btn" id="btn-settings" title="Settings" aria-haspopup="dialog">Settings</button>
+          <button type="button" class="btn" id="btn-new-game" title="Restart today's puzzle (N)">New Game</button>
+        </div>
+        <div class="status-strip">
+          <span class="pairs-stat"><span class="visually-hidden">Possible matching pairs remaining: </span>Pairs: <span class="stat-value" id="pairs-count">0</span></span>
+          <span class="timer-stat">Time: <span class="stat-value timer-value" id="timer-display">00:00</span></span>
+        </div>
+      </div>
+
+      <div class="orientation-hint" id="orientation-hint" hidden>
+        <span class="orientation-hint-icon" aria-hidden="true">💡</span>
+        <span>Tip: turn your phone sideways for bigger tiles.</span>
+        <button type="button" class="orientation-hint-close" id="orientation-hint-close" aria-label="Dismiss tip">✕</button>
+      </div>
+
+      <div class="board-viewport" id="board-viewport">
+        <div class="board-scale-wrap">
+          <div class="board" id="board" role="group" aria-label="Mahjong board"></div>
+        </div>
+      </div>
+
+      <p id="live-region" class="visually-hidden" role="status" aria-live="polite"></p>
+    </div>
+
+    <aside class="sidebar" aria-label="Advertisement">
+      <!-- AD SLOT: adsense (desktop sidebar 300x250) -->
+      <div class="ad-slot ad-slot--300x250 ad-slot-desktop-only" aria-hidden="true">Advertisement</div>
+    </aside>
+  </div>
+
+  <!-- 이번 달 완료 현황 — 완료한 날짜에 체크 표시만, 연속 기록이나
+       "놓쳤다" 같은 문구는 쓰지 않는다(압박 금지). game.js의
+       renderDailyCalendar가 채운다. -->
+  <section class="daily-calendar-section" aria-label="This month's completed challenges">
+    <h2 class="daily-calendar-title" id="daily-calendar-title">This Month</h2>
+    <div class="daily-calendar-grid" id="daily-calendar-grid"></div>
+  </section>
+
+  <section class="content">
+    <h2>A New Mahjong Puzzle Every Day</h2>
+    <p>
+      Today's Challenge is one board, generated from today's date, the same puzzle for everyone
+      playing today. It's always fully solvable — just like every board in the main game — and it
+      resets at midnight in your own time zone. Come back tomorrow for a new one.
+    </p>
+    <p>
+      All the same tools are here: unlimited undo, a hint button, and full screen. Clearing the
+      board marks today complete on the calendar above — no streak counter, no pressure, just a
+      quiet checkmark.
+    </p>
+    <p>
+      <a href="/">← Prefer an unlimited, untimed board? Play the main game</a>
+    </p>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <p>Free Mahjong Solitaire — a lightweight, no-download tile matching game. No account needed.</p>
+  <nav class="footer-nav" aria-label="Site pages">
+    <a href="/">Main Game</a>
+    <a href="/about.html">About</a>
+    <a href="/privacy.html">Privacy Policy</a>
+    <a href="/contact.html">Contact</a>
+  </nav>
+</footer>
+
+<div class="mobile-actionbar" role="toolbar" aria-label="Game controls" id="mobile-actionbar">
+  <button type="button" class="mobile-actionbar-btn" id="btn-undo-mobile" title="Undo last move (U)">Undo</button>
+  <button type="button" class="mobile-actionbar-btn" id="btn-hint-mobile" title="Show a hint (H)">Hint</button>
+  <button type="button" class="mobile-actionbar-btn" id="btn-menu-mobile" title="Menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="mobile-menu-sheet">Menu</button>
+</div>
+
+<div class="mobile-menu-sheet" id="mobile-menu-sheet" data-open="false">
+  <div class="mobile-menu-backdrop" id="mobile-menu-backdrop"></div>
+  <div class="mobile-menu-panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <a class="btn mobile-menu-btn" href="/">Main Game</a>
+    <button type="button" class="btn mobile-menu-btn" id="btn-new-game-mobile" title="Restart today's puzzle (N)">New Game</button>
+    <button type="button" class="btn mobile-menu-btn" id="btn-fullscreen-mobile" title="Toggle full screen"><span id="btn-fullscreen-label-mobile">Full Screen</span></button>
+    <button type="button" class="btn mobile-menu-btn" id="btn-settings-mobile" title="Settings" aria-haspopup="dialog">Settings</button>
+    <button type="button" class="btn mobile-menu-btn mobile-menu-close" id="btn-menu-close">Close</button>
+  </div>
+</div>
+
+<!-- 설정 패널 -->
+<div class="settings-panel" id="settings-panel" data-open="false">
+  <div class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <h2 id="settings-title">Settings</h2>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label">Tile size</legend>
+      <div class="segmented" id="tile-size-group">
+        <label><input type="radio" name="tile-size" value="normal"><span>Normal</span></label>
+        <label><input type="radio" name="tile-size" value="large" checked><span>Large</span></label>
+        <label><input type="radio" name="tile-size" value="xlarge"><span>Extra Large</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label">Tile style</legend>
+      <div class="segmented" id="tileset-group">
+        <label><input type="radio" name="tileset" value="classic"><span>Classic</span></label>
+        <label><input type="radio" name="tileset" value="big" checked><span>Big &amp; Bold</span></label>
+      </div>
+    </fieldset>
+
+    <div class="settings-row toggle-row">
+      <label for="toggle-free">Highlight open tiles</label>
+      <input type="checkbox" id="toggle-free" checked>
+    </div>
+
+    <div class="settings-row toggle-row">
+      <label for="toggle-timer">Show timer</label>
+      <input type="checkbox" id="toggle-timer" checked>
+    </div>
+
+    <div class="settings-row toggle-row">
+      <label for="toggle-sound">Sound effects</label>
+      <input type="checkbox" id="toggle-sound">
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label">Statistics</span>
+      <dl class="settings-stats">
+        <dt>Games played</dt>
+        <dd id="stat-games">0</dd>
+        <dt>Games won</dt>
+        <dd id="stat-wins">0</dd>
+        <dt>Best time</dt>
+        <dd id="stat-best">—</dd>
+      </dl>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label">Achievements</span>
+      <div class="achievements-grid" id="achievements-grid"></div>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label">Backup &amp; Restore</span>
+      <p class="meta-note">Save your stats, badges, and daily history as a short code you can paste back in later, or on another device.</p>
+      <button type="button" class="btn" id="btn-backup-export">Create Backup Code</button>
+      <textarea id="backup-export-code" class="backup-code-area" readonly rows="3" aria-label="Your backup code"></textarea>
+      <button type="button" class="btn" id="btn-backup-copy">Copy Code</button>
+      <label for="backup-import-input" class="settings-label backup-restore-label">Restore from a code</label>
+      <textarea id="backup-import-input" class="backup-code-area" rows="3" aria-label="Paste a backup code here to restore"></textarea>
+      <button type="button" class="btn" id="btn-backup-import">Restore</button>
+      <p id="backup-status" class="meta-note" role="status" aria-live="polite"></p>
+    </div>
+
+    <button type="button" class="btn btn-accent settings-close" id="btn-settings-close">Close</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-install-hint" data-open="false">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="install-hint-title">
+    <h2 id="install-hint-title">Keep your progress safe</h2>
+    <p>Your stats, badges, and daily history live only in this browser. Adding this page to your
+      home screen makes it much less likely to be cleared by accident.</p>
+    <p class="install-hint-steps"><strong>iPhone/iPad (Safari):</strong> tap the Share icon, then
+      "Add to Home Screen".</p>
+    <p class="install-hint-steps"><strong>Android (Chrome):</strong> tap the ⋮ menu, then
+      "Add to Home screen" or "Install app".</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="install-hint-close">Got it</button>
+    </div>
+  </div>
+</div>
+
+<!-- 진행 중인 판을 New Game으로 덮어쓰기 전 확인(오늘 판을 처음부터 다시
+     시작하는 것이므로 문구는 공용, game.js가 재사용). -->
+<div class="modal-overlay" id="modal-newgame-confirm" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="newgame-confirm-title">
+    <h2 id="newgame-confirm-title">Start a new game?</h2>
+    <p>Your current game will be lost.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="btn-newgame-confirm-keep">Keep Playing</button>
+      <button type="button" class="btn" id="btn-newgame-confirm-start">New Game</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-stuck" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="stuck-title">
+    <h2 id="stuck-title">No more matches</h2>
+    <p id="stuck-message">No more matches — shuffling the tiles...</p>
+    <div class="modal-actions" id="stuck-actions" hidden>
+      <button type="button" class="btn btn-accent" id="btn-stuck-newgame">New Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- 승리 모달 — 문구는 game.js의 onWin이 데일리용으로 바꿔치기한다
+     ("Today's Challenge complete!" / "Replay Today"). -->
+<div class="modal-overlay" id="modal-win" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="win-title">
+    <h2 id="win-title">Today's Challenge complete!</h2>
+    <p>You cleared the board in <strong id="win-time">00:00</strong>.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="btn-win-newgame">Replay Today</button>
+    </div>
+  </div>
+</div>
+
+<!-- 데일리는 "이어하기?"를 묻지 않지만(bootstrapDailyMode가 조용히 처리),
+     game.js가 공통으로 이 엘리먼트들의 존재를 기대하므로 마크업은 유지한다
+     — dailyMode에서는 이 모달을 여는 코드 경로 자체를 타지 않는다. -->
+<div class="modal-overlay" id="modal-resume" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="resume-title">
+    <h2 id="resume-title">Welcome back</h2>
+    <p>You have a game in progress. Continue where you left off, or start a new game?</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="btn-resume-continue">Continue</button>
+      <button type="button" class="btn btn-ghost" id="btn-resume-newgame">New Game</button>
+    </div>
+  </div>
+</div>
+
+<script src="tiles.js"></script>
+<script src="game.js"></script>
+</body>
+</html>

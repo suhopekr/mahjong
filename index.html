@@ -96,9 +96,14 @@
 <body class="ads-off" data-tile-size="large" data-tileset="big" data-show-free="true" data-show-timer="true">
 <a class="skip-link" href="#main">Skip to game</a>
 
+<!-- 업적 획득 토스트 — 화면 상단에 잠깐 하나만(소리/이펙트 없음).
+     game.js의 queueAchievementToasts/showNextToast가 표시를 담당. -->
+<div class="achievement-toast" id="achievement-toast" role="status" aria-live="polite"></div>
+
 <header class="site-header">
   <h1>Free Mahjong Solitaire</h1>
-  <p class="tagline">Match tiles, clear the board — no download, no time limit.</p>
+  <p class="tagline">Match tiles, clear the board — no download, no time limit.
+    <a href="/daily.html">Try today's Daily Challenge →</a></p>
 </header>
 
 <main id="main">
@@ -233,6 +238,7 @@
 <footer class="site-footer">
   <p>Free Mahjong Solitaire — a lightweight, no-download tile matching game. No account needed.</p>
   <nav class="footer-nav" aria-label="Site pages">
+    <a href="/daily.html">Daily Challenge</a>
     <a href="/about.html">About</a>
     <a href="/privacy.html">Privacy Policy</a>
     <a href="/contact.html">Contact</a>
@@ -251,6 +257,7 @@
 <div class="mobile-menu-sheet" id="mobile-menu-sheet" data-open="false">
   <div class="mobile-menu-backdrop" id="mobile-menu-backdrop"></div>
   <div class="mobile-menu-panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <a class="btn mobile-menu-btn" href="/daily.html">Daily Challenge</a>
     <button type="button" class="btn mobile-menu-btn" id="btn-new-game-mobile" title="Start a new game (N)">New Game</button>
     <button type="button" class="btn mobile-menu-btn" id="btn-fullscreen-mobile" title="Toggle full screen"><span id="btn-fullscreen-label-mobile">Full Screen</span></button>
     <button type="button" class="btn mobile-menu-btn" id="btn-settings-mobile" title="Settings" aria-haspopup="dialog">Settings</button>
@@ -307,7 +314,45 @@
       </dl>
     </div>
 
+    <!-- 배지 6종. 획득 전엔 회색 실루엣+조건 텍스트, 획득하면 채워진 별+
+         "Unlocked" — game.js의 renderAchievements가 채운다. -->
+    <div class="settings-row">
+      <span class="settings-label">Achievements</span>
+      <div class="achievements-grid" id="achievements-grid"></div>
+    </div>
+
+    <!-- 서버 없이 통계+배지+데일리 기록을 코드 하나로 내보내고 복원한다. -->
+    <div class="settings-row">
+      <span class="settings-label">Backup &amp; Restore</span>
+      <p class="meta-note">Save your stats, badges, and daily history as a short code you can paste back in later, or on another device.</p>
+      <button type="button" class="btn" id="btn-backup-export">Create Backup Code</button>
+      <textarea id="backup-export-code" class="backup-code-area" readonly rows="3" aria-label="Your backup code"></textarea>
+      <button type="button" class="btn" id="btn-backup-copy">Copy Code</button>
+      <label for="backup-import-input" class="settings-label backup-restore-label">Restore from a code</label>
+      <textarea id="backup-import-input" class="backup-code-area" rows="3" aria-label="Paste a backup code here to restore"></textarea>
+      <button type="button" class="btn" id="btn-backup-import">Restore</button>
+      <p id="backup-status" class="meta-note" role="status" aria-live="polite"></p>
+    </div>
+
     <button type="button" class="btn btn-accent settings-close" id="btn-settings-close">Close</button>
+  </div>
+</div>
+
+<!-- 배지 3개 이상 모으면 딱 한 번만 뜨는 안내(요구사항 D-10). 서버 없이
+     로컬에만 저장되는 진행 상황(통계·배지·데일리 기록)이 브라우저 데이터
+     삭제로 날아가지 않도록 홈 화면 추가를 권한다. -->
+<div class="modal-overlay" id="modal-install-hint" data-open="false">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="install-hint-title">
+    <h2 id="install-hint-title">Keep your progress safe</h2>
+    <p>Your stats, badges, and daily history live only in this browser. Adding this page to your
+      home screen makes it much less likely to be cleared by accident.</p>
+    <p class="install-hint-steps"><strong>iPhone/iPad (Safari):</strong> tap the Share icon, then
+      "Add to Home Screen".</p>
+    <p class="install-hint-steps"><strong>Android (Chrome):</strong> tap the ⋮ menu, then
+      "Add to Home screen" or "Install app".</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="install-hint-close">Got it</button>
+    </div>
   </div>
 </div>
 
@@ -343,6 +388,8 @@
   <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="win-title">
     <h2 id="win-title">Well played!</h2>
     <p>You cleared the board in <strong id="win-time">00:00</strong>.</p>
+    <!-- 오늘 데일리 챌린지를 아직 안 끝냈을 때만(game.js가 hidden 토글) -->
+    <p id="win-daily-cta" hidden><a class="btn" href="/daily.html">Try today's Daily Challenge</a></p>
     <div class="modal-actions">
       <button type="button" class="btn btn-accent" id="btn-win-newgame">New Game</button>
     </div>
