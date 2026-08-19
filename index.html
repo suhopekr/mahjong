@@ -106,21 +106,11 @@
     <div class="game-column">
       <div class="toolbar" role="toolbar" aria-label="Game controls">
         <div class="toolbar-buttons">
-          <button type="button" class="btn btn-accent" id="btn-new-game" title="Start a new game (N)">
-            <span class="btn-icon" aria-hidden="true">🀄</span> New Game
-          </button>
-          <button type="button" class="btn" id="btn-undo" title="Undo last move (U)">
-            <span class="btn-icon" aria-hidden="true">↶</span> Undo
-          </button>
-          <button type="button" class="btn" id="btn-hint" title="Show a hint (H)">
-            <span class="btn-icon" aria-hidden="true">💡</span> Hint
-          </button>
-          <button type="button" class="btn" id="btn-fullscreen" title="Toggle full screen">
-            <span class="btn-icon" aria-hidden="true">⛶</span> <span id="btn-fullscreen-label">Full Screen</span>
-          </button>
-          <button type="button" class="btn btn-ghost" id="btn-settings" title="Settings" aria-haspopup="dialog">
-            <span class="btn-icon" aria-hidden="true">⚙️</span> Settings
-          </button>
+          <button type="button" class="btn" id="btn-undo" title="Undo last move (U)">Undo</button>
+          <button type="button" class="btn" id="btn-hint" title="Show a hint (H)">Hint</button>
+          <button type="button" class="btn" id="btn-fullscreen" title="Toggle full screen"><span id="btn-fullscreen-label">Full Screen</span></button>
+          <button type="button" class="btn" id="btn-settings" title="Settings" aria-haspopup="dialog">Settings</button>
+          <button type="button" class="btn" id="btn-new-game" title="Start a new game (N)">New Game</button>
         </div>
         <div class="status-strip">
           <span class="pairs-stat"><span class="visually-hidden">Possible matching pairs remaining: </span>Pairs: <span class="stat-value" id="pairs-count">0</span></span>
@@ -299,6 +289,19 @@
     </div>
 
     <button type="button" class="btn btn-accent settings-close" id="btn-settings-close">Close</button>
+  </div>
+</div>
+
+<!-- 진행 중(이동 1회 이상)인 판을 New Game 버튼/N 단축키로 덮어쓰기 전에
+     확인하는 안전장치. 진행 중이 아니면 이 모달 없이 바로 새 게임. -->
+<div class="modal-overlay" id="modal-newgame-confirm" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="newgame-confirm-title">
+    <h2 id="newgame-confirm-title">Start a new game?</h2>
+    <p>Your current game will be lost.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="btn-newgame-confirm-keep">Keep Playing</button>
+      <button type="button" class="btn" id="btn-newgame-confirm-start">New Game</button>
+    </div>
   </div>
 </div>
 

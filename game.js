@@ -1138,7 +1138,7 @@
   }
 
   // ---- 모달 제어 ----------------------------------------------------------
-  var modalWin, modalStuck, modalResume, settingsPanel;
+  var modalWin, modalStuck, modalResume, modalNewGameConfirm, settingsPanel;
   var stuckTitleEl, stuckMessageEl, stuckActionsEl;
   function openModal(el) { el.dataset.open = 'true'; }
   function closeModal(el) { el.dataset.open = 'false'; }
@@ -1287,6 +1287,7 @@
     closeModal(modalWin);
     closeModal(modalStuck);
     closeModal(modalResume);
+    closeModal(modalNewGameConfirm);
     var gen = createGameState('turtle', rng);
     if (!gen) {
       announce('Could not generate a board. Please try again.');
@@ -1302,6 +1303,18 @@
     afterStateChange();
     startTimerLoop();
     if (!isSilent) announce('New game started. 144 tiles on the board.');
+  }
+
+  // 새 게임 버튼/N 단축키의 실제 진입점. 이동을 1회 이상 한, 아직 안 끝난
+  // 판이 있으면 확인 대화상자를 먼저 띄운다(요구사항 3) — 실수로 진행 중인
+  // 판을 날리는 걸 막기 위함. 진행이 없거나(새로 켠 직후) 이미 이겼으면
+  // 잃을 게 없으니 바로 시작한다.
+  function requestNewGame() {
+    var hasProgress = state && Array.isArray(state.history) && state.history.length > 0 && !isBoardCleared(state.tiles);
+    if (!hasProgress) { startNewGame(); return; }
+    openModal(modalNewGameConfirm);
+    var keepBtn = document.getElementById('btn-newgame-confirm-keep');
+    if (keepBtn) keepBtn.focus();
   }
 
   function resumeSavedGame(saved) {
@@ -1509,6 +1522,7 @@
     modalWin = document.getElementById('modal-win');
     modalStuck = document.getElementById('modal-stuck');
     modalResume = document.getElementById('modal-resume');
+    modalNewGameConfirm = document.getElementById('modal-newgame-confirm');
     settingsPanel = document.getElementById('settings-panel');
     stuckTitleEl = document.getElementById('stuck-title');
     stuckMessageEl = document.getElementById('stuck-message');
@@ -1525,7 +1539,14 @@
       onTileActivate(Number(btn.dataset.slot));
     });
 
-    document.getElementById('btn-new-game').addEventListener('click', startNewGame);
+    document.getElementById('btn-new-game').addEventListener('click', requestNewGame);
+    document.getElementById('btn-newgame-confirm-keep').addEventListener('click', function () {
+      closeModal(modalNewGameConfirm);
+    });
+    document.getElementById('btn-newgame-confirm-start').addEventListener('click', function () {
+      closeModal(modalNewGameConfirm);
+      startNewGame();
+    });
     document.getElementById('btn-undo').addEventListener('click', doUndo);
     document.getElementById('btn-hint').addEventListener('click', doHint);
     document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
@@ -1600,7 +1621,7 @@
       var key = e.key.toLowerCase();
       if (key === 'u') { doUndo(); }
       else if (key === 'h') { doHint(); }
-      else if (key === 'n') { startNewGame(); }
+      else if (key === 'n') { requestNewGame(); }
       else { return; }
       e.preventDefault();
     });

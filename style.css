@@ -15,8 +15,11 @@
   --felt: #146b4c;
   --felt-light: #1c8a63;
   --ink: #0f2419;
-  --paper: #fdfcf8;
-  --paper-dim: #eef1ec;
+  /* 차분한 클래식 카드룸 톤: 페이지 배경은 따뜻한 크림, 펠트 그린은 보드
+   * 패널 안에만 쓴다(요구사항 4). */
+  --paper: #f7f2e6;
+  --paper-dim: #efe7d4;
+  /* 금색/앰버는 이제 "선택된 타일" 강조 전용 — 버튼에는 안 쓴다(요구사항 2). */
   --accent: #f2b705;
   --accent-ink: #3a2a00;
   --danger: #b3261e;
@@ -28,6 +31,15 @@
   --radius-lg: 16px;
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.25);
   --shadow-md: 0 4px 14px rgba(0, 0, 0, 0.3);
+
+  /* 버튼 전용 팔레트 — 아이보리 바탕 + 딥그린 텍스트/보더로 5개 버튼 전부
+   * 동일하게(요구사항 2). 위계는 색이 아니라 툴바 내 순서로 표현한다. */
+  --btn-bg: #fdfbf4;
+  --btn-bg-hover: #f2ead2;
+  --btn-text: var(--felt-dark);
+  --btn-border: var(--felt-dark);
+  --btn-active-bg: var(--felt-dark);
+  --btn-active-text: #fdfbf4;
 
   /* 타일 크기 3단계 — 설정에서 토글, 기본값은 large */
   --unit-normal: 18px;
@@ -102,20 +114,21 @@ a:visited { color: #5c3d99; }
   background: linear-gradient(180deg, var(--felt-dark), var(--felt));
   color: var(--paper);
   /* 좌우는 세이프 에어리어(노치 등)를 침범하지 않게 max()로 보정 —
-   * 가로 모드에서 특히 중요하다(요구사항 A-2). */
-  padding: 14px max(clamp(12px, 3vw, 28px), env(safe-area-inset-right))
-           14px max(clamp(12px, 3vw, 28px), env(safe-area-inset-left));
+   * 가로 모드에서 특히 중요하다(요구사항 A-2). 상하 패딩은 살짝만
+   * 줄여서(요구사항 4) 보드 쪽에 세로 공간을 더 내준다. */
+  padding: 10px max(clamp(12px, 3vw, 28px), env(safe-area-inset-right))
+           10px max(clamp(12px, 3vw, 28px), env(safe-area-inset-left));
   text-align: center;
 }
 
 .site-header h1 {
   margin: 0;
-  font-size: clamp(20px, 3.2vw, 28px);
+  font-size: clamp(19px, 3vw, 26px);
 }
 
 .site-header .tagline {
-  margin: 4px 0 0;
-  font-size: 15px;
+  margin: 3px 0 0;
+  font-size: 14px;
   opacity: 0.9;
 }
 
@@ -178,63 +191,68 @@ a:visited { color: #5c3d99; }
   gap: 10px;
 }
 
+/* 5개 버튼 전부 동일한 스타일(요구사항 2) — 아이보리 바탕에 딥그린
+ * 텍스트/보더, 은은한 그림자. .btn-accent/.btn-ghost는 과거에 각각
+ * 금색/투명 변형이었지만 이제 시각적으로 base .btn과 동일하게 맞춘다
+ * (마크업은 그대로 두되 색만 통일 — 리스크를 줄이려고 클래스 자체는
+ * 안 지웠다). 위계는 색이 아니라 툴바 안에서의 순서로 표현한다: 자주
+ * 쓰는 Undo/Hint가 왼쪽, New Game이 맨 오른쪽 끝.
+ * 금색/앰버는 버튼에서 완전히 빠지고 "선택된 타일" 강조 전용으로 남는다. */
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
   min-height: 48px;
   min-width: 48px;
-  padding: 10px 16px;
-  font-size: 16px;
+  padding: 10px 18px;
+  font-size: 17px;
   font-weight: 600;
+  letter-spacing: 0.01em;
   font-family: inherit;
-  color: var(--paper);
-  background: var(--felt);
-  border: 2px solid rgba(255, 255, 255, 0.25);
+  color: var(--btn-text);
+  background: var(--btn-bg);
+  border: 1.5px solid var(--btn-border);
   border-radius: var(--radius-md);
   cursor: pointer;
   box-shadow: var(--shadow-sm);
-  transition: background-color 0.15s ease, transform 0.05s ease;
+  transition: background-color 0.15s ease, color 0.15s ease, transform 0.05s ease;
 }
-.btn:hover { background: var(--felt-light); }
-.btn:active { transform: translateY(1px); }
+.btn:hover { background: var(--btn-bg-hover); }
+.btn:active {
+  background: var(--btn-active-bg);
+  color: var(--btn-active-text);
+  transform: translateY(1px);
+}
 .btn:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
-.btn .btn-icon {
-  font-size: 20px;
-  line-height: 1;
-}
-.btn-accent {
-  background: var(--accent);
-  color: var(--accent-ink);
-  border-color: rgba(0, 0, 0, 0.15);
-}
-.btn-accent:hover { background: #ffc72c; }
+.btn:disabled:hover { background: var(--btn-bg); }
+.btn-accent,
 .btn-ghost {
-  background: transparent;
-  color: var(--ink);
-  border-color: #b9c2ba;
+  background: var(--btn-bg);
+  color: var(--btn-text);
+  border-color: var(--btn-border);
 }
-.btn-ghost:hover { background: var(--paper-dim); }
+.btn-accent:hover,
+.btn-ghost:hover { background: var(--btn-bg-hover); }
 
 .status-strip {
   margin-left: auto;
   display: flex;
   align-items: center;
   gap: 16px;
-  font-size: 15px;
+  font-size: 17px;
   color: var(--ink);
-  background: var(--paper);
-  border: 1px solid #d8ddd6;
+  background: var(--btn-bg);
+  border: 1.5px solid var(--btn-border);
   border-radius: var(--radius-md);
   padding: 8px 14px;
 }
 .status-strip .stat-value {
   font-weight: 700;
-}
-.status-strip .timer-value {
+  /* Pairs/Time 숫자가 바뀔 때 자리가 흔들리지 않게(요구사항 5) */
   font-variant-numeric: tabular-nums;
 }
 body[data-show-timer="false"] .timer-stat { display: none; }
@@ -293,6 +311,16 @@ body[data-show-timer="false"] .timer-stat { display: none; }
  * ------------------------------------------------------------------------- */
 .board-viewport {
   position: relative;
+  /* 타일 z-index는 겹침 표현을 위해 최대 5000대까지 올라간다(z*1000+i).
+   * position:relative만으로는(z-index:auto) 새 스태킹 컨텍스트가 안
+   * 생겨서, 그 값들이 이 요소 밖으로 새어나가 모달(z-index:200) 같은
+   * 페이지 레벨 UI 위를 덮어버리는 실제 클릭 먹통 버그가 있었다(보드를
+   * transform 대신 실제 픽셀로 배치하도록 바꾸면서 기존에 암묵적으로
+   * 격리해주던 transform이 사라져 드러남 — 실제 히트테스트 클릭으로만
+   * 재현되고, 특정 엘리먼트에 직접 dispatchEvent하는 테스트로는 안
+   * 잡혔다). z-index에 값을 줘서 새 스태킹 컨텍스트를 만들어 타일들의
+   * z-index를 이 안에 가둔다. */
+  z-index: 0;
   display: flex;
   justify-content: center;
   background:
@@ -378,7 +406,11 @@ body[data-show-free="true"] .tile-btn[data-free="false"] .tile-face {
     0 0 0 3px rgba(255, 255, 255, 0.55);
 }
 
-.tile-btn[data-selected="true"] .tile-face {
+/* [data-free="true"]를 한 번 더 넣어 위 :hover 규칙과 명시도를 동점으로
+ * 맞추고, 소스 순서상 이 규칙이 더 뒤에 있어 동점에서 이긴다 — 원래는
+ * 명시도가 낮아서(3 vs 4) 마우스가 선택된 타일 위에 있으면 골드 강조가
+ * 회색 hover 링에 가려지는 버그가 있었다(스크린샷으로 확인). */
+.tile-btn[data-free="true"][data-selected="true"] .tile-face {
   box-shadow:
     0 2px 0 var(--accent),
     0 0 0 3px var(--accent),
@@ -665,8 +697,15 @@ body.ads-off .sidebar {
   font-size: 24px;
   margin-top: 40px;
 }
-.content p {
-  font-size: 17px;
+/* 시니어 가독성(요구사항 6): 17-18px, 넉넉한 줄간격, 그리고 컨테이너
+ * 폭(820px)과 별개로 한 줄 길이 자체를 65ch 안팎으로 캡 — 화면이 넓어도
+ * 한 줄에 너무 많은 글자가 들어차지 않게. ch 단위라 폰트 크기가 바뀌어도
+ * "몇 글자 정도"라는 감각이 유지된다. */
+.content p,
+.content li {
+  font-size: 18px;
+  line-height: 1.65;
+  max-width: 65ch;
 }
 .faq-item {
   margin: 18px 0;
