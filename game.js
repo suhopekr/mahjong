@@ -939,6 +939,26 @@
   function loadDailySavedGame() { return loadJSON(STORAGE_KEYS.dailySave, null); }
 
   /* =======================================================================
+   * [ANALYTICS] GA4 이벤트 계측 — 최소한만, 게임 동작과 절대 무관하게
+   *
+   * index.html 등 각 페이지 <head>의 gtag.js 스니펫이 window.gtag를
+   * 정의해두면 그걸 그대로 쓴다. 광고 차단기 등으로 그 스크립트 자체가
+   * 아예 안 실렸거나(gtag 함수 미정의), 실려도 중간에 예외를 던지는
+   * 경우까지 전부 안전하게 무시한다 — 계측 실패가 게임 진행에 조금이라도
+   * 영향을 주는 일은 절대 없어야 하므로, 호출부는 이 함수 하나만 거치고
+   * 그 안에서만 try/catch로 감싼다(호출부마다 감쌀 필요 없게).
+   * ======================================================================= */
+  function trackEvent(name, params) {
+    try {
+      if (typeof window.gtag === 'function') {
+        window.gtag('event', name, params || {});
+      }
+    } catch (e) {
+      // 계측 실패는 조용히 무시 — 게임에는 어떤 영향도 주지 않는다.
+    }
+  }
+
+  /* =======================================================================
    * [PROGRESS] 데일리 챌린지 완료 기록 · 업적(배지) · 백업/복원 · 영구 저장
    *
    * 전부 로컬(브라우저) 전용, 서버 없음. 배지/데일리 완료는 압박 요소
@@ -962,6 +982,7 @@
     if (isAchievementUnlocked(id)) return false; // 이미 있음 — 조용히 무시(멱등)
     achievements.unlocked[id] = Date.now();
     saveAchievements();
+    trackEvent('badge_earned', { badge_id: id });
     return true;
   }
 
@@ -1149,6 +1170,7 @@
     if (!el || hasSeenInstallHint()) return;
     if (Object.keys(achievements.unlocked).length < 3) return;
     openModal(el);
+    trackEvent('homescreen_prompt_shown', {});
   }
   function dismissInstallHint() {
     var el = document.getElementById('modal-install-hint');
@@ -1192,6 +1214,7 @@
       saveDailyCompletions();
       renderStats();
       renderAchievements();
+      trackEvent('backup_used', { action: 'import' });
       return { ok: true };
     } catch (e) {
       return { ok: false, reason: 'parse' };
@@ -1546,6 +1569,15 @@
   // 이번 판에서 힌트를 한 번이라도 썼는지 — "힌트 없이 클리어" 배지 판정에
   // 쓴다. 새 판을 시작할 때마다 리셋.
   var hintUsedThisGame = false;
+  // game_win 계측 파라미터용 카운터 — 전부 새 판/이어하기 때마다 리셋된다.
+  // hintCountThisGame/undoCountThisGame은 힌트/되돌리기가 "실제로 있었을
+  // 때"만 늘어난다(힌트 대상이 없거나 되돌릴 게 없으면 카운트 안 함).
+  // autoShuffleCountThisGame은 "막힘 빈도" 파악용으로 consecutiveAutoShuffles
+  // (연속 셔플 후 무한루프 방지 카운터, 수동 매칭 성공 시 0으로 리셋)와는
+  // 별개로 이번 판 전체 누적 셔플 횟수를 센다.
+  var hintCountThisGame = 0;
+  var undoCountThisGame = 0;
+  var autoShuffleCountThisGame = 0;
 
   function rng() { return Math.random(); }
 
@@ -1703,6 +1735,8 @@
     // (요구사항 5 — 별도 처리 불필요, 기존 함수를 그대로 재사용).
     var result = shuffleRemaining(state, rng);
     consecutiveAutoShuffles++;
+    autoShuffleCountThisGame++;
+    trackEvent('auto_shuffle', { count_in_game: autoShuffleCountThisGame });
     hintSlots.clear();
     fullRender();
     saveGameProgress();
@@ -1756,6 +1790,13 @@
 
     renderStats();
     checkAchievementsOnWin(elapsed);
+    trackEvent('game_win', {
+      mode: dailyMode ? 'daily' : 'normal',
+      duration_seconds: Math.round(elapsed / 1000),
+      hints_used: hintCountThisGame,
+      undo_count: undoCountThisGame,
+      layout: state.layoutId,
+    });
 
     var titleEl = document.getElementById('win-title');
     var newGameBtn = document.getElementById('btn-win-newgame');
@@ -1801,6 +1842,9 @@
     modalStuckMode = null;
     consecutiveAutoShuffles = 0;
     hintUsedThisGame = false;
+    hintCountThisGame = 0;
+    undoCountThisGame = 0;
+    autoShuffleCountThisGame = 0;
     closeModal(modalWin);
     closeModal(modalStuck);
     closeModal(modalResume);
@@ -1828,6 +1872,10 @@
     afterStateChange();
     startTimerLoop();
     if (!isSilent) {
+      // silent 호출(이어하기 프롬프트 배경용 임시 보드)은 사용자가 실제로
+      // "시작"한 게 아니라서 계측 제외 — game_start 대비 game_win 비율로
+      // 이탈률을 어림잡을 때 이 임시 보드가 분모를 부풀리면 안 되므로.
+      trackEvent('game_start', { layout: state.layoutId, mode: dailyMode ? 'daily' : 'normal' });
       announce(dailyMode ? "Today's challenge started. 144 tiles on the board." : 'New game started. 144 tiles on the board.');
     }
   }
@@ -1849,6 +1897,13 @@
     modalStuckMode = null;
     consecutiveAutoShuffles = 0;
     hintUsedThisGame = !!saved.hintUsed;
+    // 힌트/되돌리기/셔플 "횟수" 자체는 저장하지 않으므로(계측 최소화 취지),
+    // 이 세션에서부터 다시 세기 시작한다 — game_win에 실리는 hints_used/
+    // undo_count는 "이번 페이지 로드 이후" 기준이라는 뜻(전체 판 통산이
+    // 아님). hintUsedThisGame(불리언, 배지 판정용)만 저장값을 그대로 이어받는다.
+    hintCountThisGame = 0;
+    undoCountThisGame = 0;
+    autoShuffleCountThisGame = 0;
     closeModal(modalStuck);
     state = {
       layoutId: saved.layoutId || 'turtle',
@@ -1883,6 +1938,9 @@
         modalStuckMode = null;
         consecutiveAutoShuffles = 0;
         hintUsedThisGame = !!saved.hintUsed;
+        hintCountThisGame = 0;
+        undoCountThisGame = 0;
+        autoShuffleCountThisGame = 0;
         state = {
           layoutId: saved.layoutId || 'turtle',
           tiles: saved.tiles.slice(),
@@ -1917,6 +1975,7 @@
 
     var type = undoLastMove(state);
     if (!type) { announce('Nothing to undo.'); return; }
+    undoCountThisGame++;
     consecutiveAutoShuffles = 0; // 되돌리기는 "막힘 연쇄"를 끊는 새로운 시도로 취급
     state.selected = -1;
     hintSlots.clear();
@@ -1942,6 +2001,7 @@
     var pair = findHintPair(graph, state.tiles, rng);
     if (!pair) { announce('No hints available right now.'); return; }
     hintUsedThisGame = true; // "힌트 없이 클리어" 배지 판정용
+    hintCountThisGame++;
     if (pendingHintTimeoutId) { clearTimeout(pendingHintTimeoutId); pendingHintTimeoutId = null; }
     hintSlots = new Set(pair);
     syncBoard(false);
@@ -2295,6 +2355,7 @@
         backupCodeEl.value = exportBackupCode();
         backupCodeEl.focus();
         backupCodeEl.select();
+        trackEvent('backup_used', { action: 'export' });
       });
     }
     if (backupCopyBtn && backupCodeEl) {
