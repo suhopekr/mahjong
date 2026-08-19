@@ -892,7 +892,7 @@
     saveJSON(key, Object.assign({ v: SCHEMA_VERSION }, data));
   }
 
-  var DEFAULT_SETTINGS = { tileSize: 'large', tileset: 'big', showFree: true, showTimer: true, sound: false };
+  var DEFAULT_SETTINGS = { tileSize: 'large', tileset: 'big', showFree: true, showTimer: true, sound: true };
   var settings = Object.assign({}, DEFAULT_SETTINGS, loadJSON(STORAGE_KEYS.settings, {}));
 
   var DEFAULT_STATS = { gamesPlayed: 0, gamesWon: 0, bestTimeMs: null };
