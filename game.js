@@ -1684,28 +1684,112 @@
     return audioCtx;
   }
 
-  // 오디오 파일 없이 Web Audio로 짧고 부드러운 톤을 생성한다.
+  /* =======================================================================
+   * [SOUND] 마작 타일이 부딪히는 "달그락" 소리 — 오디오 파일 없이 Web
+   * Audio로 매번 합성한다. 순수 사인파 비프 느낌을 없애는 게 목표라,
+   * 톤 하나짜리 오실레이터 대신 "짧은 노이즈 버스트(타일 표면이 맞부딪히는
+   * 딱 소리) + 낮은 배음 하나(나무/대나무 몸통 울림)"를 섞은 짧은 타격음
+   * 하나(playTileClack)를 기본 단위로 두고, 선택음/매칭음/승리음은 전부
+   * 이 단위를 몇 번, 어떤 간격으로 겹치느냐만 다르게 해서 만든다.
+   * ======================================================================= */
+
+  function randRange(min, max) { return min + Math.random() * (max - min); }
+
+  // 화이트 노이즈 버퍼는 AudioContext당 한 번만 만들어 재사용한다(요구사항
+  // 5 — 오디오 파일 없이, 번들 크기도 늘리지 않고). 버스트 길이(20~35ms)
+  // 보다 넉넉히 길게 만들어두고, 재생 때마다 새 BufferSourceNode로 이
+  // 버퍼를 참조만 하면 되므로 데이터 자체를 다시 만들 필요는 없다.
+  var noiseBuffer = null;
+  function getNoiseBuffer(ctx) {
+    if (noiseBuffer && noiseBuffer.sampleRate === ctx.sampleRate) return noiseBuffer;
+    var durationS = 0.05;
+    var frameCount = Math.max(1, Math.floor(ctx.sampleRate * durationS));
+    var buffer = ctx.createBuffer(1, frameCount, ctx.sampleRate);
+    var data = buffer.getChannelData(0);
+    for (var i = 0; i < frameCount; i++) data[i] = Math.random() * 2 - 1;
+    noiseBuffer = buffer;
+    return buffer;
+  }
+
+  // 타일 하나가 부딪히는 소리 한 번. dest는 이 타격음의 최종 볼륨을 이미
+  // 쥐고 있는 GainNode(호출부가 만들어 연결해둔다) — 여기서는 노이즈와
+  // 몸통 배음의 "상대적" 세기만 정한다. pitchMul(기본 1)로 매칭/승리음이
+  // 배음을 살짝 다르게 쓸 수 있게 한다. 피치/필터 주파수 모두 매번
+  // ±8% 안팎으로 흔들어(요구사항 4) 연속 매칭에서 기계적으로 반복되는
+  // 느낌이 나지 않게 한다.
+  function playTileClack(ctx, dest, startTime, pitchMul) {
+    pitchMul = pitchMul || 1;
+    var jitter = function (v) { return v * randRange(0.92, 1.08); };
+
+    // 1) 노이즈 버스트 + 밴드패스 — 화이트노이즈의 "쉬익"이 아니라
+    //    국소 주파수대만 남겨 짧고 단단한 "딱" 소리로 들리게 한다.
+    var burstS = randRange(0.020, 0.035);
+    var noise = ctx.createBufferSource();
+    noise.buffer = getNoiseBuffer(ctx);
+    var bandpass = ctx.createBiquadFilter();
+    bandpass.type = 'bandpass';
+    bandpass.frequency.value = jitter(randRange(1500, 2500)) * pitchMul;
+    bandpass.Q.value = 2.2;
+    var noiseGain = ctx.createGain();
+    noiseGain.gain.setValueAtTime(0, startTime);
+    noiseGain.gain.linearRampToValueAtTime(1, startTime + 0.0015); // attack ~1.5ms
+    noiseGain.gain.exponentialRampToValueAtTime(0.001, startTime + burstS); // 잔향 없이 급격히 감쇠
+    noise.connect(bandpass);
+    bandpass.connect(noiseGain);
+    noiseGain.connect(dest);
+    noise.start(startTime);
+    noise.stop(startTime + burstS + 0.01);
+
+    // 2) 낮은 배음 하나 — 나무/대나무 몸통이 짧게 "통" 울리는 느낌을
+    //    노이즈보다 작게 섞는다(상대 피크 0.5 vs 노이즈의 1).
+    var bodyFreq = jitter(randRange(200, 400)) * pitchMul;
+    var bodyOsc = ctx.createOscillator();
+    bodyOsc.type = 'triangle'; // 사인파보다 배음이 있어 "전자음 비프" 느낌이 덜함
+    bodyOsc.frequency.value = bodyFreq;
+    var bodyGain = ctx.createGain();
+    var bodyDecayS = randRange(0.05, 0.07);
+    bodyGain.gain.setValueAtTime(0, startTime);
+    bodyGain.gain.linearRampToValueAtTime(0.5, startTime + 0.002);
+    bodyGain.gain.exponentialRampToValueAtTime(0.001, startTime + bodyDecayS);
+    bodyOsc.connect(bodyGain);
+    bodyGain.connect(dest);
+    bodyOsc.start(startTime);
+    bodyOsc.stop(startTime + bodyDecayS + 0.01);
+  }
+
   function playSound(kind) {
     if (!settings.sound) return;
     var ctx = ensureAudio();
     if (!ctx) return;
     if (ctx.state === 'suspended') ctx.resume();
-    var notes = kind === 'match' ? [660, 880] : [520];
+
+    var master = ctx.createGain();
+    master.gain.value = 0.25; // 기본 볼륨은 낮게, 클리핑 방지 여유를 둔다(요구사항 1)
+    master.connect(ctx.destination);
+
     var t0 = ctx.currentTime;
-    notes.forEach(function (freq, idx) {
-      var osc = ctx.createOscillator();
-      var gain = ctx.createGain();
-      osc.type = 'sine';
-      osc.frequency.value = freq;
-      var start = t0 + idx * 0.07;
-      gain.gain.setValueAtTime(0, start);
-      gain.gain.linearRampToValueAtTime(0.12, start + 0.015);
-      gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(start);
-      osc.stop(start + 0.18);
-    });
+
+    if (kind === 'match') {
+      // 타일 두 개가 살짝 시차를 두고 부딪히는 느낌(요구사항 2). 배음을
+      // 아주 살짝 높여 성공감을 주되 여전히 짧고 담백하게 유지한다.
+      playTileClack(ctx, master, t0, 1.05);
+      playTileClack(ctx, master, t0 + randRange(0.04, 0.06), 1.12);
+    } else if (kind === 'win') {
+      // 팡파레 없이, 타일 몇 개가 부드럽게 연달아 놓이는 정도로 절제한다
+      // (요구사항 3): 3~4회, 간격 80~120ms, 볼륨은 점차 줄어든다.
+      var count = 3 + Math.floor(Math.random() * 2); // 3 or 4회
+      var t = t0;
+      for (var i = 0; i < count; i++) {
+        var stepGain = ctx.createGain();
+        stepGain.gain.value = Math.pow(0.72, i); // 점차 감소
+        stepGain.connect(master);
+        playTileClack(ctx, stepGain, t, 1 + i * 0.03);
+        t += randRange(0.08, 0.12);
+      }
+    } else {
+      // 'click' — 타일 선택. 소리 단위 하나 그대로.
+      playTileClack(ctx, master, t0, 1);
+    }
   }
 
   // ---- 모달 제어 ----------------------------------------------------------
@@ -1836,6 +1920,7 @@
 
   function onWin() {
     stopTimerLoop();
+    playSound('win');
     var elapsed = currentElapsedMs();
     stats.gamesWon++;
     if (stats.bestTimeMs == null || elapsed < stats.bestTimeMs) stats.bestTimeMs = elapsed;
