@@ -802,9 +802,10 @@
    * ======================================================================= */
 
   // 세 단계 모두 자연 크기(스케일 1.0)에서 터치 타겟 48×48px 이상을 만족
-  // 하도록 잡는다(스펙 5절). 화면이 좁아 축소해야 할 때도 48px 밑으로는
-  // 내려가지 않게 하고(아래 applyFitScale의 동적 MIN_SCALE), 그래도 안
-  // 맞으면 가로 스크롤을 허용한다.
+  // 하도록 잡는다(스펙 5절). 다만 실기기 대응 이후 원칙이 바뀌어서, 화면이
+  // 이보다 좁으면 48px 밑으로 줄어들더라도 보드 전체가 항상 다 보이도록
+  // 축소한다(가로 스크롤 절대 금지가 터치 타겟보다 우선) — 아래
+  // recomputeBoardLayout 참고.
   var UNIT_PX = { normal: 23, large: 27, xlarge: 33 };
   var TILE_W_MUL = 2.15;
   var TILE_H_MUL = 2.75;
@@ -923,41 +924,137 @@
 
   var BOARD_VIEWPORT_VPAD = 40; // .board-viewport padding: 20px 위+아래(style.css와 동기화 필요)
   var BOTTOM_BREATHING_ROOM = 20; // 보드 아래 살짝 여백(뷰포트 바닥에 딱 붙지 않게)
+  // 이건 "터치 타겟 보호용 최소 배율"이 아니라 그냥 극단적으로 좁은 화면
+  // (예: 아주 작은 임베드 iframe)에서 배율이 0에 가까워져 타일이 아예
+  // 안 보이는 사고를 막는 기술적 안전장치일 뿐이다 — 48px 원칙은 이제
+  // "화면에 다 보이는 것"에 완전히 자리를 내줬다(요구사항 A-1).
+  var TECHNICAL_MIN_SCALE = 0.12;
 
-  function applyFitScale() {
-    // 48px 터치 타겟 최소값 밑으로는 절대 축소하지 않는다 — 그 이상 좁거나
-    // 낮으면 축소 대신 board-viewport의 스크롤에 맡긴다.
-    var tileWNatural = currentUnit() * TILE_W_MUL;
-    var MIN_SCALE = Math.min(1, 48 / tileWNatural);
+  // window.innerWidth/innerHeight 대신 visualViewport를 우선 쓴다. iOS
+  // Safari는 주소창이 사라졌다 나타났다 하면서 "지금 실제로 보이는 영역"이
+  // 레이아웃 뷰포트와 어긋나는데, visualViewport가 바로 그 실제 보이는
+  // 영역을 알려준다(요구사항 A-2). 미지원 브라우저는 기존 방식으로 대체.
+  function getViewportSize() {
+    var vv = window.visualViewport;
+    if (vv) return { width: vv.width, height: vv.height };
+    return { width: window.innerWidth, height: window.innerHeight };
+  }
 
-    var availableW = Math.max(120, viewportEl.clientWidth - 40);
-    var scaleW = geometry.width > availableW ? availableW / geometry.width : 1;
+  // 기존에는 자연 크기 지오메트리를 고정해두고 CSS transform:scale()로
+  // 시각적으로만 축소했다. 그런데 실기기 검증 과정에서, 이 transform이
+  // 대략 0.4~0.5배 안팎일 때 Chromium이 안쪽 SVG <text>(타일 숫자)를
+  // 그리지 않고 건너뛰는 렌더링 버그를 실측으로 확인했다(스크린샷 비교로
+  // 재현: scale 0.54에서는 숫자가 보이고 0.42에서는 완전히 사라짐. isolate
+  // 테스트에서는 재현이 안 돼서 144개 타일이 겹겹이 쌓인 실제 보드 규모
+  // +transform 조합에서만 나오는 것으로 보임). 원인을 정확히 특정하긴
+  // 어려워도, "축소가 필요한 배율만큼 애초에 진짜 픽셀 크기로 다시
+  // 계산해서 배치"하면 transform 자체가 사라져서 이 문제를 구조적으로
+  // 피할 수 있다 — 그래서 CSS transform 대신 여기서 unit에 배율을 미리
+  // 곱해 넣은 뒤 지오메트리를 다시 계산한다.
+  function recomputeBoardLayout() {
+    var naturalUnit = currentUnit();
+    var naturalGeometry = computeLayoutGeometry(graph.slots, naturalUnit);
+    var vp = getViewportSize();
 
-    // 데스크톱에서 헤더+툴바+보드가 스크롤 없이 한 화면에 들어오도록,
-    // 뷰포트 높이에서 "보드 위쪽에 이미 차지하고 있는 공간"을 뺀 나머지만
-    // 세로로 허용한다. offsetTop은 문서 흐름상의 위치라 현재 스크롤
-    // 위치와 무관하다(getBoundingClientRect().top을 쓰면 사용자가 이미
-    // 스크롤한 상태에서 재계산될 때 값이 틀어진다). 모바일처럼 세로
-    // 공간이 애초에 빠듯한 화면에서는 이 값이 MIN_SCALE 아래로 내려가
-    // 자연히 세로 스크롤로 넘어간다(강제로 욱여넣지 않음).
-    var availableH = Math.max(140, window.innerHeight - viewportEl.offsetTop - BOARD_VIEWPORT_VPAD - BOTTOM_BREATHING_ROOM);
-    var scaleH = geometry.height > availableH ? availableH / geometry.height : 1;
+    // 가로: board-viewport의 실제 레이아웃 폭과 visualViewport 폭(핀치줌
+    // 중일 수 있음) 중 더 좁은 쪽을 기준으로 삼아, 어떤 경우에도 보드가
+    // 옆으로 삐져나가지 않게 한다(가로 스크롤 절대 금지, 요구사항 A-1).
+    var availableW = Math.max(60, Math.min(viewportEl.clientWidth, vp.width) - 40);
+    var scaleW = naturalGeometry.width > availableW ? availableW / naturalGeometry.width : 1;
 
-    var scale = Math.max(MIN_SCALE, Math.min(1, scaleW, scaleH));
+    // 세로: 뷰포트 높이(visualViewport 기준)에서 "보드 위쪽에 이미 차지하고
+    // 있는 공간"을 뺀 나머지만 허용한다. offsetTop은 문서 흐름상의
+    // 위치라 현재 스크롤 위치와 무관하다(getBoundingClientRect().top을
+    // 쓰면 사용자가 이미 스크롤한 상태에서 재계산될 때 값이 틀어진다).
+    var availableH = Math.max(60, vp.height - viewportEl.offsetTop - BOARD_VIEWPORT_VPAD - BOTTOM_BREATHING_ROOM);
+    var scaleH = naturalGeometry.height > availableH ? availableH / naturalGeometry.height : 1;
+
+    var scale = Math.max(TECHNICAL_MIN_SCALE, Math.min(1, scaleW, scaleH));
+
+    geometry = (scale === 1) ? naturalGeometry : computeLayoutGeometry(graph.slots, naturalUnit * scale);
 
     boardEl.style.width = geometry.width + 'px';
     boardEl.style.height = geometry.height + 'px';
-    boardEl.style.setProperty('--fit-scale', String(scale));
-    boardScaleWrapEl.style.width = (geometry.width * scale) + 'px';
-    boardScaleWrapEl.style.height = (geometry.height * scale) + 'px';
+    boardScaleWrapEl.style.width = geometry.width + 'px';
+    boardScaleWrapEl.style.height = geometry.height + 'px';
+
+    repositionExistingTiles();
+    syncOrientationHint(scale, vp);
+    return scale;
+  }
+
+  // 지오메트리가 바뀌었을 때(창 크기 변경 등) 이미 만들어진 타일 엘리먼트들의
+  // 위치·크기만 새로 반영한다 — syncBoard처럼 새로 만들거나 지우지 않는다.
+  function repositionExistingTiles() {
+    for (var i = 0; i < tileElements.length; i++) {
+      var el = tileElements[i];
+      if (!el) continue;
+      var pos = geometry.positions[i];
+      el.style.left = pos.left + 'px';
+      el.style.top = pos.top + 'px';
+      el.style.width = pos.w + 'px';
+      el.style.height = pos.h + 'px';
+      el.style.zIndex = String(pos.z * 1000 + i);
+    }
+  }
+
+  /* ---- 세로 모드 안내 배너 --------------------------------------------------
+   * 세로 모드라 타일이 눈에 띄게 작아졌을 때, 가로로 돌리면 더 커진다는
+   * 안내를 딱 한 번만(기기 최초 1회) 보여준다(요구사항 A-3). 표시되는
+   * 순간 바로 "본 적 있음" 플래그를 저장하므로, 닫든 안 닫든 다음부터는
+   * 다시 뜨지 않는다.
+   * ------------------------------------------------------------------------- */
+  var ORIENTATION_HINT_KEY = 'mahjongSolitaire.v1.orientationHintShown';
+  var orientationHintEl = null;
+  var orientationHintHideTimeoutId = null;
+
+  function hasSeenOrientationHint() {
+    try { return !!window.localStorage.getItem(ORIENTATION_HINT_KEY); } catch (e) { return false; }
+  }
+  function markOrientationHintSeen() {
+    try { window.localStorage.setItem(ORIENTATION_HINT_KEY, '1'); } catch (e) { /* 저장 안 돼도 이번 세션엔 이미 보여준 것으로 충분 */ }
+  }
+
+  function showOrientationHint() {
+    if (!orientationHintEl) return;
+    if (orientationHintHideTimeoutId) { clearTimeout(orientationHintHideTimeoutId); orientationHintHideTimeoutId = null; }
+    orientationHintEl.hidden = false;
+    requestAnimationFrame(function () {
+      orientationHintEl.classList.add('is-visible');
+    });
+    markOrientationHintSeen();
+  }
+
+  function hideOrientationHint() {
+    if (!orientationHintEl || orientationHintEl.hidden) return;
+    orientationHintEl.classList.remove('is-visible');
+    orientationHintHideTimeoutId = setTimeout(function () {
+      orientationHintEl.hidden = true;
+      orientationHintHideTimeoutId = null;
+    }, 260);
+  }
+
+  function syncOrientationHint(scale, vp) {
+    if (!orientationHintEl) return;
+    var isPortrait = vp.height > vp.width;
+    var isVisible = orientationHintEl.classList.contains('is-visible');
+
+    if (isVisible && !isPortrait) {
+      // 안내를 보는 중에 사용자가 실제로 가로로 돌렸다 — 조언을 따랐으니 치워준다.
+      hideOrientationHint();
+      return;
+    }
+    if (isVisible || orientationHintHideTimeoutId) return; // 이미 표시 중이거나 닫히는 애니메이션 중
+
+    if (!isPortrait || scale >= 0.92 || hasSeenOrientationHint()) return;
+    showOrientationHint();
   }
 
   function fullRender() {
-    geometry = computeLayoutGeometry(graph.slots, currentUnit());
     boardEl.innerHTML = '';
     tileElements = new Array(graph.n).fill(null);
-    syncBoard(false);
-    applyFitScale();
+    recomputeBoardLayout(); // geometry를 (필요하면 축소 반영해서) 먼저 확정
+    syncBoard(false); // 확정된 geometry로 타일 엘리먼트 생성
   }
 
   function announce(msg) {
@@ -1265,27 +1362,80 @@
     }, 1600);
   }
 
-  // 일부 브라우저(특히 접두사 붙은 webkit* 구현)는 프라미스를 반환하지
-  // 않거나 동기적으로 예외를 던지기도 하므로 try/catch로 감싼다.
+  /* ---- 전체화면(Full Screen) ------------------------------------------------
+   * 두 가지 방식을 동일한 body.is-fullscreen 클래스 하나로 통일한다
+   * (요구사항 B-4):
+   *  1) 표준 Fullscreen API가 있으면 그걸 쓰고, fullscreenchange 이벤트로
+   *     클래스를 동기화한다 — 이러면 ESC 키로 빠져나가는 것도 자동 반영.
+   *  2) iOS Safari처럼 API 자체가 없거나(요구사항 B-6) 요청이 실패하면,
+   *     position:fixed 기반 CSS 폴백으로 같은 결과를 흉내낸다. 이 경우는
+   *     브라우저가 알려주는 이벤트가 없으니 우리가 직접 상태를 관리한다.
+   * ------------------------------------------------------------------------- */
+  var usingFakeFullscreen = false;
+  var fullscreenLabelEl = null;
+
+  function isRealFullscreenActive() {
+    return !!(document.fullscreenElement || document.webkitFullscreenElement);
+  }
+
+  function setFullscreenUI(active) {
+    document.body.classList.toggle('is-fullscreen', active);
+    if (fullscreenLabelEl) fullscreenLabelEl.textContent = active ? 'Exit Full Screen' : 'Full Screen';
+    var btn = document.getElementById('btn-fullscreen');
+    if (btn) btn.title = active ? 'Exit full screen' : 'Toggle full screen';
+    // 레이아웃이 막 바뀌었으니(헤더/본문 표시 여부, 가용 공간) 다음 페인트
+    // 이후에 다시 재보 — 폴백(동기 클래스 토글)에서 특히 중요하다.
+    requestAnimationFrame(function () { if (geometry) recomputeBoardLayout(); });
+  }
+
+  function enterFakeFullscreen() {
+    usingFakeFullscreen = true;
+    setFullscreenUI(true);
+    announce('Entered full screen.');
+  }
+
+  function exitFakeFullscreen() {
+    usingFakeFullscreen = false;
+    setFullscreenUI(false);
+    announce('Exited full screen.');
+  }
+
+  // 표준 API에서 온 변화(사용자가 ESC를 눌렀거나, 다른 경로로 상태가
+  // 바뀌었거나)를 body 클래스에 반영한다. 폴백 모드일 때는 이 이벤트가
+  // 우리가 건 API 호출과 무관하게 발생할 수 없으니 무시한다.
+  function onNativeFullscreenChange() {
+    if (usingFakeFullscreen) return;
+    setFullscreenUI(isRealFullscreenActive());
+  }
+
   function toggleFullscreen() {
-    var doc = document;
-    try {
-      var isFs = doc.fullscreenElement || doc.webkitFullscreenElement;
-      if (isFs) {
-        var exit = doc.exitFullscreen || doc.webkitExitFullscreen;
-        if (exit) exit.call(doc);
-        return;
-      }
-      var target = document.getElementById('main');
-      var req = target.requestFullscreen || target.webkitRequestFullscreen;
-      if (!req) { announce('Full screen is not supported on this browser.'); return; }
-      var result = req.call(target);
-      if (result && typeof result.catch === 'function') {
-        result.catch(function () { announce('Could not enter full screen.'); });
-      }
-    } catch (e) {
-      announce('Full screen is not available right now.');
+    if (usingFakeFullscreen) { exitFakeFullscreen(); return; }
+
+    if (isRealFullscreenActive()) {
+      try {
+        var exit = document.exitFullscreen || document.webkitExitFullscreen;
+        if (exit) exit.call(document);
+      } catch (e) { /* onNativeFullscreenChange가 실제 상태를 반영해줌 */ }
+      return;
     }
+
+    var el = document.documentElement;
+    var req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) {
+      try {
+        var result = req.call(el);
+        if (result && typeof result.catch === 'function') {
+          // 표준 API가 있어도 iOS 일부 버전처럼 조용히 실패하는 경우가
+          // 있어(요구사항 B-6), 실패하면 같은 버튼으로 폴백을 켠다.
+          result.catch(function () { enterFakeFullscreen(); });
+        }
+        return; // 성공하면 fullscreenchange 이벤트가 UI를 맞춰준다
+      } catch (e) {
+        // 동기적으로 던지는 브라우저도 있음 — 폴백으로 진행
+      }
+    }
+    // Fullscreen API 자체가 없는 브라우저(iOS Safari 등) — CSS 폴백.
+    enterFakeFullscreen();
   }
 
   function onTileActivate(i) {
@@ -1363,6 +1513,8 @@
     stuckTitleEl = document.getElementById('stuck-title');
     stuckMessageEl = document.getElementById('stuck-message');
     stuckActionsEl = document.getElementById('stuck-actions');
+    orientationHintEl = document.getElementById('orientation-hint');
+    fullscreenLabelEl = document.getElementById('btn-fullscreen-label');
 
     applySettingsToDOM();
     renderStats();
@@ -1377,6 +1529,9 @@
     document.getElementById('btn-undo').addEventListener('click', doUndo);
     document.getElementById('btn-hint').addEventListener('click', doHint);
     document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
+    document.getElementById('orientation-hint-close').addEventListener('click', hideOrientationHint);
+    document.addEventListener('fullscreenchange', onNativeFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', onNativeFullscreenChange);
     document.getElementById('btn-settings').addEventListener('click', function () { openModal(settingsPanel); });
     document.getElementById('btn-settings-close').addEventListener('click', function () { closeModal(settingsPanel); });
 
@@ -1429,9 +1584,16 @@
       if (settings.sound) ensureAudio();
     });
 
-    window.addEventListener('resize', function () {
-      if (geometry) applyFitScale();
-    });
+    // 여러 신호를 전부 같은 재계산 함수로 묶는다 — iOS Safari는 주소창이
+    // 나타나거나 사라질 때 window의 resize보다 visualViewport의
+    // resize/scroll을 훨씬 안정적으로 쏴준다(요구사항 A-2).
+    function recalcFit() { if (geometry) recomputeBoardLayout(); }
+    window.addEventListener('resize', recalcFit);
+    window.addEventListener('orientationchange', recalcFit);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', recalcFit);
+      window.visualViewport.addEventListener('scroll', recalcFit);
+    }
 
     document.addEventListener('keydown', function (e) {
       if (e.ctrlKey || e.metaKey || e.altKey) return;

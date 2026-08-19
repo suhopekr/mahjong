@@ -116,7 +116,7 @@
             <span class="btn-icon" aria-hidden="true">💡</span> Hint
           </button>
           <button type="button" class="btn" id="btn-fullscreen" title="Toggle full screen">
-            <span class="btn-icon" aria-hidden="true">⛶</span> Full Screen
+            <span class="btn-icon" aria-hidden="true">⛶</span> <span id="btn-fullscreen-label">Full Screen</span>
           </button>
           <button type="button" class="btn btn-ghost" id="btn-settings" title="Settings" aria-haspopup="dialog">
             <span class="btn-icon" aria-hidden="true">⚙️</span> Settings
@@ -126,6 +126,14 @@
           <span class="pairs-stat"><span class="visually-hidden">Possible matching pairs remaining: </span>Pairs: <span class="stat-value" id="pairs-count">0</span></span>
           <span class="timer-stat">Time: <span class="stat-value timer-value" id="timer-display">00:00</span></span>
         </div>
+      </div>
+
+      <!-- 세로 모드에서 타일이 작아졌을 때 최초 1회만 살짝 안내(닫으면 다시
+           안 뜸) — game.js의 syncOrientationHint가 표시/숨김을 담당. -->
+      <div class="orientation-hint" id="orientation-hint" hidden>
+        <span class="orientation-hint-icon" aria-hidden="true">💡</span>
+        <span>Tip: turn your phone sideways for bigger tiles.</span>
+        <button type="button" class="orientation-hint-close" id="orientation-hint-close" aria-label="Dismiss tip">✕</button>
       </div>
 
       <div class="board-viewport" id="board-viewport">

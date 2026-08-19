@@ -101,7 +101,10 @@ a:visited { color: #5c3d99; }
 .site-header {
   background: linear-gradient(180deg, var(--felt-dark), var(--felt));
   color: var(--paper);
-  padding: 14px clamp(12px, 3vw, 28px);
+  /* 좌우는 세이프 에어리어(노치 등)를 침범하지 않게 max()로 보정 —
+   * 가로 모드에서 특히 중요하다(요구사항 A-2). */
+  padding: 14px max(clamp(12px, 3vw, 28px), env(safe-area-inset-right))
+           14px max(clamp(12px, 3vw, 28px), env(safe-area-inset-left));
   text-align: center;
 }
 
@@ -123,7 +126,8 @@ a:visited { color: #5c3d99; }
   display: grid;
   grid-template-columns: 1fr;
   gap: 24px;
-  padding: 16px clamp(12px, 3vw, 28px) 8px;
+  padding: 16px max(clamp(12px, 3vw, 28px), env(safe-area-inset-right)) 8px
+           max(clamp(12px, 3vw, 28px), env(safe-area-inset-left));
   max-width: 1280px;
   margin: 0 auto;
 }
@@ -235,9 +239,57 @@ a:visited { color: #5c3d99; }
 }
 body[data-show-timer="false"] .timer-stat { display: none; }
 
+/* ---- 세로 모드 안내 배너 -------------------------------------------------
+ * 타일이 작아졌을 때 최초 1회만 뜨는 부드러운 안내(요구사항 A-3).
+ * ------------------------------------------------------------------------- */
+.orientation-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 1060px;
+  margin: 0 auto 12px;
+  padding: 10px 14px;
+  background: #fff8e6;
+  border: 1px solid #f0d78c;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  color: var(--accent-ink);
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+.orientation-hint[hidden] { display: none; }
+.orientation-hint.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+.orientation-hint-icon { font-size: 18px; }
+.orientation-hint span:not(.orientation-hint-icon) {
+  flex: 1;
+}
+.orientation-hint-close {
+  flex: 0 0 auto;
+  min-width: 40px;
+  min-height: 40px;
+  border: none;
+  background: transparent;
+  color: var(--accent-ink);
+  font-size: 18px;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+}
+.orientation-hint-close:hover { background: rgba(0, 0, 0, 0.06); }
+
+@media (prefers-reduced-motion: reduce) {
+  .orientation-hint { transition: none; }
+}
+
 /* ---- 보드 뷰포트 --------------------------------------------------------
- * 초록 펠트 배경. 타일 크기/화면 폭에 맞춰 JS가 --fit-scale을 계산해
- * 적용하고, 필요시 스크롤을 허용한다.
+ * 초록 펠트 배경. 타일 크기/화면 폭에 맞춰 JS(recomputeBoardLayout)가
+ * 필요한 배율만큼 실제 픽셀 지오메트리를 다시 계산해 넣는다 — CSS
+ * transform:scale()은 쓰지 않는다(대략 0.4~0.5배 부근에서 Chromium이
+ * 타일 안 SVG 숫자를 안 그리는 렌더링 버그를 실기기 검증 중 발견해서,
+ * transform 자체를 안 쓰는 쪽으로 피했다).
  * ------------------------------------------------------------------------- */
 .board-viewport {
   position: relative;
@@ -261,9 +313,9 @@ body[data-show-timer="false"] .timer-stat { display: none; }
   margin-right: auto;
 }
 
-/* 크기: JS가 (자연 크기 × fit-scale)로 계산해 인라인으로 설정 —
- * 실제로 축소 렌더링되는 #board가 차지할 시각적 공간을 문서 흐름에
- * 정확히 반영해 가운데 정렬/스크롤이 어긋나지 않게 한다. */
+/* #board와 항상 같은 크기(JS가 둘 다 geometry.width/height로 맞춤).
+ * 이제는 transform이 없어 사실 #board 하나로도 충분하지만, 구조 변경
+ * 범위를 최소화하려고 래퍼는 그대로 두었다. */
 .board-scale-wrap {
   position: relative;
   flex: 0 0 auto;
@@ -271,8 +323,6 @@ body[data-show-timer="false"] .timer-stat { display: none; }
 
 .board {
   position: relative;
-  transform: scale(var(--fit-scale, 1));
-  transform-origin: top left;
 }
 
 .tile-btn {
@@ -356,6 +406,66 @@ body[data-show-free="true"] .tile-btn[data-free="false"] .tile-face {
     transition: none;
     animation: none;
   }
+}
+
+/* ---- 전체화면 모드(body.is-fullscreen) -----------------------------------
+ * 실제 Fullscreen API든(fullscreenchange로 동기화), iOS Safari처럼 그
+ * API가 없어 game.js가 쓰는 position:fixed 폴백이든 똑같이 이 클래스
+ * 하나로 표현한다. 헤더/본문/푸터를 숨기고 툴바+보드만 화면 전체를 쓰게
+ * 하며, 배경을 펠트 그린으로 통일한다(요구사항 B-5, B-6).
+ * ------------------------------------------------------------------------- */
+body.is-fullscreen .site-header,
+body.is-fullscreen .content,
+body.is-fullscreen .site-footer,
+body.is-fullscreen .sidebar {
+  display: none;
+}
+
+body.is-fullscreen {
+  overflow: hidden; /* 폴백(position:fixed)일 때 배경 페이지가 스크롤되지 않게 */
+}
+
+body.is-fullscreen .game-shell {
+  position: fixed;
+  inset: 0;
+  z-index: 10; /* 설정 패널(100)·모달(200)보다는 낮게, 나머지 페이지보다는 위 */
+  display: flex;
+  flex-direction: column;
+  max-width: none;
+  margin: 0;
+  gap: 8px;
+  background: linear-gradient(180deg, var(--felt), var(--felt-dark));
+  /* 노치·홈 인디케이터 등 세이프 에어리어를 침범하지 않게(요구사항 A-2) */
+  padding: max(12px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right))
+           max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  overflow: auto;
+}
+
+body.is-fullscreen .game-column {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0; /* flex 자식이 콘텐츠 크기 밑으로 안 줄어드는 문제 방지 */
+}
+
+body.is-fullscreen .toolbar {
+  max-width: none;
+  flex: 0 0 auto;
+}
+
+body.is-fullscreen .orientation-hint {
+  max-width: none;
+}
+
+body.is-fullscreen .board-viewport {
+  flex: 1;
+  min-height: 0;
+  max-width: none;
+  margin: 0;
+  border-radius: 0;
+  box-shadow: none;
+  background: transparent; /* game-shell 자체가 이미 펠트 그린이라 이음매 없이 이어짐 */
+  align-items: center; /* 남는 세로 공간에서 보드를 세로로도 가운데 정렬 */
 }
 
 /* ---- 사이드바(광고 + 통계 요약) ----------------------------------------- */
@@ -638,7 +748,10 @@ body.ads-off .sidebar {
  * 상관없이 걸리는데, 어차피 세로 공간이 부족한 상황(작은 창 포함)에서는
  * 헤더를 줄이는 게 항상 도움이 되므로 문제없다. */
 @media (max-height: 500px) and (orientation: landscape) {
-  .site-header { padding: 6px clamp(12px, 3vw, 20px); }
+  .site-header {
+    padding: 6px max(clamp(12px, 3vw, 20px), env(safe-area-inset-right))
+             6px max(clamp(12px, 3vw, 20px), env(safe-area-inset-left));
+  }
   .site-header h1 { font-size: 18px; }
   .site-header .tagline { display: none; }
   .game-shell { padding-top: 8px; }
