@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mahjong Solitaire</title>
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23146b4c'/%3E%3Crect x='18' y='18' width='64' height='64' rx='10' fill='%23fbf7ec'/%3E%3Ctext x='50' y='66' font-size='46' text-anchor='middle' font-family='serif' fill='%23146b4c'%3E中%3C/text%3E%3C/svg%3E">
+
+<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="crazygames.css">
+
+<!-- CrazyGames SDK — 일반 <script src> 태그(async/defer 아님)라 다음
+     줄이 실행될 때는 window.CrazyGames가 이미 준비돼 있다고 보장된다.
+     "로딩 시작"은 여기서 최대한 일찍 알려야 정확하다(전체 로딩 시간
+     측정 기준점) — game.js/tiles.js가 실제로 받아지기도 전이다. -->
+<script src="https://sdk.crazygames.com/crazygames-sdk-v2.js"></script>
+<script>
+  if (window.CrazyGames && window.CrazyGames.SDK && window.CrazyGames.SDK.game) {
+    window.CrazyGames.SDK.game.sdkGameLoadingStart();
+  }
+</script>
+</head>
+<body class="ads-off" data-tile-size="large" data-tileset="big" data-show-free="true" data-show-timer="true">
+<a class="skip-link" href="#main">Skip to game</a>
+
+<!-- 업적 획득 토스트 — 화면 상단에 잠깐 하나만(소리/이펙트 없음).
+     game.js의 queueAchievementToasts/showNextToast가 표시를 담당. -->
+<div class="achievement-toast" id="achievement-toast" role="status" aria-live="polite"></div>
+
+<header class="site-header">
+  <h1>Free Mahjong Solitaire</h1>
+  <p class="tagline">Match tiles, clear the board — no download, no time limit.</p>
+</header>
+
+<main id="main">
+  <div class="game-shell">
+    <div class="game-column">
+      <div class="toolbar" role="toolbar" aria-label="Game controls">
+        <div class="toolbar-buttons">
+          <button type="button" class="btn" id="btn-undo" title="Undo last move (U)">Undo</button>
+          <button type="button" class="btn" id="btn-hint" title="Show a hint (H)">Hint</button>
+          <button type="button" class="btn" id="btn-fullscreen" title="Toggle full screen"><span id="btn-fullscreen-label">Full Screen</span></button>
+          <button type="button" class="btn" id="btn-settings" title="Settings" aria-haspopup="dialog">Settings</button>
+          <button type="button" class="btn" id="btn-new-game" title="Start a new game (N)">New Game</button>
+        </div>
+        <div class="status-strip">
+          <span class="pairs-stat"><span class="visually-hidden">Possible matching pairs remaining: </span>Pairs: <span class="stat-value" id="pairs-count">0</span></span>
+          <span class="timer-stat">Time: <span class="stat-value timer-value" id="timer-display">00:00</span></span>
+        </div>
+      </div>
+
+      <!-- 세로 모드에서 타일이 작아졌을 때 최초 1회만 살짝 안내(닫으면 다시
+           안 뜸) — game.js의 syncOrientationHint가 표시/숨김을 담당. -->
+      <div class="orientation-hint" id="orientation-hint" hidden>
+        <span class="orientation-hint-icon" aria-hidden="true">💡</span>
+        <span>Tip: turn your phone sideways for bigger tiles.</span>
+        <button type="button" class="orientation-hint-close" id="orientation-hint-close" aria-label="Dismiss tip">✕</button>
+      </div>
+
+      <div class="board-viewport" id="board-viewport">
+        <div class="board-scale-wrap">
+          <div class="board" id="board" role="group" aria-label="Mahjong board"></div>
+        </div>
+      </div>
+
+      <p id="live-region" class="visually-hidden" role="status" aria-live="polite"></p>
+    </div>
+
+    </div>
+
+</main>
+
+<!-- 모바일 전용 하단 고정 액션바(640px 미만에서만 보임, style.css) — 상시
+     노출 버튼을 Undo/Hint/Menu 3개로 줄여 보드가 화면의 주인공이 되게 한다.
+     나머지(New Game/Full Screen/Settings)는 Menu가 여는 아래 시트로 옮김. -->
+<div class="mobile-actionbar" role="toolbar" aria-label="Game controls" id="mobile-actionbar">
+  <button type="button" class="mobile-actionbar-btn" id="btn-undo-mobile" title="Undo last move (U)">Undo</button>
+  <button type="button" class="mobile-actionbar-btn" id="btn-hint-mobile" title="Show a hint (H)">Hint</button>
+  <button type="button" class="mobile-actionbar-btn" id="btn-menu-mobile" title="Menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="mobile-menu-sheet">Menu</button>
+</div>
+
+<div class="mobile-menu-sheet" id="mobile-menu-sheet" data-open="false">
+  <div class="mobile-menu-backdrop" id="mobile-menu-backdrop"></div>
+  <div class="mobile-menu-panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <button type="button" class="btn mobile-menu-btn" id="btn-new-game-mobile" title="Start a new game (N)">New Game</button>
+    <button type="button" class="btn mobile-menu-btn" id="btn-fullscreen-mobile" title="Toggle full screen"><span id="btn-fullscreen-label-mobile">Full Screen</span></button>
+    <button type="button" class="btn mobile-menu-btn" id="btn-settings-mobile" title="Settings" aria-haspopup="dialog">Settings</button>
+    <button type="button" class="btn mobile-menu-btn mobile-menu-close" id="btn-menu-close">Close</button>
+  </div>
+</div>
+
+<!-- 설정 패널 -->
+<div class="settings-panel" id="settings-panel" data-open="false">
+  <div class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+    <h2 id="settings-title">Settings</h2>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label">Tile size</legend>
+      <div class="segmented" id="tile-size-group">
+        <label><input type="radio" name="tile-size" value="normal"><span>Normal</span></label>
+        <label><input type="radio" name="tile-size" value="large" checked><span>Large</span></label>
+        <label><input type="radio" name="tile-size" value="xlarge"><span>Extra Large</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label">Tile style</legend>
+      <div class="segmented" id="tileset-group">
+        <label><input type="radio" name="tileset" value="classic"><span>Classic</span></label>
+        <label><input type="radio" name="tileset" value="big" checked><span>Big &amp; Bold</span></label>
+      </div>
+    </fieldset>
+
+    <div class="settings-row toggle-row">
+      <label for="toggle-free">Highlight open tiles</label>
+      <input type="checkbox" id="toggle-free" checked>
+    </div>
+
+    <div class="settings-row toggle-row">
+      <label for="toggle-timer">Show timer</label>
+      <input type="checkbox" id="toggle-timer" checked>
+    </div>
+
+    <div class="settings-row toggle-row">
+      <label for="toggle-sound">Sound effects</label>
+      <input type="checkbox" id="toggle-sound" checked>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label">Statistics</span>
+      <dl class="settings-stats">
+        <dt>Games played</dt>
+        <dd id="stat-games">0</dd>
+        <dt>Games won</dt>
+        <dd id="stat-wins">0</dd>
+        <dt>Best time</dt>
+        <dd id="stat-best">—</dd>
+      </dl>
+    </div>
+
+    <!-- 배지 6종. 획득 전엔 회색 실루엣+조건 텍스트, 획득하면 채워진 별+
+         "Unlocked" — game.js의 renderAchievements가 채운다. -->
+    <div class="settings-row">
+      <span class="settings-label">Achievements</span>
+      <div class="achievements-grid" id="achievements-grid"></div>
+    </div>
+
+    <!-- 서버 없이 통계+배지+데일리 기록을 코드 하나로 내보내고 복원한다. -->
+    <div class="settings-row">
+      <span class="settings-label">Backup &amp; Restore</span>
+      <p class="meta-note">Save your stats, badges, and daily history as a short code you can paste back in later, or on another device.</p>
+      <button type="button" class="btn" id="btn-backup-export">Create Backup Code</button>
+      <textarea id="backup-export-code" class="backup-code-area" readonly rows="3" aria-label="Your backup code"></textarea>
+      <button type="button" class="btn" id="btn-backup-copy">Copy Code</button>
+      <label for="backup-import-input" class="settings-label backup-restore-label">Restore from a code</label>
+      <textarea id="backup-import-input" class="backup-code-area" rows="3" aria-label="Paste a backup code here to restore"></textarea>
+      <button type="button" class="btn" id="btn-backup-import">Restore</button>
+      <p id="backup-status" class="meta-note" role="status" aria-live="polite"></p>
+    </div>
+
+    <button type="button" class="btn btn-accent settings-close" id="btn-settings-close">Close</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-newgame-confirm" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="newgame-confirm-title">
+    <h2 id="newgame-confirm-title">Start a new game?</h2>
+    <p>Your current game will be lost.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn" id="btn-newgame-confirm-keep">Keep Playing</button>
+      <button type="button" class="btn" id="btn-newgame-confirm-start">New Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- "더 이상 짝이 없습니다" 모달 — 평소엔 버튼 없이 자동 셔플을 기다리는
+     안내만 보여주고(탭하면 즉시 진행), 재배치가 불가능하거나 셔플이
+     계속 반복될 때만 "New Game" 버튼이 있는 안내로 바뀐다(아래 game.js
+     handleNoMoreMatches 참고). -->
+<div class="modal-overlay" id="modal-stuck" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="stuck-title">
+    <h2 id="stuck-title">No more matches</h2>
+    <p id="stuck-message">No more matches — shuffling the tiles...</p>
+    <div class="modal-actions" id="stuck-actions" hidden>
+      <button type="button" class="btn btn-accent" id="btn-stuck-newgame">New Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- 승리 모달 -->
+<div class="modal-overlay" id="modal-win" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="win-title">
+    <h2 id="win-title">Well played!</h2>
+    <p>You cleared the board in <strong id="win-time">00:00</strong>.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="btn-win-newgame">New Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- 이어하기 모달 -->
+<div class="modal-overlay" id="modal-resume" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="resume-title">
+    <h2 id="resume-title">Welcome back</h2>
+    <p>You have a game in progress. Continue where you left off, or start a new game?</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="btn-resume-continue">Continue</button>
+      <button type="button" class="btn btn-ghost" id="btn-resume-newgame">New Game</button>
+    </div>
+  </div>
+</div>
+
+<script src="tiles.js"></script>
+<script src="game.js"></script>
+<script src="crazygames-integration.js"></script>
+</body>
+</html>

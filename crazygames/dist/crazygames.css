@@ -1,0 +1,11 @@
+/* crazygames.css — style.css 위에 얹는 아주 작은 오버라이드.
+ * style.css 자체는 메인 사이트와 완전히 동일한 파일을 그대로 쓴다. */
+
+/* CrazyGames는 커스텀 인게임 전체화면 버튼을 금지한다(전체화면은
+ * 포털이 자체 제공). 버튼 엘리먼트 자체는 game.js가 가드 없이
+ * getElementById().addEventListener()로 참조하므로 DOM에서 지우면
+ * 초기화가 깨진다 — 그래서 지우는 대신 완전히 숨긴다. */
+#btn-fullscreen,
+#btn-fullscreen-mobile {
+  display: none !important;
+}
