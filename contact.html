@@ -33,14 +33,32 @@
     <p>
       Found a bug, have a suggestion, or just want to say hello? We'd like to hear from you.
     </p>
-    <!--
-      TODO: 실제 문의 이메일이 정해지면 아래 문구를 다음 형태로 교체할 것:
-      <p>Email: <a href="mailto:you@example.com">you@example.com</a></p>
-      privacy.html의 "Contact" 섹션은 이 페이지를 그대로 가리키고 있어 별도 수정 불필요.
-    -->
-    <p class="meta-note">
-      Contact email coming soon — this page will be updated with a direct address shortly.
-    </p>
+
+    <!-- 이메일 주소를 정적 HTML에 그대로 두면 페이지 소스를 그냥 훑는
+         가장 단순한 수집 봇에 바로 걸린다 — 그래서 JS가 있으면 아이디/
+         도메인 조각을 런타임에 조립해서 진짜 mailto 링크를 만들어
+         넣는다. JS가 꺼져 있으면(위 스크립트가 아예 안 돎) 이 문단은
+         비어 있는 채로 남으므로, noscript 안의 버튼(직접 박아둔 진짜
+         mailto 링크)이 유일한 접점이 된다. -->
+    <p id="contact-email" class="contact-email"></p>
+    <noscript>
+      <p><a class="btn" href="mailto:easymahjongsolitaire@gmail.com">Show email address</a></p>
+    </noscript>
+    <script>
+      (function () {
+        var el = document.getElementById('contact-email');
+        if (!el) return;
+        var user = 'easymahjongsolitaire';
+        var domain = 'gmail.com';
+        var address = user + '@' + domain;
+        var link = document.createElement('a');
+        link.href = 'mailto:' + address;
+        link.textContent = address;
+        el.textContent = 'Email: ';
+        el.appendChild(link);
+      })();
+    </script>
+
     <p>
       <a href="/">Play Free Mahjong Solitaire →</a>
     </p>

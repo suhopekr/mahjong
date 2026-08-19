@@ -908,6 +908,12 @@ body.ads-off .sidebar {
   font-size: 19px;
   margin-top: 28px;
 }
+/* contact.html — JS가 조립해 넣는 이메일 줄(비어있다가 채워짐)을 살짝
+ * 강조. 링크 자체 색은 사이트 전역 링크색을 그대로 따른다. */
+.contact-email {
+  font-size: 20px;
+  font-weight: 600;
+}
 .meta-note {
   color: #5c665e;
   font-size: 15px;
