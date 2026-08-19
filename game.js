@@ -1183,7 +1183,62 @@
    * 그대로 붙여넣어 복원할 수 있게 한다. 체크섬(해시)을 같이 실어서, 오타나
    * 손상된 코드를 조용히 잘못 적용하는 대신 "코드가 올바르지 않다"고
    * 알 수 있게 한다.
+   *
+   * 보안 노트: 이 체크섬은 hashStringToSeed(평범한 비암호학적 해시)라
+   * "우연한 손상·오타 탐지"용이지, 위조 방지용 서명이 아니다 — 코드
+   * 전체를 마음대로 지어낼 수 있는 사람이라면 체크섬도 얼마든지 맞춰
+   * 계산할 수 있다. 그래서 이 함수는 체크섬 통과 여부와 무관하게
+   * "체크섬만 맞으면 뭐든 믿고 그대로 반영" 하지 않고, 아래
+   * sanitizeStats/sanitizeAchievements/sanitizeDaily로 필드 하나하나의
+   * 타입과 모양을 검증한 뒤 그 결과만 받아들인다. 값이 무엇이든
+   * 렌더링은 항상 textContent만 쓰므로(innerHTML 아님) DOM 삽입 경로
+   * 자체는 안전하지만, 검증 없이 그대로 merge하면 내부 상태(예: 알 수
+   * 없는 배지 id, 숫자가 아닌 시간값)가 오염될 수 있어 여기서 미리 막는다.
    * ------------------------------------------------------------------------- */
+  var BACKUP_CODE_MAX_LENGTH = 20000; // 붙여넣기 사고/악성 대용량 문자열 방지
+  var DAILY_DATE_STR_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+  function isFiniteNumber(v) { return typeof v === 'number' && isFinite(v); }
+
+  function sanitizeStats(raw) {
+    var out = Object.assign({}, DEFAULT_STATS);
+    if (!raw || typeof raw !== 'object') return out;
+    if (isFiniteNumber(raw.gamesPlayed) && raw.gamesPlayed >= 0) out.gamesPlayed = raw.gamesPlayed;
+    if (isFiniteNumber(raw.gamesWon) && raw.gamesWon >= 0) out.gamesWon = raw.gamesWon;
+    if (raw.bestTimeMs === null || (isFiniteNumber(raw.bestTimeMs) && raw.bestTimeMs >= 0)) out.bestTimeMs = raw.bestTimeMs;
+    return out;
+  }
+
+  // 알려진 배지 id만 통과시킨다 — payload가 임의의 키를 실어 보내도
+  // (예: 미래에 achievements.unlocked를 그대로 나열해 렌더링하는 코드가
+  // 생기더라도) 여기서 이미 걸러진 뒤라 안전하다.
+  function sanitizeAchievements(raw) {
+    var out = { unlocked: {} };
+    if (!raw || typeof raw !== 'object' || !raw.unlocked || typeof raw.unlocked !== 'object') return out;
+    ACHIEVEMENT_DEFS.forEach(function (def) {
+      var ts = raw.unlocked[def.id];
+      if (isFiniteNumber(ts) && ts >= 0) out.unlocked[def.id] = ts;
+    });
+    return out;
+  }
+
+  // 날짜 키는 반드시 YYYY-MM-DD 형태만 허용(달력 렌더링이 이 값으로
+  // Date를 만들지는 않지만, 형태가 다른 키가 섞여 들어오는 것 자체를 막는다).
+  function sanitizeDaily(raw) {
+    var out = { completions: {} };
+    if (!raw || typeof raw !== 'object' || !raw.completions || typeof raw.completions !== 'object') return out;
+    Object.keys(raw.completions).forEach(function (dateStr) {
+      if (!DAILY_DATE_STR_RE.test(dateStr)) return;
+      var entry = raw.completions[dateStr];
+      if (!entry || typeof entry !== 'object') return;
+      out.completions[dateStr] = {
+        elapsedMs: isFiniteNumber(entry.elapsedMs) && entry.elapsedMs >= 0 ? entry.elapsedMs : 0,
+        completedAt: isFiniteNumber(entry.completedAt) && entry.completedAt >= 0 ? entry.completedAt : Date.now(),
+      };
+    });
+    return out;
+  }
+
   function buildBackupPayload() {
     return { v: SCHEMA_VERSION, stats: stats, achievements: achievements, daily: dailyCompletions };
   }
@@ -1199,16 +1254,23 @@
     }
   }
   function importBackupCode(code) {
+    var trimmed = String(code || '').trim();
+    if (!trimmed) return { ok: false, reason: 'parse' };
+    if (trimmed.length > BACKUP_CODE_MAX_LENGTH) return { ok: false, reason: 'parse' };
     try {
-      var wrapped = JSON.parse(decodeURIComponent(escape(atob(String(code || '').trim()))));
+      // eval/Function은 어디에도 쓰지 않는다 — atob(base64 디코딩)와
+      // JSON.parse만으로 구조화된 데이터를 얻고, 그 결과는 아래에서
+      // 필드 단위로 검증한 뒤에만 실제 상태에 반영한다.
+      var wrapped = JSON.parse(decodeURIComponent(escape(atob(trimmed))));
+      if (!wrapped || typeof wrapped !== 'object') return { ok: false, reason: 'parse' };
       var json = JSON.stringify(wrapped.d);
       var checksum = hashStringToSeed(json).toString(36);
       if (checksum !== wrapped.c) return { ok: false, reason: 'checksum' };
       var payload = wrapped.d;
-      if (!payload || payload.v !== SCHEMA_VERSION) return { ok: false, reason: 'version' };
-      stats = Object.assign({}, DEFAULT_STATS, payload.stats || {});
-      achievements = Object.assign({}, DEFAULT_ACHIEVEMENTS, payload.achievements || {});
-      dailyCompletions = Object.assign({}, DEFAULT_DAILY, payload.daily || {});
+      if (!payload || typeof payload !== 'object' || payload.v !== SCHEMA_VERSION) return { ok: false, reason: 'version' };
+      stats = sanitizeStats(payload.stats);
+      achievements = sanitizeAchievements(payload.achievements);
+      dailyCompletions = sanitizeDaily(payload.daily);
       saveStats();
       saveAchievements();
       saveDailyCompletions();

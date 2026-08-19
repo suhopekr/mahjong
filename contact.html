@@ -27,15 +27,7 @@
      자체가 아예 안 실려도 게임 로직에는 전혀 지장이 없다(game.js의
      trackEvent가 매번 window.gtag 존재 여부를 확인한 뒤에만 호출). -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-CPBFW58QG6"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag() { dataLayer.push(arguments); }
-  gtag('js', new Date());
-  gtag('config', 'G-CPBFW58QG6', {
-    anonymize_ip: true,
-    allow_google_signals: false
-  });
-</script>
+<script src="/ga-init.js"></script>
 </head>
 <body class="ads-off">
 <a class="skip-link" href="#main">Skip to content</a>
@@ -61,20 +53,7 @@
     <noscript>
       <p><a class="btn" href="mailto:easymahjongsolitaire@gmail.com">Show email address</a></p>
     </noscript>
-    <script>
-      (function () {
-        var el = document.getElementById('contact-email');
-        if (!el) return;
-        var user = 'easymahjongsolitaire';
-        var domain = 'gmail.com';
-        var address = user + '@' + domain;
-        var link = document.createElement('a');
-        link.href = 'mailto:' + address;
-        link.textContent = address;
-        el.textContent = 'Email: ';
-        el.appendChild(link);
-      })();
-    </script>
+    <script src="/contact-email.js"></script>
 
     <p>
       <a href="/">Play Free Mahjong Solitaire →</a>

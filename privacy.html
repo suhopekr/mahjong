@@ -27,15 +27,7 @@
      자체가 아예 안 실려도 게임 로직에는 전혀 지장이 없다(game.js의
      trackEvent가 매번 window.gtag 존재 여부를 확인한 뒤에만 호출). -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-CPBFW58QG6"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag() { dataLayer.push(arguments); }
-  gtag('js', new Date());
-  gtag('config', 'G-CPBFW58QG6', {
-    anonymize_ip: true,
-    allow_google_signals: false
-  });
-</script>
+<script src="/ga-init.js"></script>
 </head>
 <body class="ads-off">
 <a class="skip-link" href="#main">Skip to content</a>
