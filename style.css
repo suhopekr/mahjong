@@ -579,6 +579,44 @@ body.ads-off .sidebar {
   color: #5c665e;
 }
 
+.footer-nav {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+  margin-top: 12px;
+  font-size: 15px;
+}
+.footer-nav a {
+  color: #5c665e;
+  text-decoration: underline;
+  padding: 6px 2px; /* 터치 타겟 여유 */
+}
+.footer-nav a:hover,
+.footer-nav a:focus-visible {
+  color: var(--ink);
+}
+
+/* 보조 페이지(About/Privacy/Contact) 헤더의 "게임으로 돌아가기" 링크 */
+.site-header .back-link {
+  color: inherit;
+  text-decoration: underline;
+}
+.site-header .back-link:hover,
+.site-header .back-link:focus-visible {
+  text-decoration-thickness: 2px;
+}
+
+/* 보조 페이지 본문에서 자주 쓰는 소제목/목록 여백 살짝 정리 */
+.content h3 {
+  font-size: 19px;
+  margin-top: 28px;
+}
+.content .meta-note {
+  color: #5c665e;
+  font-size: 15px;
+}
+
 /* ---- 반응형 세부 조정 ---------------------------------------------------- */
 @media (max-width: 640px) {
   body { font-size: 17px; }
