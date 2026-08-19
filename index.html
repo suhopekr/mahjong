@@ -239,6 +239,25 @@
   </nav>
 </footer>
 
+<!-- 모바일 전용 하단 고정 액션바(640px 미만에서만 보임, style.css) — 상시
+     노출 버튼을 Undo/Hint/Menu 3개로 줄여 보드가 화면의 주인공이 되게 한다.
+     나머지(New Game/Full Screen/Settings)는 Menu가 여는 아래 시트로 옮김. -->
+<div class="mobile-actionbar" role="toolbar" aria-label="Game controls" id="mobile-actionbar">
+  <button type="button" class="mobile-actionbar-btn" id="btn-undo-mobile" title="Undo last move (U)">Undo</button>
+  <button type="button" class="mobile-actionbar-btn" id="btn-hint-mobile" title="Show a hint (H)">Hint</button>
+  <button type="button" class="mobile-actionbar-btn" id="btn-menu-mobile" title="Menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="mobile-menu-sheet">Menu</button>
+</div>
+
+<div class="mobile-menu-sheet" id="mobile-menu-sheet" data-open="false">
+  <div class="mobile-menu-backdrop" id="mobile-menu-backdrop"></div>
+  <div class="mobile-menu-panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <button type="button" class="btn mobile-menu-btn" id="btn-new-game-mobile" title="Start a new game (N)">New Game</button>
+    <button type="button" class="btn mobile-menu-btn" id="btn-fullscreen-mobile" title="Toggle full screen"><span id="btn-fullscreen-label-mobile">Full Screen</span></button>
+    <button type="button" class="btn mobile-menu-btn" id="btn-settings-mobile" title="Settings" aria-haspopup="dialog">Settings</button>
+    <button type="button" class="btn mobile-menu-btn mobile-menu-close" id="btn-menu-close">Close</button>
+  </div>
+</div>
+
 <!-- 설정 패널 -->
 <div class="settings-panel" id="settings-panel" data-open="false">
   <div class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">

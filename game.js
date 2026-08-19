@@ -104,11 +104,62 @@
     return slots;
   }
 
+  // 세로(portrait) 전용 레이아웃: 거북이와 같은 6개 층 구조·같은 역순
+  // 생성기를 그대로 쓰되, 폭을 좁게(최대 7칸) 잡고 대신 높이를 크게 잡아
+  // 세로로 긴 화면에 맞춘다. 층 사이 폭/높이가 항상 홀짝 번갈아 바뀌도록
+  // 잡아 half-tile 넛징이 유지되게 했다(막다른 상태 방지, 거북이와 동일한
+  // 원칙 — buildTurtleLayout 위 주석 참고). 귀 타일 2장은 옆이 아니라
+  // 위/아래로 붙여 세로 비율을 한 번 더 강조한다.
+  function buildPortraitLayout() {
+    var BASE_COLS = 7;
+    var BASE_ROWS = 9;
+
+    var layers = [
+      { grid: buildRoundedRect(9, 7, 0), z: 0, colWidth: 7, rowHeight: 9 },
+      { grid: buildRoundedRect(6, 6, 0), z: 1, colWidth: 6, rowHeight: 6 },
+      { grid: buildRoundedRect(4, 5, 0), z: 2, colWidth: 5, rowHeight: 4 },
+      { grid: buildRoundedRect(3, 4, 0), z: 3, colWidth: 4, rowHeight: 3 },
+      { grid: buildRoundedRect(3, 3, 0), z: 4, colWidth: 3, rowHeight: 3 },
+      { grid: buildRoundedRect(1, 2, 0), z: 5, colWidth: 2, rowHeight: 1 },
+    ];
+
+    var slots = [];
+    layers.forEach(function (layer) {
+      var xShift = BASE_COLS - layer.colWidth;
+      var yShift = BASE_ROWS - layer.rowHeight;
+      gridCells(layer.grid).forEach(function (rc) {
+        var r = rc[0], c = rc[1];
+        slots.push({ x: 2 * c + xShift, y: 2 * r + yShift, z: layer.z });
+      });
+    });
+
+    // 귀 타일 2장: z=1, 가로 중앙에서 위/아래로 돌출(세로 축 강조).
+    slots.push({ x: 6, y: -2, z: 1 });
+    slots.push({ x: 6, y: 18, z: 1 });
+
+    if (slots.length !== 144) {
+      throw new Error('[layout] portrait layout must have exactly 144 slots, got ' + slots.length);
+    }
+    var seen = new Set();
+    slots.forEach(function (s) {
+      var k = s.x + '_' + s.y + '_' + s.z;
+      if (seen.has(k)) throw new Error('[layout] duplicate slot coordinate ' + k);
+      seen.add(k);
+    });
+
+    return slots;
+  }
+
   var LAYOUTS = {
     turtle: {
       id: 'turtle',
       name: 'Turtle (Classic)',
       slots: buildTurtleLayout(),
+    },
+    portrait: {
+      id: 'portrait',
+      name: 'Tower (Portrait)',
+      slots: buildPortraitLayout(),
     },
   };
 
@@ -882,7 +933,11 @@
   var boardEl, viewportEl, boardScaleWrapEl, liveRegionEl;
   var tileElements = [];
   var geometry = null;
-  var graph = getSlotGraph('turtle');
+  // 레이아웃별로 그래프가 달라서(turtle/portrait) 게임이 시작/이어하기될
+  // 때마다 state.layoutId에 맞춰 다시 설정한다 — startNewGame/resumeSavedGame
+  // 참고. 그 전까지는 null이며, initApp의 이어하기 여부 확인은 이 변수
+  // 대신 저장된 판 자신의 layoutId로 그래프를 따로 구해 쓴다.
+  var graph = null;
   var hintSlots = new Set();
 
   function removeTileElement(i, animate) {
@@ -966,7 +1021,14 @@
     // 있는 공간"을 뺀 나머지만 허용한다. offsetTop은 문서 흐름상의
     // 위치라 현재 스크롤 위치와 무관하다(getBoundingClientRect().top을
     // 쓰면 사용자가 이미 스크롤한 상태에서 재계산될 때 값이 틀어진다).
-    var availableH = Math.max(60, vp.height - viewportEl.offsetTop - BOARD_VIEWPORT_VPAD - BOTTOM_BREATHING_ROOM);
+    // 모바일 폭(640px 미만)에서는 화면 하단에 고정 액션바가 떠 있어 그만큼
+    // 보드가 쓸 수 있는 세로 공간이 줄어든다. 하드코딩 대신 실제 렌더된
+    // 높이를 재서 뺀다(safe-area-inset-bottom 패딩까지 이미 반영된 값이라
+    // 기기별로 따로 계산할 필요가 없다). 데스크톱 폭에서는 CSS가 이 바를
+    // display:none으로 감춰 offsetParent가 null이 되므로 0으로 취급된다.
+    var actionbarH = (mobileActionbarEl && mobileActionbarEl.offsetParent !== null)
+      ? mobileActionbarEl.getBoundingClientRect().height : 0;
+    var availableH = Math.max(60, vp.height - viewportEl.offsetTop - BOARD_VIEWPORT_VPAD - BOTTOM_BREATHING_ROOM - actionbarH);
     var scaleH = naturalGeometry.height > availableH ? availableH / naturalGeometry.height : 1;
 
     var scale = Math.max(TECHNICAL_MIN_SCALE, Math.min(1, scaleW, scaleH));
@@ -1036,6 +1098,10 @@
 
   function syncOrientationHint(scale, vp) {
     if (!orientationHintEl) return;
+    // 세로 전용 타워 레이아웃은 애초에 세로 화면에 맞춘 것이라 "가로로
+    // 돌리면 더 커진다"는 안내가 더 이상 맞지 않는다 — 이 레이아웃으로
+    // 플레이 중일 때는 안내 자체를 건너뛴다.
+    if (state && state.layoutId === 'portrait') { hideOrientationHint(); return; }
     var isPortrait = vp.height > vp.width;
     var isVisible = orientationHintEl.classList.contains('is-visible');
 
@@ -1144,12 +1210,14 @@
   function closeModal(el) { el.dataset.open = 'false'; }
 
   // ---- 상태 표시 갱신 -------------------------------------------------------
-  var pairsCountEl, timerDisplayEl, undoBtn;
+  var pairsCountEl, timerDisplayEl, undoBtn, undoBtnMobile;
+  var mobileActionbarEl, mobileMenuSheetEl, btnMenuMobileEl;
 
   function updateStatusStrip() {
     pairsCountEl.textContent = String(remainingPairsCount(graph, state.tiles));
     timerDisplayEl.textContent = formatTime(currentElapsedMs());
     undoBtn.disabled = state.history.length === 0;
+    if (undoBtnMobile) undoBtnMobile.disabled = state.history.length === 0;
   }
 
   function startTimerLoop() {
@@ -1279,6 +1347,16 @@
   // 하는데, 그 경우 브라우저가 첫 인자로 (참인) Event 객체를 넘기므로
   // `!silent` 같은 느슨한 체크를 쓰면 버튼 클릭이 항상 "silent" 취급되는
   // 버그가 생긴다 — 반드시 엄격 비교(=== true)로 판별해야 한다.
+  // 새 게임을 시작하는 "그 순간"의 화면 방향으로 레이아웃을 고른다 — 세로가
+  // 더 길면(휴대폰 세로 포함) 세로 전용 타워 레이아웃을, 그 외(가로/
+  // 데스크톱)에는 기존 거북이 레이아웃을 쓴다. 게임 도중 회전은 여기를
+  // 다시 안 타므로(레이아웃은 새 게임에서만 정해짐) 판이 그대로 유지되고
+  // recomputeBoardLayout의 재스케일만 반응한다.
+  function pickLayoutForNewGame() {
+    var vp = getViewportSize();
+    return (vp.height > vp.width) ? 'portrait' : 'turtle';
+  }
+
   function startNewGame(silent) {
     var isSilent = silent === true;
     clearPendingStuckTimeout();
@@ -1288,12 +1366,13 @@
     closeModal(modalStuck);
     closeModal(modalResume);
     closeModal(modalNewGameConfirm);
-    var gen = createGameState('turtle', rng);
+    var gen = createGameState(pickLayoutForNewGame(), rng);
     if (!gen) {
       announce('Could not generate a board. Please try again.');
       return;
     }
     state = gen;
+    graph = getSlotGraph(state.layoutId);
     hintSlots.clear();
     fullRender();
     if (!isSilent) {
@@ -1331,6 +1410,7 @@
       elapsedMsBase: saved.elapsedMsBase || 0,
       timerPaused: false,
     };
+    graph = getSlotGraph(state.layoutId);
     hintSlots.clear();
     fullRender();
     updateStatusStrip();
@@ -1363,13 +1443,22 @@
     }
   }
 
+  // 힌트를 짧은 간격으로 연달아 누르면(모바일 하단 바가 생기며 더 쉬워짐)
+  // 이전 호출이 예약해둔 "1.6초 뒤 지우기" 타임아웃이 남아있다가, 그새
+  // 새로 켜진 힌트 표시를 조기에 꺼버리는 문제가 있었다 — hintSlots는
+  // 재사용되는 공유 변수라 타임아웃 콜백이 실행될 때는 "지금 가리키는"
+  // hintSlots를 지우지, 자기가 켰던 그 시점의 힌트만 골라 지우는 게
+  // 아니기 때문. 새 힌트를 켤 때마다 이전 타임아웃을 먼저 취소해 막는다.
+  var pendingHintTimeoutId = null;
   function doHint() {
     var pair = findHintPair(graph, state.tiles, rng);
     if (!pair) { announce('No hints available right now.'); return; }
+    if (pendingHintTimeoutId) { clearTimeout(pendingHintTimeoutId); pendingHintTimeoutId = null; }
     hintSlots = new Set(pair);
     syncBoard(false);
     announce('Hint: a matching pair is highlighted.');
-    setTimeout(function () {
+    pendingHintTimeoutId = setTimeout(function () {
+      pendingHintTimeoutId = null;
       hintSlots.clear();
       syncBoard(false);
     }, 1600);
@@ -1386,6 +1475,7 @@
    * ------------------------------------------------------------------------- */
   var usingFakeFullscreen = false;
   var fullscreenLabelEl = null;
+  var fullscreenLabelElMobile = null;
 
   function isRealFullscreenActive() {
     return !!(document.fullscreenElement || document.webkitFullscreenElement);
@@ -1394,8 +1484,11 @@
   function setFullscreenUI(active) {
     document.body.classList.toggle('is-fullscreen', active);
     if (fullscreenLabelEl) fullscreenLabelEl.textContent = active ? 'Exit Full Screen' : 'Full Screen';
+    if (fullscreenLabelElMobile) fullscreenLabelElMobile.textContent = active ? 'Exit Full Screen' : 'Full Screen';
     var btn = document.getElementById('btn-fullscreen');
     if (btn) btn.title = active ? 'Exit full screen' : 'Toggle full screen';
+    var btnMobile = document.getElementById('btn-fullscreen-mobile');
+    if (btnMobile) btnMobile.title = active ? 'Exit full screen' : 'Toggle full screen';
     // 레이아웃이 막 바뀌었으니(헤더/본문 표시 여부, 가용 공간) 다음 페인트
     // 이후에 다시 재보 — 폴백(동기 클래스 토글)에서 특히 중요하다.
     requestAnimationFrame(function () { if (geometry) recomputeBoardLayout(); });
@@ -1486,6 +1579,25 @@
     }
   }
 
+  /* ---- 모바일 하단 메뉴 시트 ------------------------------------------------
+   * 640px 미만에서 상단 툴바 대신 쓰는 하단 고정 액션바의 "Menu" 버튼이
+   * 여는 바텀시트. New Game/Full Screen/Settings처럼 자주 안 쓰는 3개를
+   * 여기로 옮겨 상시 노출 버튼을 3개(Undo/Hint/Menu)로 줄인다.
+   * ------------------------------------------------------------------------- */
+  function openMobileMenu() {
+    if (!mobileMenuSheetEl) return;
+    mobileMenuSheetEl.dataset.open = 'true';
+    if (btnMenuMobileEl) btnMenuMobileEl.setAttribute('aria-expanded', 'true');
+  }
+  function closeMobileMenu() {
+    if (!mobileMenuSheetEl) return;
+    mobileMenuSheetEl.dataset.open = 'false';
+    if (btnMenuMobileEl) btnMenuMobileEl.setAttribute('aria-expanded', 'false');
+  }
+  function isMobileMenuOpen() {
+    return !!mobileMenuSheetEl && mobileMenuSheetEl.dataset.open === 'true';
+  }
+
   // ---- 설정 패널 UI 동기화 ---------------------------------------------------
   function applySettingsToDOM() {
     document.body.dataset.tileSize = settings.tileSize;
@@ -1529,6 +1641,11 @@
     stuckActionsEl = document.getElementById('stuck-actions');
     orientationHintEl = document.getElementById('orientation-hint');
     fullscreenLabelEl = document.getElementById('btn-fullscreen-label');
+    undoBtnMobile = document.getElementById('btn-undo-mobile');
+    fullscreenLabelElMobile = document.getElementById('btn-fullscreen-label-mobile');
+    mobileActionbarEl = document.getElementById('mobile-actionbar');
+    mobileMenuSheetEl = document.getElementById('mobile-menu-sheet');
+    btnMenuMobileEl = document.getElementById('btn-menu-mobile');
 
     applySettingsToDOM();
     renderStats();
@@ -1555,6 +1672,26 @@
     document.addEventListener('webkitfullscreenchange', onNativeFullscreenChange);
     document.getElementById('btn-settings').addEventListener('click', function () { openModal(settingsPanel); });
     document.getElementById('btn-settings-close').addEventListener('click', function () { closeModal(settingsPanel); });
+
+    // ---- 모바일 하단 액션바(Undo/Hint/Menu) + 메뉴 시트 -----------------------
+    // Undo/Hint는 데스크톱 버튼과 동작이 완전히 같아 같은 함수를 그대로 건다.
+    document.getElementById('btn-undo-mobile').addEventListener('click', doUndo);
+    document.getElementById('btn-hint-mobile').addEventListener('click', doHint);
+    document.getElementById('btn-menu-mobile').addEventListener('click', openMobileMenu);
+    document.getElementById('btn-menu-close').addEventListener('click', closeMobileMenu);
+    document.getElementById('mobile-menu-backdrop').addEventListener('click', closeMobileMenu);
+    document.getElementById('btn-new-game-mobile').addEventListener('click', function () {
+      closeMobileMenu();
+      requestNewGame();
+    });
+    document.getElementById('btn-fullscreen-mobile').addEventListener('click', function () {
+      closeMobileMenu();
+      toggleFullscreen();
+    });
+    document.getElementById('btn-settings-mobile').addEventListener('click', function () {
+      closeMobileMenu();
+      openModal(settingsPanel);
+    });
 
     document.getElementById('btn-stuck-newgame').addEventListener('click', startNewGame);
     // 대기 중(모달 안내 문구를 보여주는 동안)에만 탭/클릭으로 대기를
@@ -1617,6 +1754,11 @@
     }
 
     document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && isMobileMenuOpen()) {
+        closeMobileMenu();
+        e.preventDefault();
+        return;
+      }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
       var key = e.key.toLowerCase();
       if (key === 'u') { doUndo(); }
@@ -1631,7 +1773,11 @@
     // localStorage 저장을 덮어쓰므로, 이후 "이어하기"는 저장소를 다시 읽지
     // 않고 이 캡처된 값을 그대로 사용해야 한다.
     var saved = loadSavedGame();
-    if (saved && Array.isArray(saved.tiles) && saved.tiles.length === graph.n && !saved.tiles.every(function (t) { return t == null; })) {
+    // 아직 게임을 시작하기 전이라 graph가 없다(위 startNewGame/resumeSavedGame
+    // 에서만 채워짐) — 저장된 판 자신의 layoutId 기준으로 길이를 따로 확인한다.
+    var savedLayoutId = (saved && saved.layoutId && LAYOUTS[saved.layoutId]) ? saved.layoutId : 'turtle';
+    var savedGraphN = getSlotGraph(savedLayoutId).n;
+    if (saved && Array.isArray(saved.tiles) && saved.tiles.length === savedGraphN && !saved.tiles.every(function (t) { return t == null; })) {
       pendingResume = saved;
       startNewGame(true); // 뒤에 깔릴 새 보드를 우선 준비(모달이 덮음) — 통계에는 집계 안 함
       stopTimerLoop();
