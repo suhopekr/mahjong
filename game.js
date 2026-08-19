@@ -879,7 +879,20 @@
     var halfH = tileH / 2;
     var depthX = unit * Z_DEPTH_MUL;
     var depthY = unit * Z_DEPTH_MUL;
-    var positions = slots.map(function (s) {
+
+    // 1단계: z 깊이(입체감) 오프셋까지 반영한 "가안(raw)" 좌표. minX/minY만
+    // 뺀 상태라, 아직 (0,0) 기준으로 딱 맞춰지지 않았을 수 있다 — 예를
+    // 들어 x=maxX인 타일과 z=maxZ인 타일이 서로 다른 타일이면(대부분의
+    // 레이아웃이 그렇다), "x가 가장 오른쪽" + "z 깊이가 가장 큼"을 각각
+    // 따로 최댓값으로 잡아 더하는 식으로는 실제 가장 오른쪽 타일의 픽셀
+    // 위치를 과대평가해서, 타일 묶음이 컨테이너 안에서 한쪽(주로 왼쪽)
+    // 으로 쏠려 보이는 버그가 있었다(세로 타워 레이아웃에서 특히 두드러짐
+    // — 스크린샷으로 실측: 우측 여백만 40px 안팎 추가로 남고 좌측은
+    // 0에 가까웠음). 그래서 실제로 렌더될 모든 타일의 raw left/top을
+    // 먼저 구한 뒤, 그 결과물 전체의 진짜 bounding box로 다시 원점을
+    // 맞춘다 — 이러면 어떤 레이아웃이든 항상 타일 묶음이 컨테이너 경계에
+    // 딱 맞게(어느 쪽으로도 남는 여백 없이) 채워진다.
+    var raw = slots.map(function (s) {
       return {
         left: (s.x - minX) * halfW + s.z * depthX,
         top: (s.y - minY) * halfH + (maxZ - s.z) * depthY,
@@ -888,10 +901,23 @@
         z: s.z,
       };
     });
+
+    var boxLeft = Infinity, boxRight = -Infinity, boxTop = Infinity, boxBottom = -Infinity;
+    raw.forEach(function (p) {
+      if (p.left < boxLeft) boxLeft = p.left;
+      if (p.left + p.w > boxRight) boxRight = p.left + p.w;
+      if (p.top < boxTop) boxTop = p.top;
+      if (p.top + p.h > boxBottom) boxBottom = p.top + p.h;
+    });
+
+    var positions = raw.map(function (p) {
+      return { left: p.left - boxLeft, top: p.top - boxTop, w: p.w, h: p.h, z: p.z };
+    });
+
     return {
       positions: positions,
-      width: (maxX - minX) * halfW + tileW + maxZ * depthX,
-      height: (maxY - minY) * halfH + tileH + maxZ * depthY,
+      width: boxRight - boxLeft,
+      height: boxBottom - boxTop,
     };
   }
 
