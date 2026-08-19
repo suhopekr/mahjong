@@ -128,14 +128,28 @@ a:visited { color: #5c3d99; }
   margin: 0 auto;
 }
 
+/* 광고 슬롯이 켜져 있을 때만(body.ads-off가 없을 때만) 데스크톱에서
+ * 사이드바용 2열 그리드를 쓴다. body.ads-off가 붙어 있는 현재 상태에서는
+ * .sidebar가 display:none이라도 grid-template-columns가 그대로면 빈
+ * 트랙이 계속 예약돼 보드가 페이지 중앙에서 왼쪽으로 밀려 보인다 —
+ * 그래서 ads-off일 때는 아예 1열로 둬서 .game-column이 전체 폭을 쓰고
+ * 진짜 중앙에 오게 한다. */
 @media (min-width: 980px) {
-  .game-shell {
+  body:not(.ads-off) .game-shell {
     grid-template-columns: 1fr minmax(300px, 320px);
     align-items: start;
   }
 }
 
 .game-column {
+  /* min-width:0만 두고 stretch(기본값)를 유지한다 — 그리드 아이템에
+   * margin:auto/justify-self로 중앙 정렬을 걸면 sizing 모드가
+   * stretch에서 fit-content로 바뀌면서, 안쪽 깊숙한 곳의 #board가 가진
+   * 고정 픽셀 width(스케일과 무관하게 transform은 레이아웃 크기에
+   * 영향 없음)가 그대로 올라와 모바일에서 페이지가 옆으로 밀리는
+   * 버그가 있었다(실측 375px 화면에서 700px로 벌어짐). 그래서 폭 제한과
+   * 중앙 정렬은 아래 .toolbar/.board-viewport처럼 "그리드 아이템이 아닌"
+   * 일반 블록 자식에다 건다. */
   min-width: 0;
 }
 
@@ -146,6 +160,12 @@ a:visited { color: #5c3d99; }
   align-items: center;
   gap: 10px;
   margin-bottom: 12px;
+  /* 광고 없이 와이드 데스크톱일 때 보드와 같은 축으로 정렬되도록 폭을
+   * 맞추고 가운데로 둔다(요구사항 2). .toolbar는 일반 블록 자식이라
+   * (그리드 아이템이 아님) margin:auto로 중앙 정렬해도 안전하다. */
+  max-width: 1060px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .toolbar-buttons {
@@ -231,6 +251,14 @@ body[data-show-timer="false"] .timer-stat { display: none; }
   min-height: 320px;
   overflow: auto;
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.35);
+  /* 툴바와 같은 축(요구사항 2): 광고 없이 와이드 데스크톱에서 초록 패널이
+   * 지나치게 넓어지지 않도록 최대폭을 두고 가운데 정렬한다. .board-viewport
+   * 는 일반 블록 자식(그리드 아이템 아님)이라 margin:auto가 #board의
+   * 고정 픽셀 폭에 영향받지 않고 정상적인 "가용폭의 100%, max-width로
+   * 캡" 계산을 한다 — 내부 콘텐츠가 넘치면 overflow:auto가 처리. */
+  max-width: 1060px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 /* 크기: JS가 (자연 크기 × fit-scale)로 계산해 인라인으로 설정 —
@@ -360,6 +388,15 @@ body[data-show-free="true"] .tile-btn[data-free="false"] .tile-face {
 @media (min-width: 768px) {
   .ad-slot-mobile-only { display: none; }
   .ad-slot-desktop-only { display: flex; }
+}
+
+/* 광고 미노출 모드(기본값, <body class="ads-off">): 슬롯과 사이드바를
+ * 레이아웃에서 완전히 제거한다. 나중에 AdSense를 붙일 때는 body에서
+ * ads-off 클래스만 빼면 되고, 그러면 위의 고정 크기(300x250/728x90/
+ * 320x100) 슬롯들이 그대로 복원되어 CLS 없이 자리를 예약해준다. */
+body.ads-off .ad-slot,
+body.ads-off .sidebar {
+  display: none;
 }
 
 /* ---- 설정 패널(톱니바퀴) ------------------------------------------------ */
@@ -556,4 +593,16 @@ body[data-show-free="true"] .tile-btn[data-free="false"] .tile-face {
     gap: 10px;
   }
   .toolbar-buttons .btn { width: 100%; justify-content: center; }
+}
+
+/* 모바일 가로(landscape) 모드: 세로 공간이 얼마 없으니 헤더를 압축해
+ * 보드에 더 많은 공간을 준다. max-height 기준이라 "짧은 화면"이면 폭에
+ * 상관없이 걸리는데, 어차피 세로 공간이 부족한 상황(작은 창 포함)에서는
+ * 헤더를 줄이는 게 항상 도움이 되므로 문제없다. */
+@media (max-height: 500px) and (orientation: landscape) {
+  .site-header { padding: 6px clamp(12px, 3vw, 20px); }
+  .site-header h1 { font-size: 18px; }
+  .site-header .tagline { display: none; }
+  .game-shell { padding-top: 8px; }
+  .toolbar { margin-bottom: 8px; }
 }

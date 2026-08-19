@@ -921,13 +921,30 @@
     }
   }
 
+  var BOARD_VIEWPORT_VPAD = 40; // .board-viewport padding: 20px 위+아래(style.css와 동기화 필요)
+  var BOTTOM_BREATHING_ROOM = 20; // 보드 아래 살짝 여백(뷰포트 바닥에 딱 붙지 않게)
+
   function applyFitScale() {
-    // 48px 터치 타겟 최소값 밑으로는 절대 축소하지 않는다 — 그 이상 좁으면
-    // 축소 대신 board-viewport의 가로 스크롤에 맡긴다.
+    // 48px 터치 타겟 최소값 밑으로는 절대 축소하지 않는다 — 그 이상 좁거나
+    // 낮으면 축소 대신 board-viewport의 스크롤에 맡긴다.
     var tileWNatural = currentUnit() * TILE_W_MUL;
     var MIN_SCALE = Math.min(1, 48 / tileWNatural);
+
     var availableW = Math.max(120, viewportEl.clientWidth - 40);
-    var scale = geometry.width > availableW ? Math.max(MIN_SCALE, availableW / geometry.width) : 1;
+    var scaleW = geometry.width > availableW ? availableW / geometry.width : 1;
+
+    // 데스크톱에서 헤더+툴바+보드가 스크롤 없이 한 화면에 들어오도록,
+    // 뷰포트 높이에서 "보드 위쪽에 이미 차지하고 있는 공간"을 뺀 나머지만
+    // 세로로 허용한다. offsetTop은 문서 흐름상의 위치라 현재 스크롤
+    // 위치와 무관하다(getBoundingClientRect().top을 쓰면 사용자가 이미
+    // 스크롤한 상태에서 재계산될 때 값이 틀어진다). 모바일처럼 세로
+    // 공간이 애초에 빠듯한 화면에서는 이 값이 MIN_SCALE 아래로 내려가
+    // 자연히 세로 스크롤로 넘어간다(강제로 욱여넣지 않음).
+    var availableH = Math.max(140, window.innerHeight - viewportEl.offsetTop - BOARD_VIEWPORT_VPAD - BOTTOM_BREATHING_ROOM);
+    var scaleH = geometry.height > availableH ? availableH / geometry.height : 1;
+
+    var scale = Math.max(MIN_SCALE, Math.min(1, scaleW, scaleH));
+
     boardEl.style.width = geometry.width + 'px';
     boardEl.style.height = geometry.height + 'px';
     boardEl.style.setProperty('--fit-scale', String(scale));
