@@ -1021,6 +1021,23 @@
     return { width: window.innerWidth, height: window.innerHeight };
   }
 
+  // "폭" 또는 "방향(가로/세로)"이 실제로 바뀌었을 때만 재계산해야 한다는
+  // 판단(요구사항 A)에 쓰는 방향 판정. screen.orientation이 있으면 그걸
+  // 신뢰하고, 없는 브라우저는 폭/높이 비교로 대신한다.
+  function getOrientation(vp) {
+    if (window.screen && window.screen.orientation && window.screen.orientation.type) {
+      return window.screen.orientation.type;
+    }
+    vp = vp || getViewportSize();
+    return vp.width >= vp.height ? 'landscape' : 'portrait';
+  }
+
+  // recomputeBoardLayout이 마지막으로 반영한 (폭, 방향) 스냅샷 — resize류
+  // 이벤트가 왔을 때 "진짜 다시 계산할 필요가 있는지" 판단하는 기준이 된다.
+  var lastLayoutWidth = null;
+  var lastLayoutOrientation = null;
+  var LAYOUT_WIDTH_CHANGE_THRESHOLD = 8; // px, 이 미만의 폭 변화는 재계산하지 않는다
+
   // 기존에는 자연 크기 지오메트리를 고정해두고 CSS transform:scale()로
   // 시각적으로만 축소했다. 그런데 실기기 검증 과정에서, 이 transform이
   // 대략 0.4~0.5배 안팎일 때 Chromium이 안쪽 SVG <text>(타일 숫자)를
@@ -1068,6 +1085,13 @@
 
     repositionExistingTiles();
     syncOrientationHint(scale, vp);
+
+    lastLayoutWidth = vp.width;
+    lastLayoutOrientation = getOrientation(vp);
+    if (window.__mahjongLogLayout) {
+      console.log('[layout] recompute scale=' + scale.toFixed(4) + ' width=' + vp.width + ' orientation=' + lastLayoutOrientation);
+    }
+
     return scale;
   }
 
@@ -1770,8 +1794,24 @@
 
     // 여러 신호를 전부 같은 재계산 함수로 묶는다 — iOS Safari는 주소창이
     // 나타나거나 사라질 때 window의 resize보다 visualViewport의
-    // resize/scroll을 훨씬 안정적으로 쏴준다(요구사항 A-2).
-    function recalcFit() { if (geometry) recomputeBoardLayout(); }
+    // resize/scroll을 훨씬 안정적으로 쏴준다(요구사항 A-2). 문제는 이
+    // 이벤트들이 "높이만" 바뀌어도(주소창 접힘/펼침, 스크롤 중 바운스,
+    // 키보드 표시 등) 계속 쏟아진다는 것 — 그때마다 재계산하면 스크롤만
+    // 해도 타일 크기가 미세하게 흔들리는 버그가 생긴다. 그래서 실제로
+    // "폭"이 임계치(8px) 이상 바뀌었거나 방향이 바뀌었을 때만(또는
+    // orientationchange 이벤트 자체일 때) 재계산한다 — 높이만 변하는
+    // 신호는 무시한다.
+    function recalcFit(evt) {
+      if (!geometry) return;
+      if (evt && evt.type === 'orientationchange') { recomputeBoardLayout(); return; }
+      var vp = getViewportSize();
+      var widthChanged = lastLayoutWidth === null
+        || Math.abs(vp.width - lastLayoutWidth) >= LAYOUT_WIDTH_CHANGE_THRESHOLD;
+      var orientationChanged = lastLayoutOrientation !== null
+        && getOrientation(vp) !== lastLayoutOrientation;
+      if (!widthChanged && !orientationChanged) return;
+      recomputeBoardLayout();
+    }
     window.addEventListener('resize', recalcFit);
     window.addEventListener('orientationchange', recalcFit);
     if (window.visualViewport) {
