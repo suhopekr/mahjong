@@ -29,6 +29,54 @@ naming which marker it couldn't find, instead of silently producing a broken fil
 
 ## What's different from the main site
 
+**Title/copy**: the header reads "Mahjong Solitaire" (not "Free Mahjong
+Solitaire" — inside a portal, "free" is meaningless, every game there is
+free), and the tagline is just "Match tiles, clear the board." (the "no
+download, no time limit" clause and the Daily Challenge link are both gone —
+the former is a given inside an iframe, the latter doesn't exist in this
+build).
+
+**Hint limit + rewarded ads** (CrazyGames-build-only feature, entirely in
+`crazygames-integration.js` — `game.js` still ships with unlimited hints for
+the main site): 3 free hints per game, shown as a "(n)" counter appended to
+both Hint buttons. On the 4th attempt (button click or the `H` key), a dialog
+appears — "Watch ad" requests a `rewarded` ad and grants +3 hints on
+`adFinished`; "Not now" just closes it; any failure (`adError`, or the SDK
+throwing synchronously in a non-CrazyGames "disabled" environment) grants
+nothing and returns cleanly to the board. **Undo and auto-shuffle are
+untouched and stay unlimited** — nothing in this feature ever attaches to
+`#btn-undo` or the shuffle path.
+
+Mechanically, this can't call into `game.js`'s own `doHint()` gate (it doesn't
+have one) or block it from the outside in the usual way, since both this
+file's listeners and `game.js`'s are registered on `click`/`keydown`. The
+trick used: a **capturing-phase listener on `document`** for both events.
+Capture-phase listeners on an ancestor always run before an at-target listener
+on the descendant itself (`#btn-hint`'s own `click` handler, or `game.js`'s
+`document` `keydown` handler which is registered without `capture: true`,
+i.e. bubble phase) — this ordering is guaranteed by the event-dispatch spec
+itself, not by script load order, so it holds regardless of which `<script>`
+tag runs first. When hints are exhausted, this file's listener calls
+`stopPropagation()` and the click/keydown never reaches `game.js`'s handler
+at all — `doHint()` simply never runs. When hints remain, the counter is
+decremented and the event is left alone to continue exactly as before.
+
+The remaining count persists across reloads via a dedicated `localStorage`
+key (`crazygamesMahjong.hintsRemaining.v1`, separate from the site's own
+versioned schema) and resets to 3 at the same "a new board was actually
+generated" boundary already used for the midgame-ad logic below (see
+`onNewGameStarted()`).
+
+The "out of hints" dialog reuses the exact same `.modal-overlay`/`.modal-box`/
+`.modal-actions` classes as every other dialog (from the untouched
+`style.css`), built at runtime with `createElement`/`textContent` only — no
+`innerHTML`. The rewarded-ad request reuses the same input-blocking overlay
+and `gameplayStop`/`gameplayStart` notification as the midgame ad below, so it
+carries the identical known limitation: the elapsed timer keeps running and
+sound isn't muted during the ad (see "Ad pause/mute" below) — acceptable here
+too since it's the same brief-second gap at a screen the player is already
+blocked from interacting with.
+
 **Removed** (all from the generated `index.html` only — the source files are untouched):
 - Google Analytics 4 and Vercel Web Analytics script tags — not needed inside the
   CrazyGames portal; CrazyGames has its own analytics for games on their platform.
@@ -140,6 +188,25 @@ succeeding.
 - `game.js`/`tiles.js`/`style.css` in `dist/` are confirmed byte-identical
   (`diff`) to the site's own copies.
 - Zero console/page errors in every run above.
+- Hint limit + rewarded ads (mocked SDK, real clicks/keypresses): badge shows
+  "(3)" on load; 3 real hint clicks decrement to "(0)" and each one actually
+  highlights a pair (`doHint()` ran); the 4th click *and* the 4th `H` keypress
+  both open the dialog with zero pairs highlighted (`doHint()` did NOT run —
+  confirms the capture-phase interception actually blocks it, not just hides
+  the effect); "Not now" closes with no `requestAd` call; "Watch ad" →
+  `adFinished` grants +3 (back to "(3)"); a second drain → `adError` grants
+  nothing (stays "(0)"); a third drain → the SDK throwing synchronously from
+  `requestAd` is recovered cleanly (dialog closed, overlay removed, no stuck
+  state) — all three paths call `gameplayStop`/`gameplayStart` correctly
+  around the ad. Undo stays completely unaffected (disabled only when its own
+  history is empty, never touched by any of the above).
+- Midgame + hint-limit interaction verified together: 1st explicit New Game
+  of the session skips the ad, 2nd requests it, hint count resets to "(3)" at
+  that same boundary, and a 3rd New Game inside the 3-minute cooldown window
+  correctly skips the ad again.
+- Confirmed via direct source diff that neither `game.js` nor the root
+  `index.html` contain any of this feature's code (`cg-hint-count`,
+  `modal-cg-hint-limit`, etc.) — it exists only in `crazygames/`.
 - Package: 6 files, ~180 KB uncompressed / ~58 KB zipped — comfortably under
   CrazyGames' 50 MB / 1500-file limit. `index.html` sits at the zip root.
 

@@ -9,3 +9,10 @@
 #btn-fullscreen-mobile {
   display: none !important;
 }
+
+/* Hint 버튼 옆 남은 무료 힌트 개수 표시 — crazygames-integration.js가
+ * 텍스트 노드 뒤에 붙이는 span. 순수 표시용, game.js는 모름. */
+.cg-hint-count {
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}

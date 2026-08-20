@@ -105,12 +105,18 @@ function buildIndexHtml() {
   ].join('\n');
   html = html.slice(0, headStart) + newHead + html.slice(headEnd);
 
-  // ---- 2) 헤더 태그라인의 Daily Challenge 링크 제거 — 포털 안에서는
-  //         단일 게임으로 동작하므로 다른 게임(?)으로의 링크가 없다.
+  // ---- 2) 헤더 타이틀/부제 문구 조정.
+  //         - "Free Mahjong Solitaire" → "Mahjong Solitaire": 포털 안에서는
+  //           "무료"라는 말 자체가 의미 없다(포털의 모든 게임이 무료).
+  //         - 부제에서 "no download, no time limit"과 Daily Challenge 링크를
+  //           제거 — 둘 다 포털 맥락에서는 당연하거나(다운로드 없음) 존재하지
+  //           않는 기능(Daily Challenge는 이 빌드에 없음)이라 의미가 없다.
+  must(html, '<h1>Free Mahjong Solitaire</h1>', 'header title');
+  html = html.replace('<h1>Free Mahjong Solitaire</h1>', '<h1>Mahjong Solitaire</h1>');
   html = html.replace(
     '<p class="tagline">Match tiles, clear the board — no download, no time limit.\n' +
     '    <a href="/daily.html">Try today\'s Daily Challenge →</a></p>',
-    '<p class="tagline">Match tiles, clear the board — no download, no time limit.</p>'
+    '<p class="tagline">Match tiles, clear the board.</p>'
   );
 
   // ---- 3) 광고 사이드바(자체 AdSense 슬롯) + 게임 아래 SEO 본문/FAQ 섹션
@@ -217,6 +223,13 @@ var CRAZYGAMES_CSS = [
   '#btn-fullscreen,',
   '#btn-fullscreen-mobile {',
   '  display: none !important;',
+  '}',
+  '',
+  '/* Hint 버튼 옆 남은 무료 힌트 개수 표시 — crazygames-integration.js가',
+  ' * 텍스트 노드 뒤에 붙이는 span. 순수 표시용, game.js는 모름. */',
+  '.cg-hint-count {',
+  '  opacity: 0.75;',
+  '  font-variant-numeric: tabular-nums;',
   '}',
   '',
 ].join('\n');

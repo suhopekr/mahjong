@@ -151,18 +151,28 @@
     requestMidgameAd();
   }
 
+  // 실제로 새 판이 시작되는 매 순간마다 해야 할 일(광고 체크 + 힌트 리셋)을
+  // 한 곳에 묶는다 — 아래 두 섹션 모두 "새 판 시작 지점"을 정확히 잡는 게
+  // 핵심이라 감지 로직을 공유한다.
+  function onNewGameStarted() {
+    resetHintsForNewGame();
+    maybeRequestMidgameAd();
+  }
+
   // "New Game"으로 실제로 이어지는 모든 경로를 건다:
   //   - 확인 모달을 거쳐서 시작하는 경우(진행 중인 판이 있었던 경우) —
   //     이 버튼들을 누르면 반드시 실제로 새 판이 시작된다.
   var CONFIRMED_NEW_GAME_IDS = [
     'btn-newgame-confirm-start', // "정말 새 게임?" 확인
     'btn-stuck-newgame',         // 완전히 막혀 재배치 불가일 때의 새 게임
-    'btn-win-newgame',           // 승리 후 새 게임
+    'btn-win-newgame',           // 승리 후 새 게임 — 승리 화면을 먼저 보여준 뒤
+                                  // "New Game"을 누르는 이 시점에만 광고를 건다
+                                  // (승리 직후 즉시 광고 금지 요구사항 그대로).
     'btn-resume-newgame',        // "이어하기?" 프롬프트에서 새 게임 선택
   ];
   CONFIRMED_NEW_GAME_IDS.forEach(function (id) {
     var el = document.getElementById(id);
-    if (el) el.addEventListener('click', maybeRequestMidgameAd);
+    if (el) el.addEventListener('click', onNewGameStarted);
   });
 
   //   - btn-new-game(-mobile)/키보드 N: 진행 중인 판이 없으면 game.js가
@@ -175,7 +185,7 @@
     setTimeout(function () {
       var confirmModal = document.getElementById('modal-newgame-confirm');
       var confirmOpen = confirmModal && confirmModal.dataset.open === 'true';
-      if (!confirmOpen) maybeRequestMidgameAd();
+      if (!confirmOpen) onNewGameStarted();
     }, 0);
   }
   ['btn-new-game', 'btn-new-game-mobile'].forEach(function (id) {
@@ -187,11 +197,206 @@
     if (String(e.key).toLowerCase() === 'n') checkImmediateNewGame();
   });
 
+  // ---- 힌트 제한 + 보상형(rewarded) 광고 (CrazyGames 빌드 전용 기능) -----
+  // game.js는 힌트 횟수 제한이라는 개념 자체를 모른다(사이트 자체 버전은
+  // 무제한). 이 섹션은 게임 로직에 전혀 손대지 않고, Hint 버튼 클릭/'H'
+  // 키를 game.js의 핸들러보다 "먼저" 가로채는 방식으로만 구현한다:
+  //   document 레벨의 캡처(capture) 단계 리스너는 버블 단계에서 실행되는
+  //   버튼 자신의 리스너(game.js가 등록)보다 항상 먼저 실행된다 — capture는
+  //   이벤트가 target까지 내려가는 "도중"에 실행되고, target 위의 리스너는
+  //   그 다음(at-target) 단계에서 실행되기 때문이다. 등록 순서와 무관하게
+  //   phase 자체로 순서가 보장되므로, 여기서 stopPropagation()을 부르면
+  //   game.js의 doHint()는 아예 호출되지 않는다.
+  var HINT_FREE_PER_GAME = 3;
+  var HINT_STORAGE_KEY = 'crazygamesMahjong.hintsRemaining.v1';
+
+  function loadHintsRemaining() {
+    try {
+      var raw = window.localStorage.getItem(HINT_STORAGE_KEY);
+      if (raw === null) return HINT_FREE_PER_GAME;
+      var n = parseInt(raw, 10);
+      return (isFinite(n) && n >= 0) ? n : HINT_FREE_PER_GAME;
+    } catch (e) {
+      return HINT_FREE_PER_GAME; // localStorage 접근 불가(사생활 보호 모드 등) — 매번 기본값
+    }
+  }
+  var hintsRemaining = loadHintsRemaining();
+
+  function saveHintsRemaining() {
+    try { window.localStorage.setItem(HINT_STORAGE_KEY, String(hintsRemaining)); } catch (e) { /* 무시 */ }
+  }
+
+  function ensureHintBadge(btn) {
+    if (!btn) return null;
+    var badge = btn.querySelector('.cg-hint-count');
+    if (!badge) {
+      badge = document.createElement('span');
+      badge.className = 'cg-hint-count';
+      btn.appendChild(badge);
+    }
+    return badge;
+  }
+  function updateHintBadge() {
+    ['btn-hint', 'btn-hint-mobile'].forEach(function (id) {
+      var badge = ensureHintBadge(document.getElementById(id));
+      if (badge) badge.textContent = ' (' + hintsRemaining + ')';
+    });
+  }
+
+  function resetHintsForNewGame() {
+    hintsRemaining = HINT_FREE_PER_GAME;
+    saveHintsRemaining();
+    updateHintBadge();
+  }
+  function consumeHint() {
+    hintsRemaining = Math.max(0, hintsRemaining - 1);
+    saveHintsRemaining();
+    updateHintBadge();
+  }
+  function isHintExhausted() {
+    return hintsRemaining <= 0;
+  }
+
+  // ---- "힌트 소진" 다이얼로그 — 기존 사이트 모달과 같은
+  // .modal-overlay/.modal-box/.modal-actions 클래스를 그대로 써서(style.css는
+  // 이 빌드에서도 완전히 동일한 파일) 별도 CSS 없이도 나머지 모달과 똑같이
+  // 보인다. innerHTML은 전혀 쓰지 않고 전부 createElement + textContent로만
+  // 조립한다.
+  var hintDialogEl = null;
+  function ensureHintDialog() {
+    if (hintDialogEl) return hintDialogEl;
+
+    var overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.id = 'modal-cg-hint-limit';
+    overlay.dataset.open = 'false';
+
+    var box = document.createElement('div');
+    box.className = 'modal-box';
+    box.setAttribute('role', 'alertdialog');
+    box.setAttribute('aria-modal', 'true');
+    box.setAttribute('aria-labelledby', 'cg-hint-limit-title');
+
+    var h2 = document.createElement('h2');
+    h2.id = 'cg-hint-limit-title';
+    h2.textContent = 'Out of hints';
+
+    var p = document.createElement('p');
+    p.textContent = 'Out of hints. Watch a short ad for 3 more, or keep playing.';
+
+    var actions = document.createElement('div');
+    actions.className = 'modal-actions';
+
+    var watchBtn = document.createElement('button');
+    watchBtn.type = 'button';
+    watchBtn.className = 'btn';
+    watchBtn.id = 'btn-cg-hint-watch-ad';
+    watchBtn.textContent = 'Watch ad';
+    watchBtn.addEventListener('click', requestRewardedHintAd);
+
+    var notNowBtn = document.createElement('button');
+    notNowBtn.type = 'button';
+    notNowBtn.className = 'btn';
+    notNowBtn.id = 'btn-cg-hint-not-now';
+    notNowBtn.textContent = 'Not now';
+    notNowBtn.addEventListener('click', closeHintDialog);
+
+    actions.appendChild(watchBtn);
+    actions.appendChild(notNowBtn);
+    box.appendChild(h2);
+    box.appendChild(p);
+    box.appendChild(actions);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+
+    hintDialogEl = overlay;
+    return overlay;
+  }
+  function openHintDialog() {
+    ensureHintDialog();
+    hintDialogEl.dataset.open = 'true';
+    // 이 엘리먼트는 초기 watchGameplayState() 이후에 동적으로 생성되므로
+    // MutationObserver 대상에 없다 — 기존 광고 오버레이와 같은 방식으로
+    // 직접 gameplayStop을 알린다.
+    setGameplayActive(false);
+  }
+  function closeHintDialog() {
+    if (!hintDialogEl) return;
+    hintDialogEl.dataset.open = 'false';
+    syncGameplayState(); // 다른 모달이 열려있지 않다면 gameplayStart로 복귀
+  }
+
+  // 보상형 광고 요청 — 기존 midgame 광고와 완전히 같은 처리를 재사용한다
+  // (입력 차단 오버레이 표시, gameplayStop 통지). 광고 자체가 게임 타이머를
+  // 진짜로 멈추거나 사운드를 음소거하지는 못한다 — README의 기존 known
+  // limitation과 동일한 이유(game.js 내부 상태는 이 파일에서 접근 불가).
+  function grantHintReward() {
+    hintsRemaining += HINT_FREE_PER_GAME;
+    saveHintsRemaining();
+    updateHintBadge();
+    hideAdOverlay();
+    closeHintDialog();
+    syncGameplayState();
+  }
+  function abortHintReward() {
+    // 실패/에러/취소 — 충전 없이 조용히 원래 상태로 복귀.
+    hideAdOverlay();
+    closeHintDialog();
+    syncGameplayState();
+  }
+  function requestRewardedHintAd() {
+    var sdk = getSdk();
+    if (!sdk || !sdk.ad) { closeHintDialog(); return; } // SDK 없음(로컬/차단 환경) — 조용히 닫고 복귀, 충전 없음
+    closeHintDialog(); // 다이얼로그부터 닫고 광고 오버레이를 띄운다(이중 오버레이 방지)
+    showAdOverlay();
+    setGameplayActive(false);
+    try {
+      sdk.ad.requestAd('rewarded', {
+        adStarted: function () {},
+        adFinished: function () { grantHintReward(); },
+        // 문서상 rewarded도 시작/종료/에러 콜백만 제공한다 — 광고를 중간에
+        // 닫거나 스킵한 경우도 SDK가 adFinished 대신 adError로 알려준다.
+        adError: function () { abortHintReward(); },
+      });
+    } catch (e) {
+      // requestAd 자체가 동기적으로 던지는 경우(다른 도메인의 disabled
+      // 환경 등) — 오버레이/다이얼로그가 뜬 채로 멈추지 않도록 반드시 정리.
+      abortHintReward();
+    }
+  }
+
+  function isHintTarget(el) {
+    return !!(el && el.closest && el.closest('#btn-hint, #btn-hint-mobile'));
+  }
+  document.addEventListener('click', function (e) {
+    if (!isHintTarget(e.target)) return;
+    if (isHintExhausted()) {
+      e.preventDefault();
+      e.stopPropagation(); // game.js의 doHint() 리스너(버튼 자신, at-target 단계)까지 못 가게 막는다
+      openHintDialog();
+      return;
+    }
+    consumeHint();
+  }, true); // capture: true — game.js의 버튼 클릭 리스너보다 먼저 실행되도록
+
+  document.addEventListener('keydown', function (e) {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (String(e.key).toLowerCase() !== 'h') return;
+    if (isHintExhausted()) {
+      e.preventDefault();
+      e.stopPropagation(); // game.js의 document keydown 리스너(버블 단계)보다 먼저 막는다
+      openHintDialog();
+      return;
+    }
+    consumeHint();
+  }, true); // capture: true — 같은 이유
+
   // ---- 부트스트랩 -------------------------------------------------------
   // game.js의 DOMContentLoaded 리스너(= initApp, 보드를 완전히 그림)는
   // 이 파일보다 앞선 <script> 태그에서 등록됐으므로 반드시 먼저 실행된다.
   document.addEventListener('DOMContentLoaded', function () {
     sdkGameLoadingStop();
     watchGameplayState();
+    updateHintBadge(); // 저장돼 있던(또는 기본 3인) 남은 힌트 개수를 버튼에 반영
   });
 })();
