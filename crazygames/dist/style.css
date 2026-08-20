@@ -834,6 +834,25 @@ body.ads-off .sidebar {
 }
 .modal-actions .btn { flex: 1; justify-content: center; }
 
+/* ---- 일시정지 오버레이 ----------------------------------------------------
+ * .modal-overlay를 그대로 쓰되(위치/z-index/click-anywhere 구조 재사용),
+ * 배경만 완전 불투명으로 덮어써서 타일이 절대 비치지 않게 한다 — 나머지
+ * 모달의 반투명(rgba) backdrop과 달리 여기는 "블러 아님, 반투명 금지"
+ * 요구사항이 있다. */
+.pause-overlay {
+  background: var(--felt-dark);
+}
+.pause-overlay .modal-box p {
+  font-variant-numeric: tabular-nums;
+  font-size: 20px;
+}
+/* "큰 Resume 버튼" 요구사항 — 다른 모달 액션 버튼보다 한 단계 크게. */
+.btn-pause-resume {
+  min-height: 60px;
+  font-size: 20px;
+  padding: 14px 28px;
+}
+
 /* ---- 본문 SEO 섹션 ------------------------------------------------------- */
 .content {
   max-width: 820px;

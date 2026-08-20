@@ -40,6 +40,7 @@
         <div class="toolbar-buttons">
           <button type="button" class="btn" id="btn-undo" title="Undo last move (U)">Undo</button>
           <button type="button" class="btn" id="btn-hint" title="Show a hint (H)">Hint</button>
+          <button type="button" class="btn" id="btn-pause" title="Pause the game (Space or P)">Pause</button>
           <button type="button" class="btn" id="btn-fullscreen" title="Toggle full screen"><span id="btn-fullscreen-label">Full Screen</span></button>
           <button type="button" class="btn" id="btn-settings" title="Settings" aria-haspopup="dialog">Settings</button>
           <button type="button" class="btn" id="btn-new-game" title="Start a new game (N)">New Game</button>
@@ -83,6 +84,7 @@
 <div class="mobile-menu-sheet" id="mobile-menu-sheet" data-open="false">
   <div class="mobile-menu-backdrop" id="mobile-menu-backdrop"></div>
   <div class="mobile-menu-panel" role="dialog" aria-modal="true" aria-label="Menu">
+    <button type="button" class="btn mobile-menu-btn" id="btn-pause-mobile" title="Pause the game (Space or P)">Pause</button>
     <button type="button" class="btn mobile-menu-btn" id="btn-new-game-mobile" title="Start a new game (N)">New Game</button>
     <button type="button" class="btn mobile-menu-btn" id="btn-fullscreen-mobile" title="Toggle full screen"><span id="btn-fullscreen-label-mobile">Full Screen</span></button>
     <button type="button" class="btn mobile-menu-btn" id="btn-settings-mobile" title="Settings" aria-haspopup="dialog">Settings</button>
@@ -207,6 +209,21 @@
     <div class="modal-actions">
       <button type="button" class="btn btn-accent" id="btn-resume-continue">Continue</button>
       <button type="button" class="btn btn-ghost" id="btn-resume-newgame">New Game</button>
+    </div>
+  </div>
+</div>
+
+<!-- 일시정지 오버레이 — Pause 버튼/Space·P 키/탭 백그라운드 전환 시 뜬다.
+     다른 모달과 같은 modal-overlay 틀을 쓰되(CrazyGames 빌드에서 기존
+     modal-overlay 워처가 별도 코드 없이 gameplayStop/Start를 걸어주도록),
+     pause-overlay 클래스로 배경만 완전 불투명하게 오버라이드해 타일이
+     절대 비치지 않게 한다(반투명 금지 요구사항). -->
+<div class="modal-overlay pause-overlay" id="modal-pause" data-open="false">
+  <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="pause-title">
+    <h2 id="pause-title">Paused</h2>
+    <p>Time: <span id="pause-elapsed">00:00</span></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent btn-pause-resume" id="btn-pause-resume">Resume</button>
     </div>
   </div>
 </div>

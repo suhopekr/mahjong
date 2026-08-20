@@ -27,6 +27,70 @@ structure changes enough that the build script's string markers no longer match
 naming which marker it couldn't find, instead of silently producing a broken file
 — open `build.js` and update the corresponding string when that happens.
 
+## Pause (shared feature, both builds)
+
+Pause lives entirely in the shared `game.js`/`index.html`/`daily.html` — it's
+identical on the main site and in this build, with **one CrazyGames-only
+wrinkle** covered at the end of this section.
+
+- **Trigger**: a "Pause" button in the desktop toolbar (same `.btn` styling
+  as the others) and inside the mobile Menu sheet; keyboard `Space` or `P`
+  (guarded against firing while a text input/textarea/contenteditable has
+  focus, since `Space` is common in pasted backup codes).
+- **While paused**: the elapsed timer stops via the existing `timerPaused`
+  mechanism (already used for the "no more matches" wait modal) — the same
+  snapshot/restore logic that already kept stats/best-time calculations
+  correct there. A fully **opaque** (not translucent — reuses `.modal-overlay`
+  for position/z-index but overrides the background to a solid color)
+  full-viewport overlay shows "Paused", the frozen elapsed time, and a large
+  Resume button (auto-focused, `role="dialog"`, `aria-live` announcement via
+  the existing `announce()`/live-region mechanism). Tile clicks, Hint, and
+  Undo all no-op via an `if (isPaused) return;` guard at the top of each —
+  New Game does too, as a defense-in-depth measure (the opaque overlay
+  already blocks reaching any of these buttons by mouse; the guards close
+  the keyboard-shortcut path too).
+- **Resume**: clicking anywhere on the overlay, the Resume button, or `Esc`.
+- **Auto-pause**: a `visibilitychange` listener pauses when the tab goes to
+  the background. Coming back does **not** auto-resume — the Paused screen
+  stays up until the player explicitly hits Resume, so the timer can't start
+  ticking again before they're actually back.
+- **Persistence**: `saveGameProgress()` now also writes `paused: isPaused`;
+  both `resumeSavedGame()` and `bootstrapDailyMode()` check it on load and,
+  if true, re-enter the paused screen directly (via the same `enterPausedState()`
+  used everywhere else) instead of starting the timer — so closing the tab
+  while paused and coming back later restores the same paused state.
+
+**CrazyGames-only wrinkle (requirement 6)**: the pause overlay is a plain
+`.modal-overlay` element (`#modal-pause`), so it's automatically picked up by
+the *existing* `WATCHED_SELECTOR`/`MutationObserver` in
+`crazygames-integration.js` — no new gameplayStop/gameplayStart wiring was
+needed for the basic case. The one place that did need an explicit check: two
+existing CrazyGames-only features (the hint-limit interception and the
+midgame-ad-on-new-game detection) run their own independent `click`/`keydown`
+listeners that don't know about `game.js`'s private `isPaused` variable, so a
+new `isGamePaused()` helper (just reads `#modal-pause`'s `data-open`
+attribute — no coupling into `game.js` internals) guards both:
+- Pressing `H` while paused no longer silently consumes a free/paid hint for
+  a hint that `game.js` itself refuses to show (it already ignores `doHint()`
+  while paused) — the interception now passes the keystroke through
+  untouched instead.
+- Pressing `N` while paused no longer misreads `game.js`'s refusal to start a
+  new game as "a new game started immediately with no confirmation," which
+  would otherwise have falsely fired a midgame ad request and reset the hint
+  counter for nothing.
+
+Ad/pause overlap (the actual "double-handling" the requirement asks about) is
+handled for free by the *existing* de-dupe logic: `setGameplayActive()`
+already ignores a call that repeats the current state, and `syncGameplayState()`
+already recomputes "should gameplay be active" from scratch by checking every
+watched overlay (`anyWatchedElementOpen()`) rather than tracking each stop
+reason separately. So if a midgame ad calls `gameplayStop()` and the player
+also pauses (or vice versa), only one real SDK call happens; and when the ad
+resolves and calls `syncGameplayState()`, it correctly notices the pause
+overlay is still open and does *not* fire a stray `gameplayStart()` — the
+game only actually resumes when the player explicitly does so. Verified with
+Puppeteer + mocked SDK (see "Verified" below).
+
 ## What's different from the main site
 
 **Title/copy**: the header reads "Mahjong Solitaire" (not "Free Mahjong
@@ -207,6 +271,26 @@ succeeding.
 - Confirmed via direct source diff that neither `game.js` nor the root
   `index.html` contain any of this feature's code (`cg-hint-count`,
   `modal-cg-hint-limit`, etc.) — it exists only in `crazygames/`.
+- Pause (mocked SDK, both this build and the main site tested separately):
+  Pause button opens the overlay, background confirmed fully opaque (alpha=1,
+  not translucent) via computed style, Resume auto-focused, `role="dialog"`
+  present; a real tile click while paused produces no selection; Hint
+  produces no highlighted pair while paused; elapsed time on the pause screen
+  is byte-identical across a 2.2s real wait, then visibly grows again after
+  Resume; `Escape`/overlay-click/Resume-button all resume; `Space` and `P`
+  both pause; simulating `document.hidden`+`visibilitychange` auto-pauses,
+  and flipping `hidden` back to false does **not** auto-resume; the saved
+  `localStorage` snapshot carries `paused: true` and a finite
+  `elapsedMsBase`; reloading and choosing "Continue" restores directly into
+  the Paused screen with the elapsed time preserved (not the real time that
+  passed during the reload). CrazyGames-build-only: pausing/resuming fire
+  `gameplayStop`/`gameplayStart` exactly once each (no dupes); `H` and `N`
+  keydowns while paused are correctly no-ops (no hint consumed, no midgame ad
+  falsely requested); triggering a real midgame ad and then pausing while it
+  resolves still results in exactly one `gameplayStop` and zero
+  `gameplayStart` calls, and the pause screen stays up (no silent auto-resume)
+  even after the ad's own `adFinished` fires — confirming the overlap is
+  handled correctly. Zero console/page errors in every run.
 - Package: 6 files, ~180 KB uncompressed / ~58 KB zipped — comfortably under
   CrazyGames' 50 MB / 1500-file limit. `index.html` sits at the zip root.
 

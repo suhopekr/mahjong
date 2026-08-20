@@ -81,6 +81,20 @@
     setGameplayActive(!anyWatchedElementOpen());
   }
 
+  // #modal-pause는 다른 .modal-overlay와 완전히 같은 구조라 위 워처가
+  // 광고와 겹칠 때의 중복 처리(항목 6)까지 이미 자동으로 처리해준다
+  // (gameplayActive는 "멈춰야 할 이유가 하나라도 있는가"라는 단일
+  // boolean이고, setGameplayActive 자체가 같은 값으로의 재호출을
+  // 걸러내므로 — 광고 오버레이가 gameplayStop을 부른 상태에서 사용자가
+  // 일시정지까지 걸어도, 또는 그 반대 순서여도 실제 SDK 호출은 상태가
+  // 바뀔 때 한 번만 나간다). 이 함수는 그와 별개로, 힌트 제한/New Game
+  // 감지처럼 "지금 진짜로 일시정지 중인가"를 직접 물어야 하는 아래 두
+  // 군데에서만 쓴다.
+  function isGamePaused() {
+    var el = document.getElementById('modal-pause');
+    return !!el && el.dataset.open === 'true';
+  }
+
   function watchGameplayState() {
     var observer = new MutationObserver(syncGameplayState);
     var els = document.querySelectorAll(WATCHED_SELECTOR);
@@ -182,6 +196,13 @@
   //     광고 체크를 한다. 열렸으면 위 btn-newgame-confirm-start 리스너가
   //     실제 결정 시점에 알아서 처리한다.
   function checkImmediateNewGame() {
+    // 일시정지 중에는 game.js 자신의 keydown 핸들러가 'n'을 완전히
+    // 무시하고 requestNewGame()을 아예 안 부르므로(일시정지 오버레이가
+    // New Game 버튼도 시각적으로 가려 클릭도 못 함), modal-newgame-confirm은
+    // 절대 안 열린다 — 이 함수가 그걸 "확인 없이 바로 새 게임이 시작된
+    // 것"으로 잘못 해석해 광고를 요청하거나 힌트를 리셋하면 안 되므로
+    // 여기서 먼저 걸러낸다(항목 6: 일시정지와 겹칠 때 오탐 방지).
+    if (isGamePaused()) return;
     setTimeout(function () {
       var confirmModal = document.getElementById('modal-newgame-confirm');
       var confirmOpen = confirmModal && confirmModal.dataset.open === 'true';
@@ -370,6 +391,11 @@
   }
   document.addEventListener('click', function (e) {
     if (!isHintTarget(e.target)) return;
+    // 일시정지 중엔 아무것도 하지 않고 그대로 통과시킨다 — game.js가 어차피
+    // doHint()를 자체 isPaused 가드로 무시하므로, 여기서 힌트를 소모하거나
+    // 다이얼로그를 띄우면 실제로 힌트가 보이지도 않았는데 개수만 깎이는
+    // 불일치가 생긴다(항목 6: 일시정지와 겹칠 때 이중 처리 방지).
+    if (isGamePaused()) return;
     if (isHintExhausted()) {
       e.preventDefault();
       e.stopPropagation(); // game.js의 doHint() 리스너(버튼 자신, at-target 단계)까지 못 가게 막는다
@@ -382,6 +408,7 @@
   document.addEventListener('keydown', function (e) {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
     if (String(e.key).toLowerCase() !== 'h') return;
+    if (isGamePaused()) return; // 위 클릭 리스너와 같은 이유
     if (isHintExhausted()) {
       e.preventDefault();
       e.stopPropagation(); // game.js의 document keydown 리스너(버블 단계)보다 먼저 막는다

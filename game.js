@@ -929,6 +929,7 @@
       elapsedMsBase: currentElapsedMs(),
       savedAt: Date.now(),
       hintUsed: hintUsedThisGame,
+      paused: isPaused, // 요구사항 4: 일시정지 상태로 닫았다 오면 그대로 복원
     };
     if (dailyMode) payload.dateStr = state.dailyDateStr;
     saveJSON(key, payload);
@@ -1620,6 +1621,12 @@
   var timerIntervalId = null;
   var audioCtx = null;
   var pendingResume = null;
+  // 사용자가 직접(버튼/Space·P) 또는 자동으로(탭 백그라운드 전환) 건
+  // 일시정지 상태. 사이트/CrazyGames 빌드 공통 — CrazyGames 빌드에서는
+  // 아래 modalPause가 다른 모달들과 똑같이 .modal-overlay라서
+  // crazygames-integration.js의 기존 MutationObserver가 별도 코드 없이도
+  // gameplayStop/Start를 걸어준다.
+  var isPaused = false;
 
   // 이 페이지가 daily.html(데일리 챌린지)로 열렸는지 — initApp에서
   // document.body.dataset.daily를 읽어 딱 한 번 정해진다. 이 값에 따라
@@ -1795,8 +1802,61 @@
   // ---- 모달 제어 ----------------------------------------------------------
   var modalWin, modalStuck, modalResume, modalNewGameConfirm, settingsPanel;
   var stuckTitleEl, stuckMessageEl, stuckActionsEl;
+  var modalPause, pauseElapsedEl, btnPauseResumeEl;
   function openModal(el) { el.dataset.open = 'true'; }
   function closeModal(el) { el.dataset.open = 'false'; }
+
+  // ---- 일시정지(Pause) ------------------------------------------------------
+  // 타이머 정지는 기존 timerPaused 메커니즘(짝 없음 대기 모달용으로 이미
+  // 있던 pauseElapsedTimer/resumeElapsedTimer)을 그대로 재사용한다 —
+  // elapsedMsBase를 스냅샷/복원해주므로 통계·최단기록 계산에 정지 구간이
+  // 절대 섞이지 않는다(currentElapsedMs가 timerPaused면 스냅샷값만 반환).
+  function canPause() {
+    if (!state || isPaused) return false;
+    // "일시정지"라는 개념 자체가 성립하지 않는 화면(승리/완전히 막힘/새
+    // 게임 확인/이어하기 여부를 묻는 중)에서는 걸지 않는다. 설정 패널·
+    // 모바일 메뉴는 막지 않는다 — 그걸 열어둔 채로 탭을 벗어나도(요구사항
+    // 3) 타이머가 계속 흐르면 안 되기 때문에 일시정지는 걸려야 한다.
+    if (modalWin.dataset.open === 'true') return false;
+    if (modalStuck.dataset.open === 'true') return false;
+    if (modalNewGameConfirm.dataset.open === 'true') return false;
+    if (modalResume.dataset.open === 'true') return false;
+    return true;
+  }
+
+  function updatePauseElapsedDisplay() {
+    if (pauseElapsedEl) pauseElapsedEl.textContent = formatTime(currentElapsedMs());
+  }
+
+  // 이어하기 복원(저장된 값이 paused:true인 경우)도 이 함수로 같은 화면을
+  // 만든다 — announce 문구는 호출부가 상황에 맞게 따로 부른다.
+  function enterPausedState(focusResume) {
+    isPaused = true;
+    pauseElapsedTimer();
+    updatePauseElapsedDisplay();
+    openModal(modalPause);
+    if (focusResume && btnPauseResumeEl) btnPauseResumeEl.focus();
+  }
+
+  function pauseGame() {
+    if (!canPause()) return;
+    enterPausedState(true);
+    announce('Game paused.');
+    saveGameProgress();
+  }
+
+  function resumeGame() {
+    if (!isPaused) return;
+    isPaused = false;
+    closeModal(modalPause);
+    resumeElapsedTimer();
+    announce('Game resumed.');
+    saveGameProgress();
+  }
+
+  function togglePauseGame() {
+    if (isPaused) resumeGame(); else pauseGame();
+  }
 
   // ---- 상태 표시 갱신 -------------------------------------------------------
   var pairsCountEl, timerDisplayEl, undoBtn, undoBtnMobile;
@@ -1987,6 +2047,8 @@
     var isSilent = silent === true;
     clearPendingStuckTimeout();
     modalStuckMode = null;
+    isPaused = false;
+    closeModal(modalPause);
     consecutiveAutoShuffles = 0;
     hintUsedThisGame = false;
     hintCountThisGame = 0;
@@ -2032,6 +2094,7 @@
   // 판을 날리는 걸 막기 위함. 진행이 없거나(새로 켠 직후) 이미 이겼으면
   // 잃을 게 없으니 바로 시작한다.
   function requestNewGame() {
+    if (isPaused) return; // 방어적 가드 — 버튼/오버레이가 이미 클릭을 막지만 이중 안전장치
     var hasProgress = state && Array.isArray(state.history) && state.history.length > 0 && !isBoardCleared(state.tiles);
     if (!hasProgress) { startNewGame(); return; }
     openModal(modalNewGameConfirm);
@@ -2065,8 +2128,15 @@
     hintSlots.clear();
     fullRender();
     updateStatusStrip();
-    startTimerLoop();
-    announce('Game resumed.');
+    // 요구사항 4: 일시정지 상태로 닫았다 왔으면 타이머를 돌리지 않고
+    // Paused 화면 그대로 복원한다(자동 재개 금지 — 요구사항 3과 같은 이유).
+    if (saved.paused) {
+      enterPausedState(true);
+      announce('Game resumed, still paused.');
+    } else {
+      startTimerLoop();
+      announce('Game resumed.');
+    }
   }
 
   // daily.html 전용 부트스트랩 — 일반 게임의 "이어하기?" 확인 모달과 달리,
@@ -2102,8 +2172,13 @@
         hintSlots.clear();
         fullRender();
         updateStatusStrip();
-        startTimerLoop();
-        announce("Today's challenge resumed.");
+        if (saved.paused) {
+          enterPausedState(true);
+          announce("Today's challenge resumed, still paused.");
+        } else {
+          startTimerLoop();
+          announce("Today's challenge resumed.");
+        }
         return;
       }
     }
@@ -2112,6 +2187,7 @@
   }
 
   function doUndo() {
+    if (isPaused) return; // 요구사항 2: 일시정지 중엔 되돌리기 무반응
     // "짝 없음" 대기/안내 모달이 떠 있는 도중 되돌리기가 눌리면(예: 키보드
     // 단축키 U) 예정된 자동 셔플을 취소하고 타이머 일시정지도 풀어야
     // 상태가 꼬이지 않는다.
@@ -2145,6 +2221,7 @@
   // 아니기 때문. 새 힌트를 켤 때마다 이전 타임아웃을 먼저 취소해 막는다.
   var pendingHintTimeoutId = null;
   function doHint() {
+    if (isPaused) return; // 요구사항 2: 일시정지 중엔 힌트 무반응
     var pair = findHintPair(graph, state.tiles, rng);
     if (!pair) { announce('No hints available right now.'); return; }
     hintUsedThisGame = true; // "힌트 없이 클리어" 배지 판정용
@@ -2241,6 +2318,7 @@
   }
 
   function onTileActivate(i) {
+    if (isPaused) return; // 요구사항 2: 일시정지 중엔 타일 클릭 무반응
     if (state.tiles[i] == null) return;
     var occ = occupiedOf(state.tiles);
     if (!isSlotFree(graph, i, occ)) return; // 잠긴 타일은 무시
@@ -2343,6 +2421,9 @@
     mobileActionbarEl = document.getElementById('mobile-actionbar');
     mobileMenuSheetEl = document.getElementById('mobile-menu-sheet');
     btnMenuMobileEl = document.getElementById('btn-menu-mobile');
+    modalPause = document.getElementById('modal-pause');
+    pauseElapsedEl = document.getElementById('pause-elapsed');
+    btnPauseResumeEl = document.getElementById('btn-pause-resume');
 
     applySettingsToDOM();
     renderStats();
@@ -2363,6 +2444,7 @@
     });
     document.getElementById('btn-undo').addEventListener('click', doUndo);
     document.getElementById('btn-hint').addEventListener('click', doHint);
+    document.getElementById('btn-pause').addEventListener('click', togglePauseGame);
     document.getElementById('btn-fullscreen').addEventListener('click', toggleFullscreen);
     document.getElementById('orientation-hint-close').addEventListener('click', hideOrientationHint);
     document.addEventListener('fullscreenchange', onNativeFullscreenChange);
@@ -2388,6 +2470,28 @@
     document.getElementById('btn-settings-mobile').addEventListener('click', function () {
       closeMobileMenu();
       openModal(settingsPanel);
+    });
+    document.getElementById('btn-pause-mobile').addEventListener('click', function () {
+      closeMobileMenu();
+      togglePauseGame();
+    });
+
+    // ---- 일시정지 오버레이 ------------------------------------------------
+    // 오버레이 아무 곳이나 클릭해도 재개(요구사항 2) — Resume 버튼도 이
+    // 오버레이 안에 있으므로 버튼 클릭 자체가 이 리스너까지 버블링되어
+    // 한 번 더 resumeGame()을 부르지만 isPaused 가드 덕에 안전하다.
+    modalPause.addEventListener('click', resumeGame);
+    document.getElementById('btn-pause-resume').addEventListener('click', function (e) {
+      e.stopPropagation(); // 위 오버레이 리스너와 중복 호출은 무해하지만, 굳이 두 번 부를 필요 없음
+      resumeGame();
+    });
+
+    // 탭이 백그라운드로 가면 자동 일시정지(요구사항 3) — 돌아와도 자동
+    // 재개하지 않고 Paused 화면을 그대로 유지해, 준비되기 전에 타이머가
+    // 도는 것을 막는다. canPause()가 이미 진행 중인 게임이 아니거나 다른
+    // 모달이 떠 있는 경우를 걸러주므로 여기서는 그냥 호출만 하면 된다.
+    document.addEventListener('visibilitychange', function () {
+      if (document.hidden) pauseGame();
     });
 
     document.getElementById('btn-stuck-newgame').addEventListener('click', startNewGame);
@@ -2467,13 +2571,23 @@
     }
 
     document.addEventListener('keydown', function (e) {
-      if (e.key === 'Escape' && isMobileMenuOpen()) {
-        closeMobileMenu();
-        e.preventDefault();
-        return;
+      if (e.key === 'Escape') {
+        // 요구사항 2: ESC로도 일시정지 재개. 모바일 메뉴가 열려 있는 도중에
+        // 일시정지가 겹쳐 열릴 일은 없지만(오버레이가 메뉴 위를 덮어
+        // canPause가 막지 않으므로), 우선순위상 일시정지 해제를 먼저 본다.
+        if (isPaused) { resumeGame(); e.preventDefault(); return; }
+        if (isMobileMenuOpen()) { closeMobileMenu(); e.preventDefault(); return; }
       }
       if (e.ctrlKey || e.metaKey || e.altKey) return;
+      // 백업 코드 붙여넣기 등 텍스트 입력 중에는 단축키를 완전히 무시한다
+      // — Space/P를 새로 추가하면서 특히 중요해졌다(붙여넣는 코드나 평범한
+      // 문장에 스페이스가 훨씬 자주 나오므로, 이 가드가 없으면 텍스트
+      // 입력 중에 게임이 계속 일시정지될 수 있다).
+      var tag = (e.target && e.target.tagName || '').toLowerCase();
+      if (tag === 'input' || tag === 'textarea' || (e.target && e.target.isContentEditable)) return;
       var key = e.key.toLowerCase();
+      if (key === ' ' || e.code === 'Space' || key === 'p') { togglePauseGame(); e.preventDefault(); return; }
+      if (isPaused) return; // 요구사항 2: 일시정지 중엔 Undo/Hint/New Game 단축키도 무반응
       if (key === 'u') { doUndo(); }
       else if (key === 'h') { doHint(); }
       else if (key === 'n') { requestNewGame(); }
