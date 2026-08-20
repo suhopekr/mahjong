@@ -1,4 +1,10 @@
 {
+  "rewrites": [
+    {
+      "source": "/crazygames/(.*)",
+      "destination": "/crazygames-not-found"
+    }
+  ],
   "headers": [
     {
       "source": "/(.*)",

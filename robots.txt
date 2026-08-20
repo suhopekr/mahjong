@@ -1,4 +1,5 @@
 User-agent: *
 Allow: /
+Disallow: /crazygames/
 
 Sitemap: https://easymahjongsolitaire.com/sitemap.xml
