@@ -2128,15 +2128,25 @@
     hintSlots.clear();
     fullRender();
     updateStatusStrip();
-    // 요구사항 4: 일시정지 상태로 닫았다 왔으면 타이머를 돌리지 않고
-    // Paused 화면 그대로 복원한다(자동 재개 금지 — 요구사항 3과 같은 이유).
-    if (saved.paused) {
-      enterPausedState(true);
-      announce('Game resumed, still paused.');
-    } else {
-      startTimerLoop();
-      announce('Game resumed.');
-    }
+    // 이 함수는 오직 "Welcome back" 모달의 Continue 버튼 클릭에서만
+    // 호출된다(코드 전체에서 호출부가 이 한 곳뿐) — 즉 호출된다는 것
+    // 자체가 이미 사용자가 명시적으로 재개 의사를 밝혔다는 뜻이다.
+    // saved.paused(탭 숨김 등으로 자동 일시정지됐던 시점의 스냅샷)를
+    // 여기서 다시 반영해 Paused 화면을 재오픈하면, 방금 사용자가 누른
+    // "Continue"를 무시하고 한 번 더 일시정지를 강제하는 이중 게이팅이
+    // 된다(버그로 리포트됨) — 그래서 saved.paused 값과 무관하게 항상
+    // 진행 상태로 복원한다. 자동으로(사용자 클릭 없이) 조용히 복원하는
+    // bootstrapDailyMode()는 이 함수를 안 쓰는 별개 경로라 그쪽의 같은
+    // 분기는 그대로 둔다 — 거기는 명시적 클릭이 없으므로 저장된
+    // paused를 존중하는 게 맞다.
+    startTimerLoop();
+    announce('Game resumed.');
+    // 저장된 paused:true를 즉시 false로 덮어써 둔다 — isPaused는 이미
+    // false이므로 saveGameProgress()가 paused:false를 기록한다. 이걸
+    // 안 해도 이 함수 자체가 saved.paused를 더는 안 읽으니 재발은 안
+    // 하지만, 곧바로(다른 동작 없이) 다시 재부팅됐을 때 저장소에 낡은
+    // paused:true가 남아있는 걸 막아 데이터를 실제 상태와 맞춰둔다.
+    saveGameProgress();
   }
 
   // daily.html 전용 부트스트랩 — 일반 게임의 "이어하기?" 확인 모달과 달리,
