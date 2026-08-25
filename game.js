@@ -964,6 +964,35 @@
     }
   }
 
+  /* 다른 게임(오목)으로 나가는 크로스 링크 계측.
+   *
+   * 핸들러가 여기 있는 이유: CSP에 'unsafe-inline'이 없어 onclick 속성이나
+   * 인라인 <script>를 못 쓴다. trackEvent를 그대로 쓰므로 game_name:
+   * 'mahjong'은 자동으로 붙고, 여기서는 어느 자리에서 눌렸는지만 넘긴다.
+   *
+   * 이벤트를 보내고 이동을 막지는 않는다 — GA4는 기본적으로
+   * navigator.sendBeacon으로 보내서 페이지가 떠난 뒤에도 전송이 끝난다.
+   * 전송을 기다리려고 이동을 지연시키면 계측 때문에 사용자가 기다리는
+   * 셈이 되는데, 그건 이 사용자층에서 절대 하면 안 되는 거래다. 계측이
+   * 유실되더라도 링크는 즉시 동작해야 한다. */
+  function wireCrossGameLinks() {
+    var links = [
+      { id: 'link-crossgame-win', placement: 'win_modal' },
+      { id: 'link-crossgame-content', placement: 'content' }
+    ];
+    links.forEach(function (entry) {
+      var el = document.getElementById(entry.id);
+      if (!el) return;
+      el.addEventListener('click', function () {
+        trackEvent('cross_game_click', {
+          from: 'mahjong',
+          to: 'five_in_a_row',
+          placement: entry.placement
+        });
+      });
+    });
+  }
+
   /* =======================================================================
    * [PROGRESS] 데일리 챌린지 완료 기록 · 업적(배지) · 백업/복원 · 영구 저장
    *
@@ -2449,6 +2478,9 @@
       onTileActivate(Number(btn.dataset.slot));
     });
 
+    // 크로스 링크는 daily 모드의 조기 return보다 앞에서 연결한다. daily.html
+    // 에는 이 링크가 없어서 getElementById가 null을 반환하고 그냥 no-op 된다.
+    wireCrossGameLinks();
     document.getElementById('btn-new-game').addEventListener('click', requestNewGame);
     document.getElementById('btn-newgame-confirm-keep').addEventListener('click', function () {
       closeModal(modalNewGameConfirm);

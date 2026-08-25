@@ -242,6 +242,13 @@
       <p>Yes, use the Full Screen button to expand the board to fill your entire screen, which many
         players find easier on the eyes.</p>
     </div>
+
+    <!-- Secondary placement: the far end of the article text, a long way
+         below the board. Nothing here is reachable by a stray tap during
+         play. -->
+    <p class="cross-game-cta">
+      <a class="cross-game-link" href="/five-in-a-row/" id="link-crossgame-content">Try our other free game — Five in a Row</a>
+    </p>
   </section>
 </main>
 
@@ -405,6 +412,15 @@
     <div class="modal-actions">
       <button type="button" class="btn btn-accent" id="btn-win-newgame">New Game</button>
     </div>
+    <!-- Cross-link to the site's other game. Deliberately BELOW
+         .modal-actions and styled as a plain underlined link rather than a
+         button, so New Game stays the one thing that looks like the next
+         step. Placed here and not near the board: the player is at a
+         natural stopping point, the game is already over, and nothing
+         they might tap by accident is nearby. -->
+    <p class="cross-game-cta">
+      <a class="cross-game-link" href="/five-in-a-row/" id="link-crossgame-win">Try our other free game — Five in a Row</a>
+    </p>
   </div>
 </div>
 

@@ -536,6 +536,54 @@ body.is-fullscreen .board-viewport {
   .ad-slot-desktop-only { display: flex; }
 }
 
+/* ---- 다른 게임으로 보내는 크로스 링크 -------------------------------------
+ * 위치는 두 곳뿐이다: 승리 모달의 버튼 "아래", 그리고 본문 맨 끝. 헤더나
+ * 보드 근처에는 절대 두지 않는다 — 이 사이트의 주 사용자는 게임을 바로
+ * 시작하려는 사람이고, 시작 전 시야에 다른 게임 링크가 들어오면 그건
+ * 방해다.
+ *
+ * 버튼이 아니라 밑줄 링크로 둔 이유: .btn은 배경+테두리를 가져서 New Game과
+ * 같은 위계로 읽힌다. 승리 모달의 다음 동작은 어디까지나 New Game 하나여야
+ * 한다. 대신 클릭 타겟은 56px로 버튼보다 오히려 크게 잡았다(.btn의 기본
+ * 최소 높이는 48px) — 위계를 낮추는 것과 누르기 어렵게 만드는 것은 전혀
+ * 다른 문제라서, 눈에 덜 띄게 하되 손으로는 더 쉽게 닿도록 했다.
+ *
+ * 색은 --felt-dark on --paper = 9.19:1로 본문 텍스트와 동일한 대비다.
+ * ------------------------------------------------------------------------- */
+.cross-game-cta {
+  margin: 14px 0 0;
+  text-align: center;
+}
+
+.cross-game-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 56px;
+  padding: 8px 16px;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--felt-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  border-radius: var(--radius-md);
+  transition: background-color 0.2s ease;
+}
+
+.cross-game-link:visited {
+  color: var(--felt-dark);
+}
+
+.cross-game-link:hover {
+  background: var(--paper-dim);
+}
+
+.cross-game-link:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
 /* 광고 미노출 모드(기본값, <body class="ads-off">): 슬롯과 사이드바를
  * 레이아웃에서 완전히 제거한다. 나중에 AdSense를 붙일 때는 body에서
  * ads-off 클래스만 빼면 되고, 그러면 위의 고정 크기(300x250/728x90/
