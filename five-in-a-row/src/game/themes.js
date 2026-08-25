@@ -1,57 +1,48 @@
 // game/themes.js
-// Board themes: 3 color palettes, ALL available from the start.
+// Board themes: 3 light, matte palettes, ALL available from the start.
 //
-// The Gomoku original gated Slate/Paper/Neon behind unlock conditions
-// (achievement count, a Hard win, a 3-day Daily Challenge streak). This
-// port drops that entire concept:
+// --- no unlock concept -------------------------------------------------
 //
-//   - Neon's condition depended on the Daily Challenge, which isn't part
-//     of this port at all — it would have been a permanently un-earnable
-//     row sitting in the theme list forever. The theme is gone, not
-//     re-conditioned.
-//   - Slate/Paper's conditions were removed along with it, so the module
-//     has no unlock concept left to be inconsistent about: there is no
-//     check(), no UnlockContext, no isThemeUnlocked(), no
-//     getUnlockedThemeIds(). Every theme in THEMES is selectable.
+// The source project gated Slate/Paper/Neon behind unlock conditions
+// (achievement count, a Hard win, a 3-day Daily Challenge streak). All of
+// that is gone. Neon's condition depended on a Daily Challenge this port
+// doesn't have, so it would have been a permanently un-earnable row; the
+// theme was removed rather than re-conditioned, and Slate/Paper's
+// conditions went with it. There is no check(), no UnlockContext, no
+// isThemeUnlocked(), no getUnlockedThemeIds(). Picking a theme is just
+// picking a theme — a lock is friction, and this audience has no reason
+// to earn the right to a colour they can read more easily.
 //
-// What that means for callers: main.js no longer builds an unlock
-// context, no longer diffs before/after unlock sets to toast a newly
-// earned theme, and no longer renders locked rows. Picking a theme is
-// just picking a theme.
+// --- why every board here is LIGHT and MATTE ---------------------------
 //
-// Each theme's `colors` object is exactly game/render.js's DEFAULT_THEME
-// shape (that module's own doc comment: "Kept as a plain parameter... so
-// a later skin milestone can override it without touching this file's
-// logic") — selecting a theme in main.js just means passing a different
-// one of these objects as drawBoard()'s/drawGhostStone()'s own `theme`
-// option instead of DEFAULT_THEME.
+// The source had a saturated wood board with a gradient and painted
+// grain, plus a dark slate and a near-black neon. Two measured problems
+// drove the change:
 //
-// --- stone colors: black/white is a real constraint here, not just a
-// --- reskin -----------------------------------------------------------
+//   1. A white stone cannot reach 3:1 against any light board — measured
+//      1.21-1.33:1 across all three boards here, and that is a property
+//      of two light surfaces, not of these particular colours. The
+//      contrast has to come from the stone's BORDER instead, which is why
+//      every stone below declares edgeColor/edgeWidth (render.js's
+//      drawStone() honours both). Those borders measure 9.48-11.79:1.
+//   2. A gradient means every element sits on a RANGE of backgrounds, so
+//      "3:1 against the board" stops being a single checkable number. The
+//      old grid line measured 6.98:1 at the top of the board and 5.12:1
+//      at the bottom. Flat boards make every ratio one value.
 //
-// Black-moved-first is close to universal in this game, so every theme
-// still needs a color that reads as "the black one" and a color that
-// reads as "the white one," with black always legible as the darker/
-// other of the pair — literal black vs. literal white was never actually
-// a hard requirement, just wood's own default choice (see DEFAULT_THEME's
-// own comment in render.js).
+// Keeping all three boards light also means ONE set of stone colours and
+// borders is correct on all of them. A dark board would flip which stone
+// risks disappearing (black rather than white) and need a second, mirrored
+// set of border decisions — more surface area, and more to get wrong.
 //
-// Slate's dark board is where that gets tight: drawStone() paints every
-// stone with a radial gradient from a `highlight` color to a `fill`
-// color, so the existing highlight slot alone is enough to give a dark
-// stone a genuinely bright glinting rim against a dark board, without
-// any render.js change. This is also how a real black stone actually
-// looks under directional light (a bright highlight, a nearly-black
-// shadow side).
+// --- methodology -------------------------------------------------------
 //
-// --- luminance methodology --------------------------------------------
-//
-// "명도차" below is WCAG relative luminance (linearized sRGB, standard
-// L = 0.2126*R + 0.7152*G + 0.0722*B formula), NOT a raw 0-255 brightness
-// average and NOT the WCAG contrast RATIO (which is unbounded, 1-21) —
-// relative luminance is bounded [0, 1] per color, so a plain absolute
-// difference between two colors' L values is itself a 0-1 number. Every
-// value below was computed with a script, not eyeballed.
+// Every ratio quoted below is a WCAG contrast RATIO (1-21), computed from
+// linearized-sRGB relative luminance, by script rather than by eye. They
+// are re-checkable: every element in every theme is asserted >= 3:1
+// against its own board. Note this is the 3:1 non-text/UI threshold; the
+// 4.5:1 text threshold applies to the page chrome, which is CSS, not this
+// file.
 
 /**
  * @typedef {Object} ThemeColors
@@ -85,44 +76,55 @@ import { DEFAULT_THEME } from "./render.js";
 export const THEMES = [
   {
     id: "wood",
-    name: "Wood",
-    description: "Warm goban wood",
-    colors: DEFAULT_THEME, // the exact same object render.js has always exported — not a copy
+    name: "Warm",
+    description: "Soft sand — the default",
+    colors: DEFAULT_THEME, // the exact same object render.js exports — not a copy
   },
   {
     id: "slate",
-    name: "Slate",
-    description: "Cool dark stone",
+    name: "Cool",
+    description: "Pale blue-grey",
     colors: {
-      boardColor: "#3a4750",
-      lineColor: "#dce6ea",
-      starColor: "#dce6ea",
+      // Kept LIGHT rather than the source's dark #3a4750 slate. A dark
+      // board flips which stone is at risk of disappearing (black
+      // instead of white) and would need a whole second set of border
+      // decisions; every theme here is a light, matte surface so the one
+      // set of stone borders is correct on all of them.
+      // Measured on #d5dade: line 9.48:1, black fill 12.36:1, white
+      // stone border 9.48:1, last-move/win line 4.64:1, danger 6.33:1.
+      boardColor: "#d5dade",
+      boardEdgeColor: "#b3bcc2",
+      lineColor: "#2b3033",
+      starColor: "#2b3033",
       stones: {
-        0: { fill: "#1a1e22", highlight: "#6b7a84" },
-        1: { fill: "#f2f5f6", highlight: "#ffffff" },
+        0: { fill: "#1a1a1a", highlight: "#8f8f8f", rim: "#000000", edgeColor: "#000000", edgeAlpha: 1, edgeWidth: 2, gradientExtent: 1.1, shadowBoost: 0.3 },
+        1: { fill: "#f7f8f9", highlight: "#ffffff", rim: "#e6e8ea", rimStart: 0.82, edgeColor: "#2b3033", edgeAlpha: 1, edgeWidth: 3, gradientExtent: 1.1, shadowBoost: 0.08 },
       },
-      lastMoveMarker: "#e4572e",
-      winLineColor: "#e4572e",
+      lastMoveMarker: "#b3261e",
+      winLineColor: "#b3261e",
+      dangerColor: "#8f1d16",
     },
   },
   {
     id: "paper",
     name: "Paper",
-    description: "Soft ink on paper",
+    description: "Near-white, highest contrast",
     colors: {
-      boardColor: "#efe3c8",
-      // Softer/lower-contrast ink tone rather than a stark black rule —
-      // reads as "thin, hand-drawn" through TONE (a color choice) rather
-      // than literal line width, since render.js's grid line width isn't
-      // theme data.
-      lineColor: "#a89676",
-      starColor: "#8a7a5f",
+      // The highest-contrast option, offered for anyone who finds even
+      // the default board too warm/dim. Measured on #efe9dc: line
+      // 11.79:1, black fill 15.23:1, white stone border 11.79:1,
+      // last-move/win line 5.40:1, danger 7.37:1.
+      boardColor: "#efe9dc",
+      boardEdgeColor: "#cfc6ab",
+      lineColor: "#2f2a20",
+      starColor: "#2f2a20",
       stones: {
-        0: { fill: "#2b2620", highlight: "#57503f" },
-        1: { fill: "#fffdf9", highlight: "#ffffff" },
+        0: { fill: "#141414", highlight: "#8a8a8a", rim: "#000000", edgeColor: "#000000", edgeAlpha: 1, edgeWidth: 2, gradientExtent: 1.1, shadowBoost: 0.3 },
+        1: { fill: "#ffffff", highlight: "#ffffff", rim: "#f0f0ec", rimStart: 0.82, edgeColor: "#2f2a20", edgeAlpha: 1, edgeWidth: 3, gradientExtent: 1.1, shadowBoost: 0.08 },
       },
-      lastMoveMarker: "#e4572e",
-      winLineColor: "#e4572e",
+      lastMoveMarker: "#b3261e",
+      winLineColor: "#b3261e",
+      dangerColor: "#8f1d16",
     },
   },
 ];

@@ -74,55 +74,81 @@ function darkenHex(hex, amount) {
 // the only theme that currently sets them; game/themes.js's own header
 // comment explains why the other 3 stay exactly as they were.
 export const DEFAULT_THEME = {
-  boardColor: "#dcb35c", // flat fallback — no longer what wood actually renders, kept as the shape every theme still has
-  boardGradientTop: "#e0b26a",
-  boardGradientBottom: "#c69650",
-  boardEdgeColor: "#a67a3c",
-  grainColor: "#7a5a2e",
-  lineColor: "#3a2b1a",
-  starColor: "#3a2b1a",
-  // Feedback pass 2: white was reading as a gray marble, not a white
-  // stone — the old -48 rim attenuation (from a #d0d0cc base) ate too
-  // much of the circle. Fixed at the source (a lighter base) plus a
-  // narrower, weaker rim (`rimStart` pushed from the default 0.55 to
-  // 0.78 — see drawStone()'s own use of it — so the darkening band only
-  // occupies the outer 22% of the circle instead of 45%), matching
-  // store/scripts/cover-scene.mjs's identical fix exactly. `edgeColor`/
-  // `edgeAlpha`/`shadowBoost` are white-only too — see drawStone()'s own
-  // comment on each.
+  // --- accessibility pass -------------------------------------------
+  //
+  // The source project's board was a saturated goban yellow (#dcb35c
+  // flat, plus a #e0b26a -> #c69650 gradient and painted wood grain).
+  // Rebuilt as a MATTE, low-saturation surface (17% saturation, no
+  // gradient, no grain) for two measured reasons:
+  //
+  //   - A white stone can never reach 3:1 against any light board; that
+  //     contrast has to come from the stone's own border instead (see
+  //     `edgeWidth` below). A busy gradient + grain underneath a thin
+  //     border is exactly what made the old white stone dissolve.
+  //   - A gradient means every element sits on a RANGE of backgrounds,
+  //     so "3:1 against the board" stops being one number. The old grid
+  //     line measured 6.98:1 at the top of the board and 5.12:1 at the
+  //     bottom. A flat surface makes every contrast below a single,
+  //     checkable value.
+  //
+  // Measured against #ded2b8 (all >= 3:1, the target for non-text UI):
+  //   grid line #2f2a20 .......... 9.52:1
+  //   black stone #1a1a1a ........ 11.62:1
+  //   white stone BORDER #2f2a20 . 9.52:1
+  //   last-move / win line ....... 4.36:1
+  //   danger ring ................ 5.95:1
+  boardColor: "#ded2b8",
+  // No boardGradientTop/Bottom and no grainColor on purpose — their
+  // absence is what makes paintBackground() take the flat path. Left
+  // undefined rather than set to matching values so the intent is
+  // legible: this board is meant to be one flat colour.
+  boardEdgeColor: "#c2b191",
+  lineColor: "#2f2a20",
+  starColor: "#2f2a20",
   stones: {
-    // White-brightness-vs-cover pass: black's own interior-disc average
-    // (this file's own measurement methodology, see drawStone()'s own
-    // comment) also read darker than the cover's black — 50 in-game vs
-    // 60 cover, at the exact same inset — a smaller gap than white's had
-    // (proportionally about a quarter of it), but real. The SAME two
-    // structural fixes (gradientExtent, damped shadowBoost) close it: 50
-    // -> 62 (now essentially matching cover's own 60, within this file's
-    // own measurement noise) — kept at a milder shadowBoost than white's
-    // own (0.3 vs 0.08) since black's fill is already dark and doesn't
-    // need nearly as much shadow suppression to stop reading muddy.
-    0: { fill: "#262626", highlight: "#bcbcbc", rim: "#101010", gradientExtent: 1.1, shadowBoost: 0.3 },
+    // Black: unchanged in spirit, slightly deepened. Already far past
+    // 3:1 on this board, so it only needs its own border to separate it
+    // from a neighbouring black stone, not from the board.
+    0: {
+      fill: "#1a1a1a",
+      highlight: "#8f8f8f",
+      rim: "#000000",
+      edgeColor: "#000000",
+      edgeAlpha: 1,
+      edgeWidth: 2,
+      gradientExtent: 1.1,
+      shadowBoost: 0.3,
+    },
+    // White: the fill stays genuinely white (#f2f2ee measures 1.33:1
+    // against this board — unavoidable, and true of ANY light board;
+    // two light surfaces cannot contrast). The BORDER is what carries
+    // the required contrast, so it is dark and thick rather than the
+    // 1px #b8b8b4 hairline the source used, which measured 1.01:1 and
+    // was effectively invisible.
     1: {
       fill: "#f2f2ee",
       highlight: "#ffffff",
-      rim: "#dcdcd8",
-      rimStart: 0.78,
-      edgeColor: "#b8b8b4",
-      edgeAlpha: 0.6,
-      // 1.1 = cover-scene.mjs's own r="55%"-of-bbox gradient reach
-      // (55% x 2 = 110% of the visible radius) — see drawStone()'s own
-      // comment for the derivation. shadowBoost flipped from 1.125
-      // (amplifying) to 0.08 (nearly eliminating it) — tuned against
-      // real screenshots (0.3 -> 0.15 -> 0.08, each re-measured, not
-      // guessed once) until the interior-disc average landed inside
-      // +-8 of the cover's own value at the same inset; see this pass's
-      // own CLAUDE.md section for the full iteration table.
+      rim: "#e4e4de",
+      rimStart: 0.82,
+      edgeColor: "#2f2a20",
+      edgeAlpha: 1,
+      edgeWidth: 3,
       gradientExtent: 1.1,
       shadowBoost: 0.08,
     },
   },
-  lastMoveMarker: "#d2362d",
-  winLineColor: "#d2362d",
+  // Mahjong's own --danger, reused rather than reinvented: it is already
+  // this site's "notable" red, and it measures 4.36:1 on this board where
+  // the source project's #d2362d measured only 2.47:1 on its own.
+  lastMoveMarker: "#b3261e",
+  winLineColor: "#b3261e",
+  // The AI-can-win-here warning. A DIFFERENT, darker red than the
+  // last-move marker so the two never read as the same event — but the
+  // colour is only a reinforcement: drawDangerMarker() draws a distinct
+  // SHAPE (a thick ring with an exclamation stroke) and main.js also
+  // states the warning in words, so nothing here is carried by colour
+  // alone.
+  dangerColor: "#8f1d16",
 };
 
 /**
@@ -306,7 +332,11 @@ function drawBackground(ctx, layout, theme) {
 function drawGridLines(ctx, layout, size, theme) {
   ctx.save();
   ctx.strokeStyle = theme.lineColor;
-  ctx.lineWidth = 1;
+  // Scaled with the cell rather than a flat 1px: a hairline that is
+  // adequate on a 62px desktop cell is a strain at 24px, and this
+  // audience is the reason to size it from the board rather than from
+  // the device. Clamped so it never becomes a heavy bar on large cells.
+  ctx.lineWidth = Math.min(2.5, Math.max(1.25, layout.cellSize * 0.035));
   const first = dotPosition(layout, 0, 0);
   const last = dotPosition(layout, size - 1, size - 1);
   for (let i = 0; i < size; i++) {
@@ -483,12 +513,26 @@ function drawStone(ctx, layout, row, col, player, theme, radius, alpha = 1) {
   // radius, which surfaced immediately as a real page error the first
   // time an AI (White) move was actually clicked through, not found by
   // inspection.
+  // Accessibility pass: `edgeWidth` (was a hardcoded 1px hairline). This
+  // border is the ONLY thing giving the white stone its required 3:1
+  // separation from a light board — see DEFAULT_THEME's own note — so it
+  // is theme data, not a constant. Scaled with the stone so it stays
+  // proportionally as heavy on a 15x15 board as on a 9x9 one, and
+  // floored at the declared width so it never thins away to nothing on
+  // the smallest cells.
   if (colors.edgeColor && radius > 0.5) {
+    const declared = colors.edgeWidth ?? 1;
+    const width = Math.max(declared, radius * (declared / 18));
+    // Inset by half the stroke so the border sits fully INSIDE the
+    // stone's own radius — a centred stroke would straddle the edge and
+    // spill half its width onto the board, re-opening the edge-clipping
+    // problem minPaddingForRadius() exists to prevent.
+    const r = Math.max(0.5, radius - width / 2);
     ctx.strokeStyle = colors.edgeColor;
-    ctx.globalAlpha = alpha * colors.edgeAlpha;
-    ctx.lineWidth = 1;
+    ctx.globalAlpha = alpha * (colors.edgeAlpha ?? 1);
+    ctx.lineWidth = width;
     ctx.beginPath();
-    ctx.arc(x, y, radius - 0.5, 0, Math.PI * 2);
+    ctx.arc(x, y, r, 0, Math.PI * 2);
     ctx.stroke();
   }
   ctx.restore();
@@ -585,6 +629,64 @@ export function drawHintMarker(ctx, layout, row, col, theme = DEFAULT_THEME) {
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
   ctx.stroke();
+  ctx.restore();
+}
+
+/**
+ * The "the other player can win right here on their next move" warning
+ * (main.js's danger-warning setting, on by default).
+ *
+ * Deliberately a DIFFERENT SHAPE from every other board marker, not just
+ * a different colour — losing without understanding why is the single
+ * biggest reason a first-time player quits, so this cue has to survive
+ * any colour-vision difference:
+ *
+ *   - hint marker ......... thin hollow ring, stone-sized
+ *   - last-move marker .... small solid dot at the stone's centre
+ *   - forbidden marker .... small X
+ *   - THIS ................ thick DOUBLE ring plus a vertical
+ *                           exclamation stroke through the middle
+ *
+ * The doubled ring and the interior stroke are both legible at the
+ * smallest cell this game renders, and main.js states the same warning
+ * in words in the turn label, so the information exists in three
+ * independent channels (shape, text, colour).
+ * @param {CanvasRenderingContext2D} ctx
+ * @param {ReturnType<import("./layout.js").boardLayout>} layout
+ * @param {number} row
+ * @param {number} col
+ * @param {typeof DEFAULT_THEME} [theme]
+ */
+export function drawDangerMarker(ctx, layout, row, col, theme = DEFAULT_THEME) {
+  const { x, y } = dotPosition(layout, row, col);
+  const r = layout.cellSize * STONE_RADIUS_FRACTION;
+  const color = theme.dangerColor ?? theme.winLineColor;
+  const w = Math.max(2, r * 0.16);
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.lineCap = "round";
+
+  ctx.lineWidth = w;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 1.18, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.lineWidth = w * 0.6;
+  ctx.beginPath();
+  ctx.arc(x, y, r * 0.82, 0, Math.PI * 2);
+  ctx.stroke();
+
+  // Exclamation: a short vertical bar above a separate dot. Drawn inside
+  // the inner ring so it never collides with either circle.
+  ctx.lineWidth = w;
+  ctx.beginPath();
+  ctx.moveTo(x, y - r * 0.42);
+  ctx.lineTo(x, y + r * 0.08);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(x, y + r * 0.38, Math.max(1.2, w * 0.5), 0, Math.PI * 2);
+  ctx.fillStyle = color;
+  ctx.fill();
   ctx.restore();
 }
 

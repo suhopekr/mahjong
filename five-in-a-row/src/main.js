@@ -1,54 +1,65 @@
 // src/main.js
-// Entry point for Five in a Row — a port of the "Daily Five" Gomoku
-// project, stripped down to what this site actually ships.
+// Entry point for Five in a Row.
 //
-// --- what this port dropped, and why -----------------------------------
+// This pass reworked the whole surface for one specific reader: someone
+// over 65, playing on a phone, who has never played this game before and
+// may have reduced eyesight and less precise touch control. Wherever two
+// designs were defensible, the easier and larger one is the default and
+// the harder one is opt-in. There is no "sensible default for experts,
+// turn it down in settings" anywhere in here.
 //
-// - The game-portal SDK, in full. No loading/gameplay lifecycle
-//   notifications, no interstitials, no ad-gated features, and no
-//   place in this file that ever awaits an external script. That removes
-//   the single async dependency the original had outside its own AI.
-// - The Daily Challenge. It was the original's primary entry point and
-//   touched roughly a tenth of the file (a hero card, a countdown timer,
-//   a status modal, a separate streak, a separate result panel row, and
-//   its own game-start path). Practice vs AI and local 2-player are what
-//   remain, and the setup screen is built around those two.
-// - Every limit that existed to create ad inventory. Hints are unlimited
-//   and instant; undo is unlimited in every mode, matching the rest of
-//   this site's undo policy.
-// - Theme unlock conditions (see game/themes.js's own header).
+// The concrete consequences, all visible below:
 //
-// --- what this port added ----------------------------------------------
+//   - 9x9 is the board. 11 and 15 exist only inside Settings, and nothing
+//     on the way into a game asks which you want — a question is friction
+//     and this one has no good answer for a first-time player.
+//   - Placing a stone takes two taps by default (see handleTap). A
+//     mis-tap that instantly becomes a permanent move is the most
+//     expensive mistake this game can produce.
+//   - Every point where the other side would win outright next turn is
+//     marked, in a distinct shape, and said in words (updateDangerCells).
+//     Losing without understanding why is the single biggest reason this
+//     audience stops playing.
+//   - Undo is unlimited, hints are unlimited and instant, nothing is
+//     locked, nothing is timed, and there is no score to protect.
+//   - Nothing is framed as a contest — see the TEXT table's own note.
+//   - Every control has a text label and is always on screen. Nothing
+//     lives behind a hamburger.
 //
-// Board size is a real setting (9 / 11 / 15) rather than the original's
-// hardcoded `const BOARD_SIZE = 15`. The logic layer needed no changes
-// for this — game/board.js, game/layout.js and game/ai.js were already
-// written against a size parameter — so the whole feature is this file
-// reading a persisted value and passing it to createGameState().
+// The board/AI/rule modules underneath are unchanged in structure; this
+// file is where the audience decisions live.
 
 import { createGameState, placeStone, undoMove } from "./game/board.js";
 import { boardLayout, pointToIntersection } from "./game/layout.js";
-import { drawBoard, drawGhostStone, drawHintMarker, drawForbiddenMarker, fitCanvasToDisplaySize } from "./game/render.js";
+import {
+  drawBoard,
+  drawGhostStone,
+  drawHintMarker,
+  drawForbiddenMarker,
+  drawDangerMarker,
+  fitCanvasToDisplaySize,
+} from "./game/render.js";
 import { attachPointerHandlers } from "./core/input.js";
 import { createTurnManager, pickStartingPlayer } from "./core/turn.js";
 import { chooseMove, generateCandidates } from "./game/ai.js";
 import { countPatterns } from "./game/evaluate.js";
-import { suggestHint } from "./game/hint.js";
+import { suggestHint, findAllOpponentWinPoints } from "./game/hint.js";
 import { findForbiddenPointsForBlack, forbiddenReasonText } from "./game/renju.js";
 import { ACHIEVEMENTS, evaluateAchievements } from "./game/achievements.js";
-import { THEMES, getThemeById, resolveActiveThemeId } from "./game/themes.js";
+import { getThemeById, resolveActiveThemeId } from "./game/themes.js";
 import {
   playStoneSound,
   playWinSound,
   playLoseSound,
   playDrawGameSound,
   isSoundEnabled,
-  toggleSound,
+  setSoundEnabled,
   unlockAudio,
 } from "./core/audio.js";
 import {
   BOARD_SIZES,
   recordStreakResult,
+  getStreak,
   getUnlockedAchievements,
   unlockAchievement,
   recordHardWin,
@@ -66,226 +77,189 @@ import {
   setMode,
   getDifficulty,
   setDifficulty,
+  isConfirmPlacementEnabled,
+  setConfirmPlacementEnabled,
+  isDangerWarningEnabled,
+  setDangerWarningEnabled,
+  loadSavedGame,
+  saveGame,
+  clearSavedGame,
 } from "./core/storage.js";
 
-// --- icons ---------------------------------------------------------------
+// --- copy -----------------------------------------------------------------
 //
-// Every icon this page uses, as inline SVG rather than emoji. Emoji
-// render inconsistently across platforms (different glyph shapes, no real
-// size control, can't inherit a surrounding text color). Every path here
-// uses `stroke="currentColor"` (or `fill="currentColor"` for the solid
-// ones) instead of a hardcoded color, so an icon always matches whatever
-// CSS `color` its container has. A single object here — rather than
-// literal markup duplicated in index.html — means every place an icon
-// appears gets it from one source.
-const ICONS = {
-  trophy: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 4h10v5a5 5 0 0 1-10 0V4z"/><path d="M7 5H4a1 1 0 0 0-1 1v1a4 4 0 0 0 4 4"/><path d="M17 5h3a1 1 0 0 1 1 1v1a4 4 0 0 1-4 4"/><path d="M12 14v3"/><path d="M8 21h8"/><path d="M10 21v-2a2 2 0 0 1 2-2 2 2 0 0 1 2 2v2"/></svg>`,
-  palette: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a10 10 0 1 0 0 20c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.4-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.3c1.9 0 3.5-1.6 3.5-3.5C21 6.4 17 2 12 2z"/><circle cx="7.5" cy="10.5" r="1.1" fill="currentColor" stroke="none"/><circle cx="11" cy="7" r="1.1" fill="currentColor" stroke="none"/><circle cx="15.5" cy="8" r="1.1" fill="currentColor" stroke="none"/></svg>`,
-  speakerOn: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="4,9 8,9 13,5 13,19 8,15 4,15" fill="currentColor" stroke="none"/><path d="M16.5 8.5a5 5 0 0 1 0 7"/><path d="M19 6a8.5 8.5 0 0 1 0 12"/></svg>`,
-  speakerMuted: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="4,9 8,9 13,5 13,19 8,15 4,15" fill="currentColor" stroke="none"/><line x1="16" y1="9" x2="21" y2="14"/><line x1="21" y1="9" x2="16" y2="14"/></svg>`,
-  // Achievements still have a genuine locked state — that's the feature.
-  // Themes no longer do (game/themes.js), so this icon appears in the
-  // achievements list only.
-  lock: `<svg class="icon icon-inline" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>`,
-  gear: `<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.9 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.9.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.9-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.9V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>`,
+// Every player-visible string this file produces, gathered here so the
+// tone is checkable in one place rather than hunted through handlers.
+//
+// Two rules, both deliberate:
+//
+//   1. No contest framing. The source project said "vs AI", "Hard
+//      difficulty", "You win!", "You lost", "Rematch", "Opponent". A
+//      first-time player told they are in a contest and then beaten six
+//      times has been told six times that they are bad at this. So: the
+//      other side is "the computer", named only when it must be; a game
+//      is a "round"; and a loss is an invitation to play again, not a
+//      verdict.
+//   2. No jargon on the surface. gomoku, renju, overline, forbidden move,
+//      open three, open four, freestyle, difficulty — none appear in the
+//      UI. Where the underlying rule still needs naming (the Renju
+//      restrictions), it is described by what it does to your moves.
+const TEXT = {
+  yourTurnBlack: "Your turn — you have the dark stones",
+  yourTurnWhite: "Your turn — you have the light stones",
+  computerThinking: "The computer is taking its turn…",
+  playerTurn: (label) => `${label}'s turn`,
+  dangerOne: "Careful — the marked spot would make five in a row next turn.",
+  dangerMany: (n) => `Careful — ${n} marked spots would make five in a row next turn.`,
+  wonTitle: "You got five in a row!",
+  wonNote: "Nicely done. Another round is ready whenever you are.",
+  lostTitle: "Try another round",
+  lostNote: "The computer got five in a row that time. Another round is ready whenever you are.",
+  drawTitle: "The board is full",
+  drawNote: "Nobody got five in a row. Another round is ready whenever you are.",
+  localWon: (label) => `${label} got five in a row!`,
+  localWonNote: "Another round is ready whenever you are.",
+  // The two states of the confirm-to-place flow, kept distinct on
+  // purpose. "Waiting" is not silence: with the Place button visible but
+  // disabled, a first-time player needs to be told what the button is
+  // waiting FOR, or the disabled control reads as broken.
+  chooseSpot: "Tap the board to choose a spot.",
+  confirmPrompt: "Tap the same spot again, or press Place stone.",
+  occupied: "There is already a stone there.",
+  restored: "Picked up where you left off.",
 };
 
-// How long the coin-flip result stays on screen before play begins —
-// long enough to read, short enough not to feel like a loading screen.
-const COIN_FLIP_DISPLAY_MS = 900;
+// Hint text in plain words. The source used the engine's own vocabulary
+// ("Open four — this wins next turn", "Stop their open three"); these say
+// the same thing without naming a shape.
+const HINT_TEXT = {
+  win: "This spot gets you five in a row.",
+  "block-win": "Play here, or the other side gets five next turn.",
+  "open-four": "A strong spot — it sets up five in a row.",
+  "block-three": "Play here to break up the line building against you.",
+  develop: "A solid spot to build from.",
+};
 
-// The AI's perceived "thinking" time is topped up to at least this much
-// (never shortened) — measured per difficulty: easy ~3-5ms, medium
-// ~45ms, hard ~350ms. Without a floor, easy/medium would appear to move
-// instantly, reading as "didn't think" rather than "is weaker." 400ms
-// sits just above Hard's own typical compute time, so Hard gets little
-// to no extra padding while easy/medium get topped up to roughly the
-// same felt delay.
-const MIN_AI_THINK_MS = 400;
+// How long the "who has which stones" note stays up before play begins.
+const OPENING_NOTE_MS = 1100;
 
-// Stone pop-in: a stone landing reads as an instant, slightly springy
-// click, not a slow fade.
+// The computer's visible thinking pause. Raised from the source's 400ms:
+// at 400 the label is gone before this audience has finished reading it,
+// so the computer's move looks like it simply appeared. 600ms registers
+// as "it is taking its turn" without feeling like waiting.
+const MIN_AI_THINK_MS = 600;
+
 const STONE_ANIMATION_MS = 90;
-// The win line sweeping into place is deliberately longer and more
-// deliberate than a per-move stone pop; there's no per-move time budget
-// pressure on it since it only ever happens once per game.
 const WIN_LINE_ANIMATION_MS = 550;
+const RESULT_REVEAL_MS = WIN_LINE_ANIMATION_MS + 250;
+const TOAST_MS = 3200;
 
-// How long the result panel waits before appearing. It used to appear in
-// the same frame the winning move landed — on top of the very line that
-// was still sweeping into place, so the one moment worth watching was
-// covered by a box announcing that it had happened. The delay is the
-// sweep's own duration plus a short beat to let it land.
-const GAME_OVER_REVEAL_MS = WIN_LINE_ANIMATION_MS + 250;
+// The board never exceeds this CSS width. Without a cap it grows to fill a
+// desktop viewport, which makes the eye travel further than it needs to
+// and pushes the controls below the fold.
+const BOARD_MAX_PX = 560;
 
-const canvas = document.getElementById("board");
-const gameContent = document.getElementById("game-content");
-const boardWrap = document.getElementById("board-wrap");
-const mainContent = document.getElementById("main-content");
-const turnLabel = document.getElementById("turn-label");
-const hintBtn = document.getElementById("hint-btn");
-const undoBtn = document.getElementById("undo-btn");
-const newGameBtn = document.getElementById("new-game-btn");
-const controls = document.getElementById("controls");
-const setupPanel = document.getElementById("setup-panel");
-const modeToggle = document.getElementById("mode-toggle");
-const difficultyRow = document.getElementById("difficulty-row");
-const difficultyToggle = document.getElementById("difficulty-toggle");
-const boardSizeToggle = document.getElementById("board-size-toggle");
-const startGameBtn = document.getElementById("start-game-btn");
-const coinFlipBanner = document.getElementById("coin-flip-banner");
-const coinFlipText = document.getElementById("coin-flip-text");
-const gameOverBanner = document.getElementById("game-over-banner");
-const gameOverText = document.getElementById("game-over-text");
-const gameOverStreak = document.getElementById("game-over-streak");
-const rematchBtn = document.getElementById("rematch-btn");
-const gameOverNewGameBtn = document.getElementById("game-over-new-game-btn");
-const soundToggleBtn = document.getElementById("sound-toggle-btn");
-const achievementsBtn = document.getElementById("achievements-btn");
-const achievementsOverlay = document.getElementById("achievements-overlay");
-const achievementsCloseBtn = document.getElementById("achievements-close-btn");
-const achievementsCountLabel = document.getElementById("achievements-count-label");
-const achievementsList = document.getElementById("achievements-list");
-const achievementToastContainer = document.getElementById("achievement-toast-container");
-const themeBtn = document.getElementById("theme-btn");
-const themeOverlay = document.getElementById("theme-overlay");
-const themeCloseBtn = document.getElementById("theme-close-btn");
-const themeList = document.getElementById("theme-list");
-const renjuToggle = document.getElementById("renju-toggle");
-const settingsBtn = document.getElementById("settings-btn");
-const settingsBtnIcon = document.getElementById("settings-btn-icon");
-const settingsOverlay = document.getElementById("settings-overlay");
-const settingsCloseBtn = document.getElementById("settings-close-btn");
-const playSummary = document.getElementById("play-summary");
-const playFriendBtn = document.getElementById("play-friend-btn");
+// Honoured by skipping animations outright rather than shortening them.
+// Read once: the OS setting is effectively static for a session.
+const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
 
-// --- setup state ---------------------------------------------------------
-//
-// All four are persisted preferences now, initialized from storage at
-// load and written back the moment they change — the original kept
-// mode/difficulty as session-only in-memory values and persisted just
-// renju/theme. Making all of them persistent is what lets a returning
-// player land on the setup screen already configured the way they left
-// it, which matters more here than it did in a daily-puzzle framing.
-let mode = getMode(); // 'ai' | 'local'
-let difficulty = getDifficulty(); // 'easy' | 'medium' | 'hard'
+// Whether this device does touch at all. Used only to decide which
+// instruction the status line gives — the confirm-to-place flow itself is
+// gated per-event on pointerType (see handleTap), which is the accurate
+// signal; this is the coarse "what should the idle prompt say" question,
+// which has to be answered before any pointer event has happened.
+const isTouchDevice = window.matchMedia?.("(hover: none) and (pointer: coarse)").matches ?? false;
+
+// --- DOM ------------------------------------------------------------------
+const $ = (id) => document.getElementById(id);
+const canvas = $("fir-board");
+const boardWrap = $("fir-board-wrap");
+const statusEl = $("fir-status");
+const coinFlip = $("fir-coinflip");
+const coinFlipText = $("fir-coinflip-text");
+const confirmBar = $("fir-confirm");
+const placeBtn = $("fir-place-btn");
+const cancelBtn = $("fir-cancel-btn");
+const hintBtn = $("fir-hint-btn");
+const undoBtn = $("fir-undo-btn");
+const newBtn = $("fir-new-btn");
+const settingsBtn = $("fir-settings-btn");
+const settingsPanel = $("fir-settings-panel");
+const settingsClose = $("fir-settings-close");
+const sizeGroup = $("fir-size-group");
+const themeGroup = $("fir-theme-group");
+const modeGroup = $("fir-mode-group");
+const paceGroup = $("fir-pace-group");
+const paceRow = $("fir-pace-row");
+const toggleDanger = $("fir-toggle-danger");
+const toggleConfirm = $("fir-toggle-confirm");
+const toggleSoundEl = $("fir-toggle-sound");
+const toggleRenju = $("fir-toggle-renju");
+const statWins = $("fir-stat-wins");
+const statBest = $("fir-stat-best");
+const statBadges = $("fir-stat-badges");
+const badgeList = $("fir-badges");
+const resultModal = $("fir-result-modal");
+const resultTitle = $("fir-result-title");
+const resultNote = $("fir-result-note");
+const resultAgain = $("fir-result-again");
+const resultClose = $("fir-result-close");
+const toasts = $("fir-toasts");
+
+// --- persisted settings ---------------------------------------------------
+let mode = getMode();
+let difficulty = getDifficulty();
 let renjuEnabled = isRenjuEnabled();
-// Replaces the original's `const BOARD_SIZE = 15`. Read once here, then
-// re-read at every startGame() — so changing the size in Settings
-// applies to the next game started, never mid-game to a board already on
-// screen.
 let boardSize = getBoardSize();
-// The colors object actually passed to drawBoard()/drawGhostStone() —
-// recomputed by applyActiveTheme() at startup and whenever the selection
-// changes. Starts as wood's own colors so there's a sane value before
-// the very first applyActiveTheme() call.
-let activeThemeColors = getThemeById("wood").colors;
+let confirmPlacement = isConfirmPlacementEnabled();
+let dangerWarning = isDangerWarningEnabled();
+let activeThemeColors = getThemeById(resolveActiveThemeId(getTheme())).colors;
 
-// --- per-game state ------------------------------------------------------
-let gamePhase = "setup"; // 'setup' | 'coinFlip' | 'playing' | 'gameOver'
+// --- per-game state -------------------------------------------------------
+let gamePhase = "opening"; // 'opening' | 'playing' | 'gameOver'
 let gameState = null;
 let turnManager = null;
-let humanPlayer = 0; // vs AI mode only — which board-index (0=black) the human plays
-let aiPlayer = 1; // vs AI mode only
-// Index 0/1 -> display label. Set by the coin flip each game, since
-// board-index 0 always moves first (black always moves first — there's
-// no "let white go first" variant). What the coin flip actually
-// randomizes is WHICH participant is labeled index 0 this game.
-let playerLabels = ["Black", "White"];
+let humanPlayer = 0;
+let aiPlayer = 1;
+let playerLabels = ["Player 1", "Player 2"];
 let aiThinking = false;
-// Set once per game the FIRST time it reaches gameOver (see
-// recordStreakOnce()) — guards against double-counting if the player
-// undoes past a just-finished game and plays it to a second conclusion
-// within the same session.
 let streakRecordedThisGame = false;
-let lastStreakResult = null; // {current, best, isNewBest} | null — vs-AI only, for the game-over banner
-// Separate flag from streakRecordedThisGame above even though both fire
-// at the same gameOver transition — they're independent concerns (one
-// guards the streak counter, this one guards achievement unlocking) that
-// only happen to be triggered together.
+let lastStreakResult = null;
 let achievementsRecordedThisGame = false;
-// Live-tracked facts that can't be reconstructed from gameState after
-// the fact (undo mutates history destructively) — see
-// game/achievements.js's own doc comment on AchievementContext for why
-// these have to be accumulated DURING play rather than derived at game
-// end.
 let undoUsedThisGame = false;
-// Gates "No Help Needed" (game/achievements.js) — set true the moment
-// any hint is shown, never un-set. The original had a SECOND flag next
-// to this one (`hintUsedFreeThisGame`) implementing a one-free-hint-
-// then-watch-an-ad budget; hints are unlimited here, so the budget flag
-// is gone and this achievement gate is all that remains.
 let hintUsedThisGame = false;
-let hintCell = null; // {row, col, reason} | null — the suggested cell to highlight (+ its ladder reason, see game/hint.js), cleared on the next real move
-// {row, col, reason}[] — recomputed by updateForbiddenCells() whenever
-// it's about to be Black's own turn under Renju rules (and kept empty
-// otherwise, including White's turns — White has no restrictions at
-// all). Drives both the board markers (render()) and click-blocking
-// (commitPreview()).
+let hintCell = null;
 let forbiddenCells = [];
-let everHadOpenFour = [false, false]; // per board-index — did that player ever have one this game
+// Points where the side that is NOT about to move could complete five in
+// a row immediately — see updateDangerCells().
+let dangerCells = [];
+let everHadOpenFour = [false, false];
 let everHadOpenThree = [false, false];
-let previewCell = null;
+// Two-step placement staging slot. A pending cell is drawn as a ghost and
+// is NOT on the board; it becomes a real move only via commitPending().
+let pendingCell = null;
+let previewCell = null; // mouse hover only
 let layout = null;
 let ctx = null;
 
-// --- deferred-callback guard --------------------------------------------
-//
-// Two things in this file fire LATER than the code that scheduled them:
-// the coin-flip banner's COIN_FLIP_DISPLAY_MS timeout and the AI's two
-// chained setTimeouts (maybeStartAiTurn() -> runAiTurn() -> the
-// MIN_AI_THINK_MS top-up). Both used to assume the game they were
-// scheduled for was still the current one. It isn't, necessarily: "New
-// Game" during the 900ms coin flip, or during Hard's ~350ms "thinking…",
-// calls goToSetup() which nulls gameState — and the still-pending
-// callback then fires into a null board (TypeError on gameState.winner),
-// or worse, into the NEXT game's fresh board ("ghost" stones from the
-// previous game, "already occupied" throws).
-//
-// Two layers, deliberately both: the timer ids below are cleared the
-// moment a game is abandoned/replaced (so the common case never fires at
-// all), AND every deferred callback captures `gameId` when scheduled and
-// bails if it no longer matches when it actually runs (the belt for the
-// cases clearTimeout can't reach — a callback already dequeued can't be
-// cleared). gameId is a plain monotonic counter, bumped on every
-// startGame() AND goToSetup() — "which game (or no-game) is current" —
-// never reused.
-//
-// (The original had a third such callback: an ad-request promise,
-// which couldn't be cancelled at all and relied on this guard alone.
-// Unlimited hints removed it.)
 let gameId = 0;
-let coinFlipTimerId = null;
+let openingTimerId = null;
 let aiTurnTimerId = null;
+let resultTimerId = null;
+let stoneAnimation = null;
+let winLineAnimation = null;
+let animationFrameId = null;
 
-/** Clears every pending game-scheduled timer. Idempotent. */
 function cancelPendingGameTimers() {
-  if (coinFlipTimerId !== null) {
-    clearTimeout(coinFlipTimerId);
-    coinFlipTimerId = null;
-  }
-  if (aiTurnTimerId !== null) {
-    clearTimeout(aiTurnTimerId);
-    aiTurnTimerId = null;
-  }
-  // The result panel's own reveal delay (GAME_OVER_REVEAL_MS): if the
-  // player hits Rematch/New Game inside that window — entirely possible
-  // from the controls row, which stays live — the pending reveal has to
-  // die with the game it belonged to, or it would flash the previous
-  // game's result over a board that has already been reset.
-  if (gameOverRevealTimerId !== null) {
-    clearTimeout(gameOverRevealTimerId);
-    gameOverRevealTimerId = null;
-  }
-  gameOverRevealed = false;
+  for (const id of [openingTimerId, aiTurnTimerId, resultTimerId]) if (id !== null) clearTimeout(id);
+  openingTimerId = aiTurnTimerId = resultTimerId = null;
 }
 
 /**
- * Marks "a different game (or the setup screen) is now current":
- * invalidates every outstanding deferred callback in one step. Called at
- * the top of every game start AND goToSetup(), before any new state is
- * written, so nothing scheduled against the old state can ever observe
- * the new one.
+ * Marks "a different game is now current", invalidating every deferred
+ * callback in one step. Each of the three timers above also re-checks
+ * `gameId` when it fires, for the case where a callback was already
+ * dequeued and can no longer be cleared.
  */
 function beginNewGameEpoch() {
   cancelPendingGameTimers();
@@ -293,129 +267,66 @@ function beginNewGameEpoch() {
   return gameId;
 }
 
-// --- animation state -----------------------------------------------------
-// Purely a rendering concern layered on top of the authoritative game
-// state above — the animation loop never affects whose turn it is or
-// what's legal, only how the next few frames look. `null` whenever
-// nothing is mid-animation (the common case).
-let stoneAnimation = null; // { row, col, startTime }
-let winLineAnimation = null; // { startTime }
-// Whether the result panel has been let through yet (see
-// GAME_OVER_REVEAL_MS). Separate from `gamePhase` on purpose: the game
-// IS over during the delay — input stays locked, the result is already
-// recorded — the panel just isn't on screen yet, so nothing else has to
-// care about this distinction.
-let gameOverRevealed = false;
-let gameOverRevealTimerId = null;
-let animationFrameId = null;
-
-function paddingFor(cssSize) {
-  return cssSize < 400 ? 8 : 20;
+// Reuses the site's own .achievement-toast component rather than defining
+// a second toast style; only the container is this game's.
+function toast(text) {
+  const el = document.createElement("div");
+  el.className = "achievement-toast is-visible";
+  el.textContent = text;
+  toasts.appendChild(el);
+  setTimeout(() => el.remove(), TOAST_MS);
 }
 
-/**
- * Which of the board's two possible header rows is showing — the live
- * turn label, or the result card that replaces it once a finished game's
- * result is revealed. Its own function, called from BOTH render() and
- * updateBoardMax(), because the board's available height depends on
- * which one is up: measuring before syncing would read the previous
- * state's row heights and size the canvas for a layout that no longer
- * exists (visibly, as a stretched canvas for one frame). Idempotent, so
- * the two callers can't fight over it.
- */
-function syncGameRowVisibility() {
-  const resultOpen = gamePhase === "gameOver" && gameOverRevealed;
-  turnLabel.hidden = gamePhase === "setup" || resultOpen;
-  gameOverBanner.hidden = !resultOpen;
-  // The board's own "a result is open" dimming, kept in lockstep with
-  // the card rather than with `gamePhase`, so the board stays at full
-  // strength through the win-line sweep and dims only as the card
-  // arrives — one state change the player reads as one moment.
-  boardWrap.classList.toggle("result-open", resultOpen);
-}
-
-// The board is sized from its own WIDTH (see the #board-wrap rule in
-// style.css), so nothing stops it from growing taller than the space
-// left under the turn label — on a wide, short viewport it would run off
-// the bottom edge. This publishes the height that IS available as
-// `--board-max`, which that CSS rule feeds into its own min(): measured
-// from #main-content (the scroll container, whose height comes from the
-// viewport and never from the board itself — so writing this back can't
-// feed into another resize) minus the two siblings the board shares
-// #game-content with, minus their gaps.
-//
-// Deliberately NOT observed on #board-wrap: the ResizeObserver below
-// watches #main-content instead, because an observer on the element this
-// function resizes is the textbook way to get "ResizeObserver loop
-// completed with undelivered notifications" in the console.
-const GAME_CONTENT_GAP = 10; // #game-content's own `gap`, in CSS px
-function updateBoardMax() {
-  syncGameRowVisibility();
-  // Every sibling the board shares #game-content with, whichever of them
-  // is currently showing. The result card is one of them, since it lives
-  // above the board rather than on top of it — on a viewport with free
-  // space to spare it costs the board nothing, and on a tight one the
-  // board gives up the difference for as long as the result is open.
-  // That's the right trade in that direction only because the game is
-  // already over by then: a smaller board is still perfectly readable,
-  // while a covered one isn't readable at all.
-  const available =
-    mainContent.clientHeight -
-    (turnLabel.hidden ? 0 : turnLabel.offsetHeight + GAME_CONTENT_GAP) -
-    (gameOverBanner.hidden ? 0 : gameOverBanner.offsetHeight + GAME_CONTENT_GAP) -
-    (controls.hidden ? 0 : controls.offsetHeight + GAME_CONTENT_GAP);
-  // A floor rather than a raw value: on a viewport too short for even a
-  // small board, letting this go toward 0 would leave an unplayable
-  // sliver, and the old scroll-to-reach behavior is the better failure
-  // mode below some point. 200px is that point, picked from the board's
-  // own geometry rather than taste — at 200px a 15x15 grid's cells are
-  // ~13px, already under the ~15.4px measured as the smallest tested-
-  // playable cell. (9x9 and 11x11 have proportionally larger cells at
-  // the same pixel size, so this floor is set by the largest board and
-  // is comfortably safe for the other two.)
-  document.documentElement.style.setProperty("--board-max", `${Math.max(200, available)}px`);
-}
+// --- layout / rendering ---------------------------------------------------
 
 function resize() {
-  if (!gameState) return; // nothing to lay out during setup
-  updateBoardMax();
-  const cssSize = boardWrap.clientWidth;
+  if (!gameState) return;
+  // Width only. The board is square and driven by its wrapper's width,
+  // which CSS has already constrained by the page gutter and
+  // BOARD_MAX_PX. Letting height participate made the board jump size
+  // whenever the status line wrapped to a second line.
+  const cssSize = Math.max(220, Math.min(BOARD_MAX_PX, boardWrap.clientWidth));
   ctx = fitCanvasToDisplaySize(canvas, cssSize, cssSize);
-  layout = boardLayout(gameState.size, cssSize, cssSize, paddingFor(cssSize));
+  // Padding requested as 0 so boardLayout() applies its own proportional
+  // floor (stone radius + half a grid line). Passing a fixed pixel
+  // padding, as the source did, is what clipped edge stones at small
+  // sizes.
+  layout = boardLayout(gameState.size, cssSize, cssSize, 0);
   render();
 }
 
 function render() {
-  updatePhaseVisibility();
-  updateSoundToggleButton();
-  if (gamePhase === "setup") {
-    updateSetupUI();
-    return;
-  }
   if (!ctx || !layout || !gameState) return;
 
-  const animatingCell = stoneAnimation
-    ? { row: stoneAnimation.row, col: stoneAnimation.col, progress: animationProgress(stoneAnimation.startTime, STONE_ANIMATION_MS) }
-    : null;
-  const winLineProgress = winLineAnimation ? animationProgress(winLineAnimation.startTime, WIN_LINE_ANIMATION_MS) : 1;
+  const animatingCell =
+    stoneAnimation && !reduceMotion
+      ? {
+          row: stoneAnimation.row,
+          col: stoneAnimation.col,
+          progress: progressOf(stoneAnimation.startTime, STONE_ANIMATION_MS),
+        }
+      : null;
+  const winLineProgress =
+    winLineAnimation && !reduceMotion ? progressOf(winLineAnimation.startTime, WIN_LINE_ANIMATION_MS) : 1;
 
   drawBoard(ctx, layout, gameState, { theme: activeThemeColors, animatingCell, winLineProgress });
-  for (const cell of forbiddenCells) {
-    drawForbiddenMarker(ctx, layout, cell.row, cell.col, activeThemeColors);
+
+  for (const cell of forbiddenCells) drawForbiddenMarker(ctx, layout, cell.row, cell.col, activeThemeColors);
+  for (const cell of dangerCells) drawDangerMarker(ctx, layout, cell.row, cell.col, activeThemeColors);
+  if (hintCell && gameState.winner === null) drawHintMarker(ctx, layout, hintCell.row, hintCell.col, activeThemeColors);
+
+  // A staged stone takes precedence over the mouse hover preview — they
+  // are never both meaningful at once.
+  const ghost = pendingCell ?? (isHumanInputAllowed() && !aiThinking ? previewCell : null);
+  if (ghost && gameState.winner === null) {
+    drawGhostStone(ctx, layout, ghost.row, ghost.col, turnManager.current(), activeThemeColors);
   }
-  if (hintCell && gameState.winner === null) {
-    drawHintMarker(ctx, layout, hintCell.row, hintCell.col, activeThemeColors);
-  }
-  if (previewCell && gameState.winner === null && !aiThinking) {
-    drawGhostStone(ctx, layout, previewCell.row, previewCell.col, turnManager.current(), activeThemeColors);
-  }
-  updateTurnLabel();
-  updateGameOverBanner();
-  updateUndoButton();
-  updateHintButton();
+
+  updateStatus();
+  updateControls();
 }
 
-function animationProgress(startTime, durationMs) {
+function progressOf(startTime, durationMs) {
   return Math.min(1, (performance.now() - startTime) / durationMs);
 }
 
@@ -423,776 +334,113 @@ function isAnimating() {
   return stoneAnimation !== null || winLineAnimation !== null;
 }
 
-/**
- * Runs render() on every frame until both animations (if any) finish,
- * then stops itself — there's no reason to keep painting 60 times a
- * second while the board is genuinely idle between moves.
- */
 function ensureAnimationLoop() {
-  if (animationFrameId !== null) return; // already running
+  if (reduceMotion) {
+    stoneAnimation = null;
+    winLineAnimation = null;
+    render();
+    return;
+  }
+  if (animationFrameId !== null) return;
   const step = () => {
-    if (stoneAnimation && animationProgress(stoneAnimation.startTime, STONE_ANIMATION_MS) >= 1) {
-      stoneAnimation = null;
-    }
-    if (winLineAnimation && animationProgress(winLineAnimation.startTime, WIN_LINE_ANIMATION_MS) >= 1) {
-      winLineAnimation = null;
-    }
+    if (stoneAnimation && progressOf(stoneAnimation.startTime, STONE_ANIMATION_MS) >= 1) stoneAnimation = null;
+    if (winLineAnimation && progressOf(winLineAnimation.startTime, WIN_LINE_ANIMATION_MS) >= 1) winLineAnimation = null;
     render();
     animationFrameId = isAnimating() ? requestAnimationFrame(step) : null;
   };
   animationFrameId = requestAnimationFrame(step);
 }
 
-function updatePhaseVisibility() {
-  setupPanel.hidden = gamePhase !== "setup";
-  // #game-content needs its OWN hidden toggle, separate from the 3
-  // children's own — an empty-but-still-`display:flex` wrapper would
-  // still count as a `flex: 1` sibling of #setup-panel inside
-  // #main-content and steal half its centering space even while showing
-  // nothing, which is why this isn't just "redundant with the three
-  // lines below." Always the exact logical inverse of setupPanel's own
-  // hidden state — the two are mutually exclusive by construction.
-  gameContent.hidden = gamePhase === "setup";
-  // #turn-label / #game-over-banner / the board's dimming all move
-  // together — syncGameRowVisibility() owns that trio (the turn label is
-  // hidden while a result is up: the card takes its row, and "Your turn"
-  // under a finished game said the opposite of what just happened).
-  syncGameRowVisibility();
-  boardWrap.hidden = gamePhase === "setup";
-  controls.hidden = gamePhase === "setup";
-  coinFlipBanner.hidden = gamePhase !== "coinFlip";
-}
-
-function updateSetupUI() {
-  for (const btn of modeToggle.querySelectorAll(".seg-btn")) {
-    btn.classList.toggle("active", btn.dataset.mode === mode);
-  }
-  for (const btn of difficultyToggle.querySelectorAll(".seg-btn")) {
-    btn.classList.toggle("active", btn.dataset.difficulty === difficulty);
-  }
-  difficultyRow.classList.toggle("hidden", mode !== "ai");
-  for (const btn of boardSizeToggle.querySelectorAll(".seg-btn")) {
-    btn.classList.toggle("active", Number(btn.dataset.boardSize) === boardSize);
-  }
-  for (const btn of renjuToggle.querySelectorAll(".seg-btn")) {
-    btn.classList.toggle("active", btn.dataset.renju === (renjuEnabled ? "on" : "off"));
-  }
-  updatePlaySummary();
-}
-
-function difficultyLabel(d) {
-  return d.charAt(0).toUpperCase() + d.slice(1);
-}
+// --- status line ----------------------------------------------------------
 
 /**
- * The one-line "what will Play actually do" caption under the Play
- * button — so hiding Mode/Difficulty/Board/Renju behind the settings
- * gear doesn't turn Play into a black box. Reads the same state Play
- * itself uses, so it can never drift out of sync with what a tap on Play
- * actually starts.
+ * Writes the status line, and ONLY when the text actually changed.
+ *
+ * The guard is load-bearing, not an optimisation. #fir-status is
+ * aria-live="polite", and render() runs on every animation frame — so
+ * assigning textContent unconditionally re-announced the same sentence to
+ * a screen reader on every frame of every stone animation, and again on
+ * every tap that produced the same state. polite queues rather than
+ * interrupts, so that backlog would be read out long after the moment
+ * passed. Comparing first means an announcement happens exactly when the
+ * state genuinely changes.
  */
-function updatePlaySummary() {
-  const parts = mode === "ai" ? ["vs AI", difficultyLabel(difficulty)] : ["2 Player"];
-  parts.push(`${boardSize}×${boardSize}`);
-  if (renjuEnabled) parts.push("Renju On");
-  playSummary.textContent = parts.join(" · ");
+function setStatus(text, kind = "") {
+  if (statusEl.textContent !== text) statusEl.textContent = text;
+  statusEl.classList.toggle("fir-status-danger", kind === "danger");
+  statusEl.classList.toggle("fir-status-hint", kind === "hint");
 }
 
-// "You" is grammatically second-person ("Your turn," "You win!") while
-// every other label ("Computer," "Player 1") is third-person ("Computer's
-// turn," "Player 1 wins!") — the generic `${label}'s turn`/`${label}
-// wins!` templates below are wrong for exactly that one label, so it
-// gets its own two irregular forms instead of a general-purpose grammar
-// engine for a vocabulary of four fixed strings.
-function possessiveTurnText(label) {
-  return label === "You" ? "Your turn" : `${label}'s turn`;
-}
-
-function winsText(label) {
-  return label === "You" ? "You win!" : `${label} wins!`;
-}
-
-/**
- * The coin-flip announcement — same "You" irregular-verb exception as
- * the two functions above (`You play`, not `You plays`), but also fixing
- * a second, more substantive problem the grammar bug shared a root cause
- * with: an earlier template (`${label} is Black`) used "Black" as a bare
- * predicate, reading as a claim about the PERSON ("You is/are Black")
- * rather than about which stones they're playing. Every caller passes a
- * COLOR ("Black"/"White"), not a player label, as `colorWord` — this
- * function only ever says "plays/play `${colorWord}` stones."
- */
-function playsStonesText(label, colorWord) {
-  return label === "You" ? `You play ${colorWord} stones` : `${label} plays ${colorWord} stones`;
-}
-
-// One line per game/hint.js's own ladder reason, hardcoded (no i18n
-// layer exists anywhere in this English-only app). Shown in place of the
-// normal turn text, in the SAME #turn-label element the turn indicator
-// already occupies — not a new element, so it disappears for free the
-// instant hintCell is cleared, exactly like the marker itself (both are
-// driven by the same hintCell lifecycle: nulled on every real move,
-// undo, new game).
-const HINT_REASON_TEXT = {
-  win: "Winning move — five in a row!",
-  "block-win": "Block this or lose next turn",
-  "open-four": "Open four — this wins next turn",
-  "block-three": "Stop their open three",
-  develop: "Solid move to build from",
-};
-
-function updateTurnLabel() {
+function updateStatus() {
+  if (!gameState) return;
   if (gameState.winner !== null) {
-    turnLabel.textContent = "";
-    turnLabel.classList.remove("hint-active");
-    return;
+    if (gameState.winner === "draw") return setStatus(TEXT.drawTitle);
+    if (mode === "ai") return setStatus(gameState.winner === humanPlayer ? TEXT.wonTitle : TEXT.lostTitle);
+    return setStatus(TEXT.localWon(playerLabels[gameState.winner]));
   }
-  if (hintCell) {
-    turnLabel.textContent = HINT_REASON_TEXT[hintCell.reason] ?? "";
-    turnLabel.classList.add("hint-active");
-    return;
+  if (aiThinking) return setStatus(TEXT.computerThinking);
+  // A staged stone outranks everything below: it is the only state with a
+  // pending action the player has to complete, and the Place button is
+  // sitting right there waiting for it.
+  if (pendingCell) return setStatus(TEXT.confirmPrompt);
+  if (hintCell) return setStatus(HINT_TEXT[hintCell.reason] ?? "", "hint");
+  // The danger warning is stated in words as well as drawn, so it never
+  // depends on noticing a mark on the board.
+  if (dangerCells.length > 0) {
+    return setStatus(dangerCells.length > 1 ? TEXT.dangerMany(dangerCells.length) : TEXT.dangerOne, "danger");
   }
-  turnLabel.classList.remove("hint-active");
   const current = turnManager.current();
-  const label = playerLabels[current];
-  turnLabel.textContent = aiThinking ? `${label} is thinking…` : possessiveTurnText(label);
-}
-
-/**
- * Holds the result panel back until the win line has finished sweeping
- * (GAME_OVER_REVEAL_MS), then renders it. Guarded by `gameId` like every
- * other deferred callback here: a game abandoned inside the delay window
- * must not have its result flash over whatever replaced it — and
- * cancelPendingGameTimers() clears this timer anyway, so the guard is
- * belt-and-braces against a path that forgets to.
- *
- * A draw waits too, even though there's no line to watch: the last stone
- * still has its own pop-in animation, and a panel that beats the final
- * stone onto the board looks like it decided before the move landed.
- */
-function scheduleGameOverReveal() {
-  // Reset first: undoing past a finished game and then finishing it
-  // AGAIN reaches here inside the same gameId, and a stale `true` from
-  // the first ending would skip the delay the second time around.
-  gameOverRevealed = false;
-  const thisGameId = gameId;
-  gameOverRevealTimerId = setTimeout(() => {
-    gameOverRevealTimerId = null;
-    if (gameId !== thisGameId || gamePhase !== "gameOver") return;
-    gameOverRevealed = true;
-    // resize(), not render(): the card takes real layout space above the
-    // board, so the board's own max height changes the moment it appears
-    // and the canvas has to be refitted to match — render() alone would
-    // leave the canvas at its old size, stretched by CSS. (resize()
-    // syncs the rows first and renders at the end, so this one call
-    // covers the whole transition.)
-    resize();
-  }, GAME_OVER_REVEAL_MS);
-}
-
-function updateGameOverBanner() {
-  // `gameOverRevealed` (not just the phase) — the panel is held back for
-  // GAME_OVER_REVEAL_MS after the game ends so the win line can finish
-  // sweeping in the clear; see that constant's own comment.
-  syncGameRowVisibility();
-  if (gameState.winner === null) return;
-  gameOverText.textContent = gameState.winner === "draw" ? "Draw!" : winsText(playerLabels[gameState.winner]);
-  updateGameOverStreak();
-}
-
-/**
- * vs-AI only (local mode has no per-difficulty streak). A win keeps the
- * emphasis on the streak that's still alive; a loss or draw already
- * zeroed `current` (see recordStreakOnce()), so there's nothing live
- * left to show — instead it leaves the standing PERSONAL BEST as a
- * target for next time, which is more motivating than reporting "0."
- */
-function updateGameOverStreak() {
-  if (mode !== "ai" || !lastStreakResult) {
-    gameOverStreak.hidden = true;
-    return;
-  }
-  gameOverStreak.hidden = false;
-  const { current, best, isNewBest } = lastStreakResult;
-  const won = gameState.winner === humanPlayer;
-  gameOverStreak.textContent = won ? `Win streak: ${current}` : `Best: ${best}`;
-  gameOverStreak.classList.toggle("new-best", won && isNewBest);
-  if (won && isNewBest) gameOverStreak.textContent += " — New Best!";
-}
-
-/**
- * Undo is unlimited in every mode, matching the rest of this site. The
- * original capped it at 3 per game in vs-AI mode (local was already
- * unlimited) and rendered the remaining count into this button's own
- * label as "Undo (2)"; with no budget left to report, the label is a
- * plain "Undo" and the button's only state is enabled/disabled.
- */
-function updateUndoButton() {
-  undoBtn.disabled = !canUndo();
-}
-
-/**
- * Disabled whenever it's not actually the human's turn to act — the same
- * isHumanInputAllowed() gate the board's own input uses, and now the
- * only condition. The original had a second one: once the single free
- * hint was spent, the button went dead whenever the ad SDK was
- * confirmed unavailable. Hints are unlimited and instant here, so the
- * button is live exactly whenever a move is.
- */
-function updateHintButton() {
-  hintBtn.disabled = !isHumanInputAllowed();
-}
-
-function updateSoundToggleButton() {
-  const enabled = isSoundEnabled();
-  soundToggleBtn.innerHTML = enabled ? ICONS.speakerOn : ICONS.speakerMuted;
-  soundToggleBtn.setAttribute("aria-label", enabled ? "Mute sound" : "Unmute sound");
-}
-
-// --- sound ---------------------------------------------------------------
-
-soundToggleBtn.addEventListener("click", () => {
-  // core/audio.js's own doc comment on unlockAudio() promises exactly
-  // this belt-and-suspenders call. The document-level pointerdown/
-  // touchstart/keydown listener in audio.js already fires before this
-  // click handler on a real tap (pointerdown precedes click), but a
-  // mouse click synthesized without a preceding pointerdown, or any
-  // future input path that isn't already covered, would fall through
-  // that gap. Tapping the toggle is an unambiguous gesture in its own
-  // right; there's no reason to depend solely on whichever gesture fired
-  // first.
-  unlockAudio();
-  toggleSound(); // persists via core/storage.js
-  updateSoundToggleButton();
-});
-
-// --- modal manager (accessibility) ---------------------------------------
-//
-// The three modals (achievements / theme / settings) used to be opened
-// by flipping `overlay.hidden` and nothing else: focus stayed on the
-// button behind the dimmed backdrop, Tab walked straight into the page
-// underneath, Escape did nothing, and a screen reader had no idea a
-// dialog had appeared. One small manager fixes all three at once instead
-// of each open*/close* pair growing its own copy:
-//
-// - open: remember the opener (document.activeElement), show, move focus
-//   to the panel's close button (always present, always first in the
-//   header — the predictable landing spot a keyboard user expects), and
-//   mark #top-bar/#main-content `inert` so the page behind is neither
-//   tabbable nor clickable nor read out.
-// - close: hide, drop inert (only when the LAST modal closes — the stack
-//   makes that assumption unnecessary rather than load-bearing), restore
-//   focus to the opener.
-// - Escape (document keydown): closes the TOPMOST open modal only.
-//
-// `inert` is applied to the two page roots rather than `aria-hidden` + a
-// focus trap because it does both jobs natively (focus AND pointer AND
-// accessibility tree). The modals themselves are siblings of those two
-// roots, so marking the roots never touches the open panel.
-//
-// (The original also called the portal's gameplayStop()/gameplayStart()
-// here, since a modal opening mid-game is a break in play the portal
-// needed told about. Nothing external is listening now, so opening a
-// modal is purely a DOM concern.)
-const inertWhileModalOpen = [document.getElementById("top-bar"), document.getElementById("main-content")];
-/** @type {{overlay: HTMLElement, opener: Element | null}[]} — bottom to top */
-const openModalStack = [];
-
-function openModal(overlay) {
-  if (!overlay.hidden) return; // already open — don't re-capture the opener (it'd be the close button by now)
-  const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-  openModalStack.push({ overlay, opener });
-  for (const el of inertWhileModalOpen) el.inert = true;
-  overlay.hidden = false;
-  const focusTarget = overlay.querySelector(".modal-close-btn") ?? overlay.querySelector(".modal-panel");
-  focusTarget?.focus();
-}
-
-function closeModal(overlay) {
-  if (overlay.hidden) return;
-  const index = openModalStack.findIndex((entry) => entry.overlay === overlay);
-  const [entry] = index >= 0 ? openModalStack.splice(index, 1) : [null];
-  overlay.hidden = true;
-  if (openModalStack.length === 0) {
-    for (const el of inertWhileModalOpen) el.inert = false;
-  }
-  // Restore focus only if the opener is still something that can take it
-  // — it may have been removed/hidden meanwhile, in which case focus is
-  // simply left where the browser puts it rather than thrown at a dead
-  // node.
-  if (entry?.opener?.isConnected && !entry.opener.hidden) entry.opener.focus();
-}
-
-document.addEventListener("keydown", (evt) => {
-  if (evt.key !== "Escape" || openModalStack.length === 0) return;
-  evt.preventDefault();
-  closeModal(openModalStack[openModalStack.length - 1].overlay);
-});
-
-// --- achievements UI ------------------------------------------------------
-//
-// The button/counter is always visible (same reasoning as sound-toggle —
-// checking progress isn't a mid-game action), but the LIST is only built
-// lazily when opened rather than kept in sync continuously; nothing about
-// the list itself changes except right when a game just concluded, and
-// evaluateAndUnlockAchievements() already refreshes the counter then.
-
-/**
- * core/storage.js's unlocked list, filtered to ids that still exist in
- * game/achievements.js. storage.js deliberately knows nothing about
- * which ids are real (its own header note), so a profile carrying an id
- * this build no longer ships would otherwise be counted and show
- * "12/11". Every count in this file goes through here so they can't
- * disagree.
- */
-function knownUnlockedAchievementIds() {
-  const known = new Set(ACHIEVEMENTS.map((a) => a.id));
-  return getUnlockedAchievements().filter((id) => known.has(id));
-}
-
-function updateAchievementsButton() {
-  const count = knownUnlockedAchievementIds().length;
-  achievementsBtn.innerHTML = `${ICONS.trophy}<span class="btn-count">${count}/${ACHIEVEMENTS.length}</span>`;
-}
-
-function openAchievements() {
-  renderAchievementsList();
-  openModal(achievementsOverlay);
-}
-
-function closeAchievements() {
-  closeModal(achievementsOverlay);
-}
-
-/**
- * Locked entries still render their full title/description — only the
- * icon dims and the title mutes (via the .locked class in CSS), never a
- * "???" placeholder. ACHIEVEMENTS is iterated directly in its declared
- * order rather than sorted by unlock state.
- */
-function renderAchievementsList() {
-  const unlocked = new Set(knownUnlockedAchievementIds());
-  achievementsCountLabel.textContent = `${unlocked.size}/${ACHIEVEMENTS.length}`;
-  achievementsList.innerHTML = "";
-  for (const achievement of ACHIEVEMENTS) {
-    const isUnlocked = unlocked.has(achievement.id);
-    const row = document.createElement("li");
-    row.className = `achievement-row ${isUnlocked ? "unlocked" : "locked"}`;
-    row.innerHTML = `
-      <span class="achievement-row-icon">${isUnlocked ? ICONS.trophy : ICONS.lock}</span>
-      <div>
-        <div class="achievement-row-title">${achievement.title}</div>
-        <div class="achievement-row-description">${achievement.description}</div>
-      </div>
-    `;
-    achievementsList.appendChild(row);
-  }
-}
-
-/** How long a toast stays up before removing itself — long enough to read
- * a short title, short enough that several in a row (a single win can
- * unlock more than one) don't pile up indefinitely. */
-const ACHIEVEMENT_TOAST_MS = 2600;
-
-function showAchievementToasts(ids) {
-  for (const id of ids) {
-    const achievement = ACHIEVEMENTS.find((a) => a.id === id);
-    if (!achievement) continue; // defensive — evaluateAchievements() only ever returns real ids
-    const toast = document.createElement("div");
-    toast.className = "achievement-toast";
-    toast.innerHTML = `${ICONS.trophy}<span>${achievement.title}</span>`;
-    achievementToastContainer.appendChild(toast);
-    setTimeout(() => toast.remove(), ACHIEVEMENT_TOAST_MS);
-  }
-}
-
-achievementsBtn.addEventListener("click", openAchievements);
-achievementsCloseBtn.addEventListener("click", closeAchievements);
-achievementsOverlay.addEventListener("click", (evt) => {
-  if (evt.target === achievementsOverlay) closeAchievements(); // click on the dimmed backdrop, not the panel
-});
-
-// --- board theme UI -------------------------------------------------------
-//
-// Every theme is available from the start (game/themes.js dropped its
-// unlock concept entirely — see that file's header for why). What used
-// to live here and no longer does: themeUnlockContext(), which assembled
-// achievement counts / Hard-win history / daily streak into an
-// UnlockContext; checkForNewThemeUnlocks(), which diffed the unlocked set
-// before and after each game to toast a newly earned theme; and the
-// locked-row rendering path with its padlock icon and "how to unlock"
-// text. Picking a theme is now just picking a theme.
-
-/**
- * Recomputes and applies the theme to actually render with:
- * core/storage.js's getTheme() (whatever the player last selected) run
- * through resolveActiveThemeId() (game/themes.js), which falls back to
- * Wood for an id this build doesn't ship — the case that matters is a
- * save written when Neon still existed. Called once at startup and again
- * after a new selection.
- */
-function applyActiveTheme() {
-  const resolvedId = resolveActiveThemeId(getTheme());
-  activeThemeColors = getThemeById(resolvedId).colors;
-  render();
-}
-
-function openThemeModal() {
-  renderThemeList();
-  openModal(themeOverlay);
-}
-
-function closeThemeModal() {
-  closeModal(themeOverlay);
-}
-
-/**
- * Builds a small pure-CSS color swatch for `theme` — no image assets — a
- * board-colored square with two stone-colored dots, all set inline from
- * game/themes.js's own color data so this function is the ONLY place a
- * theme's actual hex values get read into the DOM.
- *
- * (These are CSSOM property assignments, not `style="..."` attributes in
- * markup, so they are not subject to the site's `style-src 'self'` CSP —
- * CSP does not police the CSSOM.)
- */
-function buildThemeSwatch(theme) {
-  const swatch = document.createElement("div");
-  swatch.className = "theme-swatch";
-  swatch.style.background = theme.colors.boardColor;
-  for (const player of [0, 1]) {
-    const dot = document.createElement("span");
-    dot.className = "theme-swatch-dot";
-    dot.style.background = theme.colors.stones[player].fill;
-    swatch.appendChild(dot);
-  }
-  return swatch;
-}
-
-function renderThemeList() {
-  const selectedId = resolveActiveThemeId(getTheme());
-  themeList.innerHTML = "";
-  for (const theme of THEMES) {
-    const isSelected = theme.id === selectedId;
-    const row = document.createElement("li");
-    row.className = `theme-row ${isSelected ? "selected" : ""}`;
-    row.dataset.themeId = theme.id; // selectTheme() uses this to re-focus the row after a rebuild
-    row.appendChild(buildThemeSwatch(theme));
-    const text = document.createElement("div");
-    text.innerHTML = `
-      <div class="theme-row-name">${theme.name}${isSelected ? " ✓" : ""}</div>
-      <div class="theme-row-description">${theme.description}</div>
-    `;
-    row.appendChild(text);
-    row.setAttribute("role", "button");
-    row.tabIndex = 0;
-    row.setAttribute("aria-pressed", String(isSelected));
-    row.addEventListener("click", () => selectTheme(theme.id));
-    row.addEventListener("keydown", (evt) => {
-      if (evt.key !== "Enter" && evt.key !== " ") return;
-      evt.preventDefault(); // Space would otherwise scroll the list
-      selectTheme(theme.id);
-    });
-    themeList.appendChild(row);
-  }
-}
-
-function selectTheme(id) {
-  setTheme(id); // core/storage.js's own setTheme() ignores anything not in its THEME_IDS whitelist, belt-and-suspenders
-  applyActiveTheme();
-  renderThemeList(); // refresh the selected-checkmark/border without closing the modal
-  // renderThemeList() rebuilds every row from scratch, which silently
-  // drops keyboard focus to <body> — put it back on the row that was
-  // just activated so Tab/Shift+Tab continue from where the user was.
-  themeList.querySelector(`[data-theme-id="${id}"]`)?.focus();
-}
-
-themeBtn.addEventListener("click", openThemeModal);
-themeCloseBtn.addEventListener("click", closeThemeModal);
-themeOverlay.addEventListener("click", (evt) => {
-  if (evt.target === themeOverlay) closeThemeModal();
-});
-
-/**
- * Win/lose is meaningful only relative to the human in vs-AI mode; local
- * 2-player has no "you" to lose against a computer, so any win there is
- * just a win worth celebrating regardless of which of the two people it
- * was — playWinSound() covers that case too rather than needing a third,
- * "nobody in particular" variant.
- */
-function playGameOverSound() {
-  if (gameState.winner === "draw") {
-    playDrawGameSound();
-  } else if (mode === "ai") {
-    if (gameState.winner === humanPlayer) playWinSound();
-    else playLoseSound();
-  } else {
-    playWinSound();
-  }
-}
-
-/**
- * Records this game's outcome against `difficulty`'s win streak — vs-AI
- * only (local mode never touches streaks at all). A loss or a draw both
- * reset `current` to 0 the same way — core/storage.js's
- * recordStreakResult() already treats "not a win" as one case, so
- * there's no separate draw branch to get wrong here.
- *
- * Deliberately counts a game that used Undo. Undo exists here
- * specifically so a loss to a stronger difficulty doesn't feel final and
- * punishing; disqualifying a streak because it used that same aid would
- * fight the feature's own purpose. (The original made this call when
- * undo was capped at 3 per game. It's now unlimited, which does make the
- * streak a softer number — but "unlimited undo everywhere" is this
- * site's policy, and gating the streak on it would just re-introduce the
- * limit through the back door.)
- *
- * Guarded by `streakRecordedThisGame` so this only ever fires once per
- * game SESSION — undoing back past a just-finished game and playing it
- * to a second conclusion does not record a second result; the first real
- * conclusion is what counts. Abandoning mid-game via "New Game" never
- * reaches this function at all (it's only ever called from the gameOver
- * transition), so there's no separate check needed for that.
- */
-function recordStreakOnce() {
-  if (mode !== "ai" || streakRecordedThisGame) return;
-  streakRecordedThisGame = true;
-  const won = gameState.winner === humanPlayer;
-  lastStreakResult = recordStreakResult(difficulty, won);
-}
-
-/**
- * Evaluates and persists this game's achievements — guarded by
- * `achievementsRecordedThisGame` for exactly the reason
- * `streakRecordedThisGame` exists above: undoing back past a
- * just-finished game and reaching a SECOND conclusion in the same
- * session must not re-run this (which would, for instance, re-record a
- * Hard win on a color that already had one, or worse, let a losing
- * second conclusion's context overwrite `lastStreakResult`-derived facts
- * from the real one). Must run AFTER recordStreakOnce() — Hot Streak /
- * Unstoppable read `lastStreakResult`, which that call just set.
- */
-function evaluateAndUnlockAchievements() {
-  if (achievementsRecordedThisGame) return;
-  achievementsRecordedThisGame = true;
-
-  const creditableHardWin = mode === "ai" && gameState.winner === humanPlayer && difficulty === "hard";
-  if (creditableHardWin) {
-    // Statistics only — nothing gates on either of these any more (see
-    // core/storage.js's own note on hardWinsBySize). recordHardWin()
-    // warns to the console if it's ever handed a size not in
-    // BOARD_SIZES, precisely because an unrecorded win would otherwise
-    // be completely invisible.
-    recordHardWin(gameState.size);
-    recordHardWinByColor(humanPlayer);
-  }
-  if (mode === "local" && gameState.winner !== null) {
-    incrementLocalGamesCompleted();
-  }
-
-  const context = {
-    gameState,
-    mode,
-    humanPlayer,
-    difficulty,
-    undoUsedThisGame,
-    hintUsedThisGame,
-    everHadOpenFour,
-    everHadOpenThree,
-    streakResult: lastStreakResult,
-    hardWinsByColor: getHardWinsByColor(),
-    localGamesCompleted: getLocalGamesCompleted(),
-  };
-
-  const qualifying = evaluateAchievements(context);
-  const newlyUnlocked = qualifying.filter((id) => unlockAchievement(id));
-  updateAchievementsButton();
-  if (newlyUnlocked.length > 0) showAchievementToasts(newlyUnlocked);
-}
-
-// --- setup screen ---------------------------------------------------------
-//
-// Every toggle below writes its value straight through to storage as
-// well as to the module-level variable, so the setup screen is where the
-// player left it on their next visit.
-
-modeToggle.addEventListener("click", (evt) => {
-  const btn = evt.target.closest(".seg-btn");
-  if (!btn) return;
-  mode = btn.dataset.mode;
-  setMode(mode);
-  updateSetupUI();
-});
-
-difficultyToggle.addEventListener("click", (evt) => {
-  const btn = evt.target.closest(".seg-btn");
-  if (!btn) return;
-  difficulty = btn.dataset.difficulty;
-  setDifficulty(difficulty);
-  updateSetupUI();
-});
-
-// 9 / 11 / 15. Applies to the NEXT game started, never to a board
-// already on screen — startGame() re-reads `boardSize` at the moment it
-// builds the state, and nothing resizes a live game underneath the
-// player.
-boardSizeToggle.addEventListener("click", (evt) => {
-  const btn = evt.target.closest(".seg-btn");
-  if (!btn) return;
-  boardSize = Number(btn.dataset.boardSize);
-  setBoardSize(boardSize);
-  updateSetupUI();
-});
-
-renjuToggle.addEventListener("click", (evt) => {
-  const btn = evt.target.closest(".seg-btn");
-  if (!btn) return;
-  renjuEnabled = btn.dataset.renju === "on";
-  setRenjuEnabled(renjuEnabled); // a global preference, not a per-game-only choice
-  updateSetupUI();
-});
-
-startGameBtn.addEventListener("click", startGame);
-
-function openSettingsModal() {
-  updateSetupUI(); // paints the toggles' current .active state the instant the modal opens, not just after the next click inside it
-  openModal(settingsOverlay);
-}
-
-function closeSettingsModal() {
-  closeModal(settingsOverlay);
-}
-
-settingsBtn.addEventListener("click", openSettingsModal);
-settingsCloseBtn.addEventListener("click", closeSettingsModal);
-settingsOverlay.addEventListener("click", (evt) => {
-  if (evt.target === settingsOverlay) closeSettingsModal(); // click on the dimmed backdrop, not the panel
-});
-
-// "Play with a friend" — 2-player is this game's differentiator, so it
-// keeps a direct one-tap path that skips the settings modal entirely,
-// alongside (not instead of) selecting "2 Player" from inside Settings.
-playFriendBtn.addEventListener("click", () => {
-  mode = "local";
-  setMode(mode);
-  updateSetupUI();
-  startGame();
-});
-
-// --- game start / coin flip ----------------------------------------------
-
-/**
- * Coin flip: which participant (human/computer in vs-AI mode, Player 1/
- * Player 2 in local mode) is assigned board-index 0 — the player who
- * always moves first, i.e. Black. Reuses core/turn.js's own
- * pickStartingPlayer(2, rng) as a plain 2-way coin flip; board-index 0
- * ALWAYS moves first regardless of its result (that's a rule of the
- * game, not a fairness knob) — what pickStartingPlayer's return value
- * actually decides here is who gets labeled index 0 this game, not which
- * index moves first.
- */
-function startGame() {
-  const thisGameId = beginNewGameEpoch(); // invalidates anything the PREVIOUS game still had pending — see gameId's own comment
-  const firstParticipantIsBlack = pickStartingPlayer(2, Math.random) === 0;
+  const yourMove = mode !== "ai" || current === humanPlayer;
+  // With the Place button on screen and disabled, say what it is waiting
+  // for. Only on touch, and only while confirm-to-place is actually
+  // armed — a mouse user places in one click and never sees that button
+  // do anything, so telling them to "choose a spot" first would describe
+  // a step that does not exist for them.
+  if (yourMove && confirmPlacement && isTouchDevice) return setStatus(TEXT.chooseSpot);
   if (mode === "ai") {
-    humanPlayer = firstParticipantIsBlack ? 0 : 1;
-    aiPlayer = 1 - humanPlayer;
-    playerLabels = firstParticipantIsBlack ? ["You", "Computer"] : ["Computer", "You"];
-  } else {
-    playerLabels = firstParticipantIsBlack ? ["Player 1", "Player 2"] : ["Player 2", "Player 1"];
+    return setStatus(current === humanPlayer ? (humanPlayer === 0 ? TEXT.yourTurnBlack : TEXT.yourTurnWhite) : TEXT.computerThinking);
   }
-
-  // Re-read rather than trusting the module variable: this is the one
-  // point where a size change in Settings takes effect, and reading it
-  // here means the board on screen always matches what storage says.
-  boardSize = getBoardSize();
-  gameState = createGameState(boardSize);
-  turnManager = createTurnManager(2, 0); // board-index 0 always starts
-  previewCell = null;
-  aiThinking = false;
-  streakRecordedThisGame = false;
-  lastStreakResult = null;
-  achievementsRecordedThisGame = false;
-  undoUsedThisGame = false;
-  hintUsedThisGame = false;
-  hintCell = null;
-  everHadOpenFour = [false, false];
-  everHadOpenThree = [false, false];
-  stoneAnimation = null;
-  winLineAnimation = null;
-  gamePhase = "coinFlip";
-  // vs-AI: framed around "You" specifically (the human cares about their
-  // OWN color, not a third-person report of who's Black) — local: no
-  // single "you" exists, so this announces whoever board-index 0 turned
-  // out to be, playerLabels[0], who always plays Black.
-  coinFlipText.textContent =
-    mode === "ai" ? playsStonesText("You", humanPlayer === 0 ? "Black" : "White") : playsStonesText(playerLabels[0], "Black");
-  render();
-  resize(); // gameState just became non-null — lay out the canvas now
-
-  coinFlipTimerId = setTimeout(() => {
-    coinFlipTimerId = null;
-    if (thisGameId !== gameId) return; // this game was abandoned/replaced mid-flip — see gameId's own comment
-    gamePhase = "playing";
-    updateForbiddenCells();
-    render();
-    maybeStartAiTurn();
-  }, COIN_FLIP_DISPLAY_MS);
+  setStatus(TEXT.playerTurn(playerLabels[current]));
 }
 
-// --- moves: shared commit path for both human clicks and AI moves --------
-
-function commitMove(row, col, player) {
-  placeStone(gameState, row, col, player);
-  turnManager.recordMove({ row, col }, false); // this game never grants an extra turn
-  playStoneSound(mode === "ai" && player === aiPlayer);
-  stoneAnimation = { row, col, startTime: performance.now() };
-  hintCell = null; // any move played (by anyone) makes a standing suggestion stale
-  trackLivePatterns(player);
-
-  if (gameState.winner !== null) {
-    gamePhase = "gameOver";
-    if (gameState.winLine) winLineAnimation = { startTime: performance.now() };
-    scheduleGameOverReveal();
-    playGameOverSound();
-    recordStreakOnce();
-    evaluateAndUnlockAchievements();
-  }
-
-  updateForbiddenCells();
-  render();
-  ensureAnimationLoop();
-  maybeStartAiTurn();
+function updateControls() {
+  hintBtn.disabled = !isHumanInputAllowed();
+  undoBtn.disabled = !canUndo();
+  // The confirm row itself is never hidden — see index.html's own note on
+  // why. Only the buttons' states change, and neither change alters the
+  // row's height, so nothing below it ever moves.
+  placeBtn.disabled = pendingCell === null;
+  cancelBtn.hidden = pendingCell === null;
 }
+
+// --- danger warning -------------------------------------------------------
 
 /**
- * Updates `everHadOpenFour`/`everHadOpenThree` for whichever player just
- * moved — placing a stone can only ever grow ITS OWN player's pattern
- * counts, never the opponent's (a move can block/reduce the opponent's
- * open patterns, never create one for them), so checking only the mover
- * each turn is sufficient to catch every open-three/open-four either
- * player ever has across the whole game.
- */
-function trackLivePatterns(player) {
-  const counts = countPatterns(gameState.board, player);
-  if (counts.openFour > 0) everHadOpenFour[player] = true;
-  if (counts.openThree > 0) everHadOpenThree[player] = true;
-}
-
-/**
- * Recomputes `forbiddenCells` from the CURRENT board state — never a
- * one-time computation, since which points are forbidden changes with
- * every stone placed. Only ever non-empty when it's genuinely about to
- * be Black's own turn under Renju rules; every other situation (White's
- * turn, Renju off, game over, no game at all) clears it, so
- * render()/commitPreview() never need their own extra "is this even
- * relevant right now" checks beyond "is the array non-empty."
+ * Recomputes `dangerCells`: every empty point where the side about to
+ * move NEXT would complete five in a row immediately.
  *
- * Scoped to generateCandidates() (game/ai.js) rather than every empty
- * cell on the board — same reasoning as findForbiddenPointsForBlack()'s
- * own doc comment: a forbidden pattern always needs nearby stones to
- * form at all.
+ * Reuses game/hint.js's findAllOpponentWinPoints() rather than adding a
+ * second copy of "can this player win right here". That function already
+ * does the legality filtering the Renju restrictions need, and hint.js's
+ * own block-a-win rung is built on it, so the warning and the hint can
+ * never disagree about what counts as a threat.
+ *
+ * Skipped when it is the computer's turn in computer mode — there is no
+ * one to warn. In two-player mode both sides are people and both get the
+ * warning on their own turn.
  */
+function updateDangerCells() {
+  dangerCells = [];
+  if (!dangerWarning) return;
+  if (!gameState || gameState.winner !== null) return;
+  if (!turnManager || gamePhase !== "playing") return;
+  const current = turnManager.current();
+  if (mode === "ai" && current !== humanPlayer) return;
+  const threatener = 1 - current;
+  const points = findAllOpponentWinPoints(gameState.board, threatener, generateCandidates(gameState.board), renjuEnabled);
+  dangerCells = points.map(([row, col]) => ({ row, col }));
+}
+
 function updateForbiddenCells() {
   if (!renjuEnabled || !gameState || gameState.winner !== null || turnManager.current() !== 0) {
     forbiddenCells = [];
@@ -1201,86 +449,304 @@ function updateForbiddenCells() {
   forbiddenCells = findForbiddenPointsForBlack(gameState.board, generateCandidates(gameState.board));
 }
 
+/** Everything that has to be recomputed after the board changes. */
+function refreshBoardDerivedState() {
+  updateForbiddenCells();
+  updateDangerCells();
+}
+
+// --- game start -----------------------------------------------------------
+
+function startGame() {
+  const thisGameId = beginNewGameEpoch();
+  const firstIsBlack = pickStartingPlayer(2, Math.random) === 0;
+  if (mode === "ai") {
+    humanPlayer = firstIsBlack ? 0 : 1;
+    aiPlayer = 1 - humanPlayer;
+  } else {
+    playerLabels = firstIsBlack ? ["Player 1", "Player 2"] : ["Player 2", "Player 1"];
+  }
+
+  boardSize = getBoardSize();
+  gameState = createGameState(boardSize);
+  turnManager = createTurnManager(2, 0);
+  resetPerGameFlags();
+  gamePhase = "opening";
+
+  coinFlipText.textContent =
+    mode === "ai"
+      ? humanPlayer === 0
+        ? "You have the dark stones, and you go first."
+        : "You have the light stones. The computer goes first."
+      : `${playerLabels[0]} has the dark stones and goes first.`;
+  coinFlip.hidden = false;
+  closeResultModal();
+  resize();
+
+  openingTimerId = setTimeout(
+    () => {
+      openingTimerId = null;
+      if (thisGameId !== gameId) return;
+      coinFlip.hidden = true;
+      gamePhase = "playing";
+      refreshBoardDerivedState();
+      render();
+      persistGame();
+      maybeStartAiTurn();
+    },
+    reduceMotion ? 0 : OPENING_NOTE_MS,
+  );
+}
+
+function resetPerGameFlags() {
+  pendingCell = null;
+  previewCell = null;
+  aiThinking = false;
+  streakRecordedThisGame = false;
+  lastStreakResult = null;
+  achievementsRecordedThisGame = false;
+  undoUsedThisGame = false;
+  hintUsedThisGame = false;
+  hintCell = null;
+  forbiddenCells = [];
+  dangerCells = [];
+  everHadOpenFour = [false, false];
+  everHadOpenThree = [false, false];
+  stoneAnimation = null;
+  winLineAnimation = null;
+}
+
+// --- save / restore -------------------------------------------------------
+//
+// The rest of this site keeps an in-progress game across a reload, and so
+// does this one now. It matters more here: this audience is the most
+// likely to close a tab by accident, and losing a board they had been
+// thinking about is a real loss.
+//
+// Written after every committed move, every hint and every undo; cleared
+// when a round ends or a new one starts, so a finished game never returns.
+
+function persistGame() {
+  if (!gameState || gamePhase !== "playing") return;
+  saveGame({
+    size: gameState.size,
+    board: gameState.board,
+    moves: gameState.moves,
+    mode,
+    difficulty,
+    humanPlayer,
+    turn: turnManager.current(),
+    undoUsed: undoUsedThisGame,
+    hintUsed: hintUsedThisGame,
+  });
+}
+
 /**
- * If it's the AI's turn, kicks off its move: locks input and paints the
- * "thinking" state SYNCHRONOUSLY first, then defers the actual (possibly
- * ~350ms-blocking, see game/ai.js) search to a LATER tick — giving the
- * browser an actual paint opportunity before the heavy synchronous call,
- * instead of freezing mid-frame with no visual indication anything is
- * happening. A true non-blocking search (e.g. a Web Worker) would remove
- * the freeze itself; deferring only removes the "silently frozen with no
- * feedback" part of it.
+ * Rebuilds a game from a stored snapshot; false if there was nothing
+ * usable, in which case the caller starts fresh.
  *
- * The delay is STONE_ANIMATION_MS rather than 0 for a measured reason.
- * This call fires right after the PLAYER's own move started its 90ms
- * pop-in (commitMove()'s stoneAnimation, still running via
- * ensureAnimationLoop()'s requestAnimationFrame loop at this exact
- * point). With a bare `setTimeout(runAiTurn, 0)`, that timeout's
- * callback becomes ready to run BEFORE the animation loop's next frame
- * gets a chance to paint — and since JS is single-threaded, once
- * runAiTurn()'s synchronous search starts, NOTHING can paint until it
- * returns. The measured result was the player's own stone frozen at ~5%
- * scale for the ENTIRE search, then snapping to 100% the instant the
- * next frame finally ran. Delaying the AI's blocking work by exactly the
- * animation's own duration is what keeps that window free. Game logic
- * and ordering are untouched by this — only WHEN the search's
- * synchronous call starts.
+ * The board is adopted wholesale rather than replayed move by move.
+ * Replaying would re-run win detection (and could end the restored game
+ * on its own last move) and would re-fire the sounds and animations of a
+ * game the player already watched.
  */
+function restoreGame() {
+  const saved = loadSavedGame();
+  if (!saved) return false;
+  // A board size this build no longer offers would still render, but the
+  // settings UI could not represent it — treat it as unusable rather than
+  // restoring into a state the player cannot see or change.
+  if (!BOARD_SIZES.includes(saved.size)) return false;
+
+  beginNewGameEpoch();
+  mode = saved.mode;
+  difficulty = saved.difficulty;
+  humanPlayer = saved.humanPlayer;
+  aiPlayer = 1 - humanPlayer;
+  boardSize = saved.size;
+  playerLabels = ["Player 1", "Player 2"];
+
+  gameState = { size: saved.size, board: saved.board, moves: saved.moves, winner: null, winLine: null };
+  turnManager = createTurnManager(2, 0);
+  // The manager always starts at index 0; advance it to the stored turn
+  // without touching the board. recordMove() is its only way forward and
+  // it does not inspect the move object on this path.
+  if (saved.turn !== 0) turnManager.recordMove({ row: -1, col: -1 }, false);
+
+  resetPerGameFlags();
+  undoUsedThisGame = saved.undoUsed;
+  hintUsedThisGame = saved.hintUsed;
+  // The "ever had" pattern flags are about what happened DURING the game
+  // and cannot be recovered from a board. Seeding them from the current
+  // position is the honest approximation: it can only under-credit
+  // "Untouchable" (which asks that the other side never had an open
+  // three), never over-credit it, because anything visible now did
+  // definitely happen.
+  for (const p of [0, 1]) {
+    const counts = countPatterns(gameState.board, p);
+    if (counts.openFour > 0) everHadOpenFour[p] = true;
+    if (counts.openThree > 0) everHadOpenThree[p] = true;
+  }
+
+  gamePhase = "playing";
+  coinFlip.hidden = true;
+  refreshBoardDerivedState();
+  resize();
+  maybeStartAiTurn();
+  return true;
+}
+
+// --- moves ----------------------------------------------------------------
+
+function commitMove(row, col, player) {
+  placeStone(gameState, row, col, player);
+  turnManager.recordMove({ row, col }, false);
+  playStoneSound(mode === "ai" && player === aiPlayer);
+  if (!reduceMotion) stoneAnimation = { row, col, startTime: performance.now() };
+  hintCell = null;
+  pendingCell = null;
+  previewCell = null;
+  trackLivePatterns(player);
+
+  if (gameState.winner !== null) {
+    gamePhase = "gameOver";
+    if (gameState.winLine && !reduceMotion) winLineAnimation = { startTime: performance.now() };
+    clearSavedGame(); // a finished round must not come back on reload
+    scheduleResultReveal();
+    playGameOverSound();
+    recordStreakOnce();
+    evaluateAndUnlockAchievements();
+  } else {
+    persistGame();
+  }
+
+  refreshBoardDerivedState();
+  render();
+  ensureAnimationLoop();
+  maybeStartAiTurn();
+}
+
+function trackLivePatterns(player) {
+  const counts = countPatterns(gameState.board, player);
+  if (counts.openFour > 0) everHadOpenFour[player] = true;
+  if (counts.openThree > 0) everHadOpenThree[player] = true;
+}
+
 function maybeStartAiTurn() {
-  if (mode !== "ai") return;
+  if (mode !== "ai" || !gameState) return;
   if (gameState.winner !== null) return;
   if (turnManager.current() !== aiPlayer) return;
 
   aiThinking = true;
+  pendingCell = null; // nothing may stay staged across the computer's turn
   render();
-  const thisGameId = gameId; // captured NOW — see gameId's own comment for why every deferred step re-checks it
+  const thisGameId = gameId;
+  // Deferred by exactly the stone animation's own duration so the
+  // player's stone finishes its pop-in before the computer's synchronous
+  // search blocks the main thread. A bare setTimeout(…, 0) let the search
+  // start first and froze the stone mid-animation.
   aiTurnTimerId = setTimeout(() => {
     aiTurnTimerId = null;
-    if (thisGameId !== gameId) return; // game abandoned/replaced before the search even started
+    if (thisGameId !== gameId) return;
     runAiTurn(thisGameId);
   }, STONE_ANIMATION_MS);
 }
 
-/**
- * @param {number} thisGameId - the gameId this turn was scheduled under;
- *   the MIN_AI_THINK_MS top-up timeout below re-checks it, since "New
- *   Game" during the padding window is exactly the window a synchronous
- *   search can't be interrupted in but a deferred commit still can.
- */
 function runAiTurn(thisGameId) {
   const start = performance.now();
   const move = chooseMove(gameState.board, aiPlayer, difficulty, Math.random, renjuEnabled);
   const elapsed = performance.now() - start;
-  const remainingDelay = Math.max(0, MIN_AI_THINK_MS - elapsed);
-
-  aiTurnTimerId = setTimeout(() => {
-    aiTurnTimerId = null;
-    if (thisGameId !== gameId) return; // the board this move was computed for no longer exists — never commit it elsewhere
-    aiThinking = false;
-    // Board-full is already resolved by placeStone()/checkWin() before
-    // this ever runs (the game ends the exact move it fills) — the only
-    // OTHER way chooseMove() can return null is the Renju edge case
-    // (Renju on, aiPlayer is Black, genuinely zero legal moves
-    // anywhere), astronomically rare and deliberately left unhandled
-    // beyond "do nothing" rather than building a dedicated
-    // no-legal-moves end state for it.
-    if (!move) return;
-    commitMove(move[0], move[1], aiPlayer);
-  }, remainingDelay);
+  aiTurnTimerId = setTimeout(
+    () => {
+      aiTurnTimerId = null;
+      if (thisGameId !== gameId) return;
+      aiThinking = false;
+      if (!move) return;
+      commitMove(move[0], move[1], aiPlayer);
+    },
+    Math.max(0, MIN_AI_THINK_MS - elapsed),
+  );
 }
 
-// --- human input ----------------------------------------------------------
+// --- input ----------------------------------------------------------------
 
 function isHumanInputAllowed() {
   if (gamePhase !== "playing") return false;
   if (aiThinking) return false;
-  if (gameState.winner !== null) return false;
+  if (!gameState || gameState.winner !== null) return false;
   if (mode === "ai" && turnManager.current() !== humanPlayer) return false;
   return true;
 }
 
-function updatePreviewFromPointer(pos) {
-  if (!isHumanInputAllowed()) return setPreview(null);
+/**
+ * Why a tap at (row, col) cannot become a stone, or null if it can.
+ * Returning a reason rather than a boolean is what lets the caller SAY
+ * so: a tap that silently does nothing is indistinguishable from a tap
+ * the game failed to notice, which is exactly the ambiguity this audience
+ * cannot resolve on their own.
+ */
+function rejectionFor(row, col) {
+  if (gameState.board[row][col] !== null) return TEXT.occupied;
+  const forbidden = forbiddenCells.find((c) => c.row === row && c.col === col);
+  if (forbidden) return forbiddenReasonText(forbidden.reason);
+  return null;
+}
+
+/**
+ * The two-step placement state machine, driven from the pointer layer's
+ * onUp — core/input.js gives one Pointer Events path covering mouse,
+ * touch and pen, so this needs no per-device branching beyond the
+ * pointerType check below.
+ *
+ *   nothing staged + tap X  ->  stage X
+ *   X staged       + tap X  ->  commit X
+ *   X staged       + tap Y  ->  move the staging to Y
+ *
+ * Confirmation applies to touch and pen only. A mouse already shows a
+ * hover preview of exactly where the stone will land before the click,
+ * and a click is precise — a second click there would be friction with
+ * nothing bought for it. Touch has no hover, which is the whole reason
+ * the staged stone exists.
+ */
+function handleTap(pos, meta) {
+  unlockAudio();
+  if (!isHumanInputAllowed() || !layout) return;
+  const hit = pointToIntersection(layout, pos.x, pos.y);
+  if (!hit) return;
+
+  const reason = rejectionFor(hit.row, hit.col);
+  if (reason) {
+    toast(reason);
+    pendingCell = null;
+    render();
+    return;
+  }
+
+  const wantsConfirm = confirmPlacement && (meta?.pointerType === "touch" || meta?.pointerType === "pen");
+  if (!wantsConfirm) return commitMove(hit.row, hit.col, turnManager.current());
+  if (pendingCell && pendingCell.row === hit.row && pendingCell.col === hit.col) return commitPending();
+  pendingCell = hit;
+  render();
+}
+
+function commitPending() {
+  if (!pendingCell || !isHumanInputAllowed()) return;
+  const { row, col } = pendingCell;
+  const reason = rejectionFor(row, col);
+  if (reason) {
+    toast(reason);
+    pendingCell = null;
+    render();
+    return;
+  }
+  commitMove(row, col, turnManager.current());
+}
+
+function updateHoverPreview(pos, meta) {
+  // Mouse only: touch has no hover, and letting a touch drag paint a
+  // preview would compete with the staged stone.
+  if (meta && meta.pointerType !== "mouse") return;
+  if (!isHumanInputAllowed() || !layout) return setPreview(null);
   const hit = pointToIntersection(layout, pos.x, pos.y);
   if (!hit || gameState.board[hit.row][hit.col] !== null) return setPreview(null);
   setPreview(hit);
@@ -1294,112 +760,38 @@ function setPreview(cell) {
   if (changed) render();
 }
 
-function commitPreview() {
-  if (!previewCell || !isHumanInputAllowed()) return;
-  const { row, col } = previewCell;
+attachPointerHandlers(canvas, {
+  onMove: updateHoverPreview,
+  onUp: handleTap,
+  onCancel: () => setPreview(null),
+});
 
-  // Blocked at commit time, not at hover/preview time (the ghost stone
-  // still shows normally while hovering — the X marker already drawn
-  // there is what communicates "but you can't place this"). A click
-  // attempt on a forbidden point never places a stone; it just explains
-  // why, once, via the same toast mechanism achievements use.
-  const forbidden = forbiddenCells.find((cell) => cell.row === row && cell.col === col);
-  if (forbidden) {
-    showTransientMessage(forbiddenReasonText(forbidden.reason));
-    setPreview(null);
-    return;
-  }
-
-  const player = turnManager.current();
-  previewCell = null;
-  commitMove(row, col, player);
-}
+placeBtn.addEventListener("click", () => {
+  unlockAudio();
+  commitPending();
+});
+cancelBtn.addEventListener("click", () => {
+  pendingCell = null;
+  render();
+});
 
 // --- hint -----------------------------------------------------------------
-//
-// Unlimited and instant, in every mode. The original gave one free hint
-// per game and put every subsequent one behind a video ad — an
-// `async` click handler that awaited an external script, disabled the
-// button while the ad played, re-checked the game id on the way back
-// (the ad could outlive the game), and showed a deliberately neutral
-// "No hint this time." toast for its failure modes. All
-// of that is gone: handleHintClick() is synchronous and its only guard
-// is "is it your turn."
+// Unlimited and instant. The source gave one free hint per round and put
+// every one after that behind a video ad.
 
-/** Reuses the achievement toast container and CSS class — one generic
- * notification surface. Used for the case a silent failure would be
- * actively bad UX: a click on a Renju-forbidden point shouldn't just do
- * nothing with no explanation. */
-function showTransientMessage(text) {
-  const toast = document.createElement("div");
-  toast.className = "achievement-toast";
-  toast.textContent = text;
-  achievementToastContainer.appendChild(toast);
-  setTimeout(() => toast.remove(), ACHIEVEMENT_TOAST_MS);
-}
-
-function showHint() {
-  const player = turnManager.current();
-  const suggested = suggestHint(gameState.board, player, renjuEnabled);
-  if (!suggested) return; // board is full — isHumanInputAllowed() already prevents reaching here in practice
-  hintCell = suggested; // {row, col, reason} — see game/hint.js's own ladder
-  // Gates "No Help Needed" (game/achievements.js). Unlimited hints don't
-  // change what this flag means: any hint at all is still help, and that
-  // achievement still asks for a Hard win without it.
-  hintUsedThisGame = true;
-  render();
-}
-
-function handleHintClick() {
+hintBtn.addEventListener("click", () => {
+  unlockAudio();
   if (!isHumanInputAllowed()) return;
-  showHint();
-}
-
-hintBtn.addEventListener("click", handleHintClick);
+  const suggested = suggestHint(gameState.board, turnManager.current(), renjuEnabled);
+  if (!suggested) return;
+  hintCell = suggested;
+  hintUsedThisGame = true;
+  persistGame();
+  render();
+});
 
 // --- undo -----------------------------------------------------------------
-
-function undoOneMove() {
-  turnManager.undoTurn(() => undoMove(gameState));
-}
-
-/**
- * Unlimited in every mode. The original capped vs-AI undo at 3 per game
- * (`MAX_UNDOS_VS_AI`, tracked in an `undosRemaining` counter and shown
- * in the button label); this site's policy is unlimited undo across
- * every game it hosts, so the cap, the counter and the label are all
- * gone. What remains is unchanged:
- *
- * vs-AI mode: undoing takes back BOTH the AI's reply and the human's own
- * move before it — a single move-level undo would just hand the human
- * right back to the AI's own last decision point, not theirs. This is a
- * GAME-LEVEL decision, not a turn.js one: core/turn.js's own undoTurn()
- * still does exactly one thing (rewind whichever single player's move is
- * on top of the stack). Calling undoOneMove() twice here is main.js
- * explicitly choosing, at the GAME layer, that one human-facing "Undo"
- * click == one full round in vs-AI mode.
- *
- * Local 2-player mode takes back exactly the one last move — both
- * players are human, so there's no "their own move" to reach back
- * through automatically.
- */
-function performUndo() {
-  if (!canUndo()) return;
-
-  undoUsedThisGame = true; // gates "No Help Needed" — never un-set once true this game
-  undoOneMove();
-  if (mode === "ai" && gameState.moves.length > 0 && turnManager.current() === aiPlayer) {
-    undoOneMove();
-  }
-  previewCell = null;
-  hintCell = null; // the board just changed under it — a standing suggestion is stale
-  stoneAnimation = null;
-  winLineAnimation = null;
-  gamePhase = "playing"; // undo from a just-finished game returns to play
-  updateForbiddenCells();
-  render();
-  maybeStartAiTurn();
-}
+// Unlimited, in every mode, matching the rest of this site.
 
 function canUndo() {
   if (gamePhase !== "playing" && gamePhase !== "gameOver") return false;
@@ -1408,67 +800,260 @@ function canUndo() {
   return true;
 }
 
-// --- new game / rematch ---------------------------------------------------
-
-function goToSetup() {
-  // BEFORE nulling gameState: any coin-flip/AI timer still pending for
-  // the game being abandoned is cleared here — see gameId's own comment.
-  beginNewGameEpoch();
-  gamePhase = "setup";
-  gameState = null;
-  turnManager = null;
+undoBtn.addEventListener("click", () => {
+  if (!canUndo()) return;
+  undoUsedThisGame = true;
+  turnManager.undoTurn(() => undoMove(gameState));
+  // In computer mode one press takes back a whole round — the computer's
+  // reply and the move that prompted it. Taking back only the computer's
+  // reply would hand the player straight back to the same decision.
+  if (mode === "ai" && gameState.moves.length > 0 && turnManager.current() === aiPlayer) {
+    turnManager.undoTurn(() => undoMove(gameState));
+  }
+  pendingCell = null;
   previewCell = null;
   hintCell = null;
-  forbiddenCells = [];
-  aiThinking = false;
   stoneAnimation = null;
   winLineAnimation = null;
+  gamePhase = "playing";
+  closeResultModal();
+  refreshBoardDerivedState();
   render();
-}
-
-function rematch() {
-  startGame(); // same mode/difficulty/size, fresh coin flip
-}
-
-undoBtn.addEventListener("click", performUndo);
-newGameBtn.addEventListener("click", goToSetup);
-gameOverNewGameBtn.addEventListener("click", goToSetup);
-rematchBtn.addEventListener("click", rematch);
-
-attachPointerHandlers(canvas, {
-  onMove: updatePreviewFromPointer,
-  onDown: updatePreviewFromPointer,
-  onUp: commitPreview,
-  onCancel: () => setPreview(null),
+  persistGame();
+  maybeStartAiTurn();
 });
 
-// #main-content, not #board-wrap — see updateBoardMax()'s own comment on
-// why observing the element this callback resizes would loop. Every case
-// the old observer covered still fires: #main-content's own width/height
-// changes on any viewport resize or rotation, which is what actually
-// moves the board.
-new ResizeObserver(resize).observe(mainContent);
+// --- end of round ---------------------------------------------------------
 
-// Static icons that never change again after this — no update function
-// owns these, so they're set once, here, rather than re-injected on
-// every render() for no reason (contrast with the achievements/sound
-// icons above, which really do change and get set inside their own
-// update*() functions instead).
-themeBtn.innerHTML = ICONS.palette;
-settingsBtnIcon.innerHTML = ICONS.gear;
-
-// Board-size options are generated from core/storage.js's own
-// BOARD_SIZES rather than hardcoded in index.html, so the list can't
-// drift from the one the persistence layer will actually accept.
-for (const size of BOARD_SIZES) {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.className = "seg-btn";
-  btn.dataset.boardSize = String(size);
-  btn.textContent = `${size}×${size}`;
-  boardSizeToggle.appendChild(btn);
+function playGameOverSound() {
+  if (gameState.winner === "draw") playDrawGameSound();
+  else if (mode === "ai") (gameState.winner === humanPlayer ? playWinSound : playLoseSound)();
+  else playWinSound();
 }
 
-updateAchievementsButton();
-applyActiveTheme(); // also renders — see this function's own doc comment
-render();
+// Held back until the win line has finished sweeping, so the one moment
+// worth watching is not covered by a box announcing that it happened.
+function scheduleResultReveal() {
+  const thisGameId = gameId;
+  resultTimerId = setTimeout(
+    () => {
+      resultTimerId = null;
+      if (gameId !== thisGameId || gamePhase !== "gameOver") return;
+      openResultModal();
+    },
+    reduceMotion ? 0 : RESULT_REVEAL_MS,
+  );
+}
+
+function openResultModal() {
+  const w = gameState.winner;
+  if (w === "draw") {
+    resultTitle.textContent = TEXT.drawTitle;
+    resultNote.textContent = TEXT.drawNote;
+  } else if (mode === "ai") {
+    const won = w === humanPlayer;
+    resultTitle.textContent = won ? TEXT.wonTitle : TEXT.lostTitle;
+    resultNote.textContent = won ? TEXT.wonNote : TEXT.lostNote;
+  } else {
+    resultTitle.textContent = TEXT.localWon(playerLabels[w]);
+    resultNote.textContent = TEXT.localWonNote;
+  }
+  resultModal.dataset.open = "true";
+  resultAgain.focus();
+}
+
+function closeResultModal() {
+  resultModal.dataset.open = "false";
+}
+
+resultAgain.addEventListener("click", () => {
+  closeResultModal();
+  clearSavedGame();
+  startGame();
+});
+resultClose.addEventListener("click", closeResultModal);
+
+function recordStreakOnce() {
+  if (mode !== "ai" || streakRecordedThisGame) return;
+  streakRecordedThisGame = true;
+  lastStreakResult = recordStreakResult(difficulty, gameState.winner === humanPlayer);
+  refreshStats();
+}
+
+function evaluateAndUnlockAchievements() {
+  if (achievementsRecordedThisGame) return;
+  achievementsRecordedThisGame = true;
+  if (mode === "ai" && gameState.winner === humanPlayer && difficulty === "hard") {
+    recordHardWin(gameState.size);
+    recordHardWinByColor(humanPlayer);
+  }
+  if (mode === "local" && gameState.winner !== null) incrementLocalGamesCompleted();
+
+  const qualifying = evaluateAchievements({
+    gameState,
+    mode,
+    humanPlayer,
+    difficulty,
+    undoUsedThisGame,
+    hintUsedThisGame,
+    everHadOpenFour,
+    everHadOpenThree,
+    streakResult: lastStreakResult,
+    hardWinsByColor: getHardWinsByColor(),
+    localGamesCompleted: getLocalGamesCompleted(),
+  });
+  const newly = qualifying.filter((id) => unlockAchievement(id));
+  refreshStats();
+  for (const id of newly) {
+    const a = ACHIEVEMENTS.find((x) => x.id === id);
+    if (a) toast(`Badge earned — ${a.title}`);
+  }
+}
+
+// --- new game -------------------------------------------------------------
+
+newBtn.addEventListener("click", () => {
+  unlockAudio();
+  clearSavedGame();
+  startGame();
+});
+
+// --- settings -------------------------------------------------------------
+
+function knownUnlockedAchievementIds() {
+  const known = new Set(ACHIEVEMENTS.map((a) => a.id));
+  return getUnlockedAchievements().filter((id) => known.has(id));
+}
+
+function refreshStats() {
+  const s = getStreak(difficulty);
+  statWins.textContent = String(s.current);
+  statBest.textContent = String(s.best);
+  const unlocked = new Set(knownUnlockedAchievementIds());
+  statBadges.textContent = `${unlocked.size} of ${ACHIEVEMENTS.length}`;
+  badgeList.innerHTML = "";
+  for (const a of ACHIEVEMENTS) {
+    const earned = unlocked.has(a.id);
+    const li = document.createElement("li");
+    li.className = earned ? "fir-badge fir-badge-earned" : "fir-badge";
+    // Earned vs not is carried by a WORD, not only by colour or opacity.
+    const state = document.createElement("span");
+    state.className = "fir-badge-state";
+    state.textContent = earned ? "Earned" : "Not yet";
+    const title = document.createElement("span");
+    title.className = "fir-badge-title";
+    title.textContent = a.title;
+    const desc = document.createElement("span");
+    desc.className = "fir-badge-desc";
+    desc.textContent = a.description;
+    li.append(state, title, desc);
+    badgeList.appendChild(li);
+  }
+}
+
+function syncSettingsUI() {
+  for (const input of sizeGroup.querySelectorAll("input")) input.checked = Number(input.value) === boardSize;
+  for (const input of themeGroup.querySelectorAll("input")) input.checked = input.value === resolveActiveThemeId(getTheme());
+  for (const input of modeGroup.querySelectorAll("input")) input.checked = input.value === mode;
+  for (const input of paceGroup.querySelectorAll("input")) input.checked = input.value === difficulty;
+  paceRow.hidden = mode !== "ai";
+  toggleDanger.checked = dangerWarning;
+  toggleConfirm.checked = confirmPlacement;
+  toggleSoundEl.checked = isSoundEnabled();
+  toggleRenju.checked = renjuEnabled;
+  refreshStats();
+}
+
+function openSettings() {
+  syncSettingsUI();
+  settingsPanel.dataset.open = "true";
+  // Scroll to the top BEFORE moving focus, and move focus without
+  // scrolling. A plain settingsClose.focus() scrolls its target into
+  // view, and Close is the last element in a long sheet — so opening
+  // Settings jumped straight to the bottom of the badge list and the
+  // first row (Board size) was never seen. Focus still lands somewhere
+  // inside the dialog so the keyboard path is unchanged.
+  const sheet = settingsPanel.querySelector(".settings-sheet");
+  if (sheet) sheet.scrollTop = 0;
+  settingsPanel.scrollTop = 0;
+  settingsClose.focus({ preventScroll: true });
+}
+
+function closeSettings() {
+  settingsPanel.dataset.open = "false";
+  settingsBtn.focus();
+}
+
+settingsBtn.addEventListener("click", openSettings);
+settingsClose.addEventListener("click", closeSettings);
+settingsPanel.addEventListener("click", (evt) => {
+  if (evt.target === settingsPanel) closeSettings();
+});
+
+document.addEventListener("keydown", (evt) => {
+  if (evt.key !== "Escape") return;
+  if (resultModal.dataset.open === "true") return closeResultModal();
+  if (settingsPanel.dataset.open === "true") closeSettings();
+});
+
+// Board size is the one setting that must not disturb a game in progress,
+// so it applies to the next round. Everything else takes effect at once,
+// because seeing the change is how you know it is the one you wanted.
+sizeGroup.addEventListener("change", (evt) => {
+  boardSize = Number(evt.target.value);
+  setBoardSize(boardSize);
+});
+
+themeGroup.addEventListener("change", (evt) => {
+  setTheme(evt.target.value);
+  activeThemeColors = getThemeById(resolveActiveThemeId(getTheme())).colors;
+  render();
+});
+
+modeGroup.addEventListener("change", (evt) => {
+  mode = evt.target.value;
+  setMode(mode);
+  paceRow.hidden = mode !== "ai";
+  clearSavedGame();
+  startGame();
+});
+
+paceGroup.addEventListener("change", (evt) => {
+  difficulty = evt.target.value;
+  setDifficulty(difficulty);
+  refreshStats();
+});
+
+toggleDanger.addEventListener("change", () => {
+  dangerWarning = toggleDanger.checked;
+  setDangerWarningEnabled(dangerWarning);
+  refreshBoardDerivedState();
+  render();
+});
+
+toggleConfirm.addEventListener("change", () => {
+  confirmPlacement = toggleConfirm.checked;
+  setConfirmPlacementEnabled(confirmPlacement);
+  if (!confirmPlacement) pendingCell = null;
+  render();
+});
+
+toggleSoundEl.addEventListener("change", () => {
+  unlockAudio();
+  setSoundEnabled(toggleSoundEl.checked);
+});
+
+toggleRenju.addEventListener("change", () => {
+  renjuEnabled = toggleRenju.checked;
+  setRenjuEnabled(renjuEnabled);
+  refreshBoardDerivedState();
+  render();
+});
+
+// --- boot -----------------------------------------------------------------
+
+new ResizeObserver(resize).observe(boardWrap);
+
+syncSettingsUI();
+if (restoreGame()) toast(TEXT.restored);
+else startGame();

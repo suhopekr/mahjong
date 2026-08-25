@@ -2,175 +2,234 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<title>Five in a Row</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Five in a Row — Free Online Game</title>
+<meta name="description" content="Place your stones and get five in a row. Free, no download, no sign-up, no time limit. Large board, big buttons, undo any time." />
 <!--
-  No portal SDK script tag here, and no inline <style> block. Both are
-  deliberate and both are required by the site's Content-Security-Policy
-  (vercel.json): `script-src 'self'` admits no third-party script host,
-  and `style-src 'self'` admits no inline styles. The stylesheet below
-  and the module script at the bottom are both same-origin files, which
-  is exactly what those directives allow. ES modules are ordinary
-  script-src subjects, so `type="module"` needs nothing extra.
+  Two stylesheets, in this order and only this order:
+
+    1. /style.css  — the site's own stylesheet. This page reuses its
+       components verbatim: .btn, .modal-overlay/.modal-box/.modal-actions,
+       .settings-panel/.settings-sheet/.settings-row/.segmented/.toggle-row,
+       .site-header, .site-footer/.footer-nav, .achievement-toast,
+       .visually-hidden, and the whole :root custom-property palette.
+    2. ./style.css — this game's own rules. Every one of them is scoped to
+       a .fir- prefixed class or to #five-in-a-row. It never redefines a
+       selector that exists in the site stylesheet, so load order settles
+       nothing important and the site file always wins on shared classes.
+
+  Absolute path on purpose: this page lives at /five-in-a-row/, so a
+  relative "../style.css" would work too, but the absolute form is
+  identical under the local static server and on the deployed site and
+  cannot break if the page ever moves.
+
+  No inline <style> and no inline <script>: the site's
+  Content-Security-Policy is `script-src 'self'; style-src 'self'`, which
+  admits neither. Both files below and the module script at the bottom are
+  same-origin, which is what those directives allow.
 -->
+<link rel="stylesheet" href="/style.css" />
 <link rel="stylesheet" href="./style.css" />
 </head>
-<body>
-  <div id="app">
-    <div id="top-bar">
-      <div id="top-bar-left">
-        <button type="button" id="achievements-btn" aria-label="Achievements"></button>
-        <button type="button" id="theme-btn" class="icon-btn" aria-label="Board Theme"></button>
-      </div>
-      <button type="button" id="sound-toggle-btn" class="icon-btn" aria-label="Mute sound"></button>
-    </div>
+<body class="ads-off">
 
-    <!-- Every .modal-panel is role="dialog" aria-modal="true" labelled by
-         its own <h2>; main.js's openModal()/closeModal() move focus in (to
-         the close button) and back out (to whatever opened it), close the
-         topmost one on Escape, and set `inert` on #top-bar/#main-content
-         for the duration so Tab can't wander into the dimmed page behind.
-         The attributes live here statically rather than being set from JS
-         so the markup is honest on its own. -->
-    <div id="achievements-overlay" class="modal-overlay" hidden>
-      <div id="achievements-panel" class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="achievements-title">
-        <div class="modal-header">
-          <h2 id="achievements-title">Achievements</h2>
-          <span id="achievements-count-label">0/11</span>
-          <button type="button" id="achievements-close-btn" class="modal-close-btn" aria-label="Close">✕</button>
-        </div>
-        <ul id="achievements-list"></ul>
-      </div>
-    </div>
+<a class="skip-link" href="#fir-board-wrap">Skip to the board</a>
 
-    <div id="theme-overlay" class="modal-overlay" hidden>
-      <div id="theme-panel" class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="theme-title">
-        <div class="modal-header">
-          <h2 id="theme-title">Board Theme</h2>
-          <button type="button" id="theme-close-btn" class="modal-close-btn" aria-label="Close">✕</button>
-        </div>
-        <ul id="theme-list"></ul>
-      </div>
-    </div>
+<header class="site-header">
+  <h1>Five in a Row</h1>
+  <p class="tagline">Place your stones and get five in a row. No download, no sign-up, no timer.
+    <a href="/">Play Mahjong Solitaire →</a></p>
+</header>
 
-    <div id="settings-overlay" class="modal-overlay" hidden>
-      <div id="settings-panel" class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-        <div class="modal-header">
-          <h2 id="settings-title">Settings</h2>
-          <button type="button" id="settings-close-btn" class="modal-close-btn" aria-label="Close">✕</button>
-        </div>
-        <div id="settings-body">
-          <div class="setup-row">
-            <span class="setup-row-label">Mode</span>
-            <div class="seg-group" id="mode-toggle">
-              <button type="button" class="seg-btn" data-mode="ai">vs AI</button>
-              <button type="button" class="seg-btn" data-mode="local">2 Player</button>
-            </div>
-          </div>
-          <div class="setup-row" id="difficulty-row">
-            <span class="setup-row-label">Difficulty</span>
-            <div class="seg-group" id="difficulty-toggle">
-              <button type="button" class="seg-btn" data-difficulty="easy">Easy</button>
-              <button type="button" class="seg-btn" data-difficulty="medium">Medium</button>
-              <button type="button" class="seg-btn" data-difficulty="hard">Hard</button>
-            </div>
-          </div>
-          <!-- Intentionally empty: main.js fills this from core/storage.js's
-               own BOARD_SIZES, so the offered sizes and the persistable
-               sizes are guaranteed to be the same list. -->
-          <div class="setup-row">
-            <span class="setup-row-label">Board</span>
-            <div class="seg-group" id="board-size-toggle" aria-describedby="board-size-hint"></div>
-            <p class="setup-row-hint" id="board-size-hint">
-              Applies to your next game. A smaller board plays faster; a larger one leaves more room to maneuver.
-            </p>
-          </div>
-          <!-- "Renju Rules" is the one setting here whose LABEL doesn't
-               explain itself: Mode, Difficulty and Board are self-evident to
-               anyone, while Renju is a term only players who already know
-               the game recognize. So the rule gets one plain-English line
-               right under the toggle, stated in terms of what it DOES to
-               your own moves, not by naming the tournament ruleset it comes
-               from. `aria-describedby` ties it to the toggle so screen
-               readers announce the explanation with the control instead of
-               as a loose paragraph. Default is Off — freestyle. -->
-          <div class="setup-row">
-            <span class="setup-row-label">Renju Rules</span>
-            <div class="seg-group" id="renju-toggle" aria-describedby="renju-hint">
-              <button type="button" class="seg-btn" data-renju="off">Off</button>
-              <button type="button" class="seg-btn" data-renju="on">On</button>
-            </div>
-            <p class="setup-row-hint" id="renju-hint">
-              Evens out Black's first-move advantage: Black can't make a double three,
-              a double four, or a row of six or more. Forbidden points are marked on the board.
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
+<main id="five-in-a-row">
 
-    <div id="achievement-toast-container" aria-live="polite"></div>
+  <!-- The one rule of the game, permanently on screen directly above the
+       board. Replaces a tutorial modal on purpose: a modal is friction and
+       is dismissed once, then forgotten. This is always there to glance
+       at. Not a hint, not a toast, not dismissible. -->
+  <p class="fir-goal" id="fir-goal">Get <strong>five in a row</strong> to win — across, down, or diagonally.</p>
 
-    <!-- Everything that isn't #top-bar or a position:fixed modal/toast
-         lives here, so centering has exactly one place to happen.
-         #setup-panel and #game-content are mutually exclusive (main.js's
-         updatePhaseVisibility()); whichever is hidden is fully removed
-         from flex layout (display: none), so the other always gets the
-         entirety of #main-content's free space to itself. -->
-    <div id="main-content">
-      <div id="setup-panel">
-        <h1>Five in a Row</h1>
-        <div class="setup-tagline">Get five stones in a row before your opponent</div>
+  <!-- Whose turn it is / what just happened. aria-live so a screen reader
+       announces turn changes and the danger warning without the user
+       having to go looking for them. -->
+  <p class="fir-status" id="fir-status" aria-live="polite"></p>
 
-        <div id="setup-secondary">
-          <button type="button" id="start-game-btn" class="btn-primary">
-            <span class="btn-title">Play</span>
-          </button>
-          <div id="play-summary"></div>
-          <button type="button" id="play-friend-btn" class="btn-secondary">Play with a friend</button>
-          <button type="button" id="settings-btn" class="link-btn">
-            <span class="btn-icon" id="settings-btn-icon"></span>
-            Settings
-          </button>
-        </div>
-      </div>
-
-      <div id="game-content">
-        <div id="turn-label" hidden></div>
-
-        <!-- The result card is a SIBLING of the board, not a child of it.
-             In flow above the board it covers nothing; the board itself is
-             dimmed instead (see #board-wrap.result-open), which is what
-             tells you a result state is open. It sits where #turn-label
-             was — that label is hidden at game over anyway, since "X's
-             turn" is no longer true — so nothing else on screen has to
-             move aside for it. -->
-        <div id="game-over-banner" hidden>
-          <div id="game-over-panel">
-            <div id="game-over-text"></div>
-            <div id="game-over-streak" hidden></div>
-            <div id="game-over-actions">
-              <button type="button" id="rematch-btn">Rematch</button>
-              <button type="button" id="game-over-new-game-btn">New Game</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="board-wrap" hidden>
-          <canvas id="board"></canvas>
-          <div id="coin-flip-banner" hidden>
-            <div id="coin-flip-text"></div>
-          </div>
-        </div>
-
-        <div id="controls" hidden>
-          <button type="button" id="hint-btn">Hint</button>
-          <button type="button" id="undo-btn">Undo</button>
-          <button type="button" id="new-game-btn">New Game</button>
-        </div>
-      </div>
+  <div class="fir-board-wrap" id="fir-board-wrap">
+    <canvas id="fir-board" aria-label="Game board"></canvas>
+    <div class="fir-coinflip" id="fir-coinflip" hidden>
+      <p class="fir-coinflip-text" id="fir-coinflip-text"></p>
     </div>
   </div>
-  <script type="module" src="./src/main.js"></script>
+
+  <!-- Confirm-to-place. ALWAYS in the layout, never hidden: it used to
+       appear only once a stone was staged, and appearing pushed the four
+       controls below it down by 148-160px — far enough that on a 390x844
+       phone they left the viewport entirely, right when the player was
+       reaching for them. Reserving the row permanently costs one button's
+       height and makes the controls immovable.
+
+       The explanatory text moved to the status line above, which already
+       reserves its own height and is already an aria-live region, so this
+       row is a single 56px button and nothing here is a second place to
+       read instructions.
+
+       "Place stone" is visible-but-disabled before a spot is chosen. That
+       is deliberate: it is how a first-time player learns the two-step
+       flow exists, before they need it. Cancel only appears once there is
+       something to cancel — "Cancel" with nothing staged answers a
+       question nobody asked. -->
+  <div class="fir-confirm" id="fir-confirm">
+    <div class="fir-confirm-actions">
+      <button type="button" class="btn btn-accent" id="fir-place-btn" disabled>Place stone</button>
+      <button type="button" class="btn" id="fir-cancel-btn" hidden>Cancel</button>
+    </div>
+  </div>
+
+  <!-- Always on screen, never behind a menu. Text labels on every button,
+       never an icon alone. -->
+  <div class="fir-controls" role="toolbar" aria-label="Game controls">
+    <button type="button" class="btn" id="fir-hint-btn">Hint</button>
+    <button type="button" class="btn" id="fir-undo-btn">Undo</button>
+    <button type="button" class="btn" id="fir-new-btn">New game</button>
+    <button type="button" class="btn" id="fir-settings-btn" aria-haspopup="dialog">Settings</button>
+  </div>
+
+  <!-- AD SLOT: adsense (mobile inline 320x100) -->
+  <!-- AD SLOT: adsense (desktop 728x90) -->
+  <!--
+    Placed AFTER the controls and BEFORE the footer, deliberately. A slot
+    between the board and the controls would put an advertisement inside
+    the path a finger travels between "where I am playing" and "Undo" —
+    the single most mis-tappable spot on the page for this audience.
+
+    Fixed-size, exactly like the rest of the site, so the space is
+    reserved before anything loads into it and an arriving ad shifts
+    nothing (measured: 0 additional CLS on load). Both slots sit inside
+    <body class="ads-off"> today, which is `display: none` site-wide — so
+    they occupy nothing until the site as a whole turns ads on by dropping
+    that one class.
+  -->
+  <div class="ad-slot ad-slot--320x100 ad-slot-mobile-only" aria-hidden="true">Advertisement</div>
+  <div class="ad-slot ad-slot--728x90 ad-slot-desktop-only" aria-hidden="true">Advertisement</div>
+
+</main>
+
+<footer class="site-footer">
+  <p>Five in a Row — a free, no-download board game. Nothing to install, no account needed.</p>
+  <nav class="footer-nav" aria-label="Site pages">
+    <a href="/">Mahjong Solitaire</a>
+    <a href="/daily.html">Daily Challenge</a>
+    <a href="/about.html">About</a>
+    <a href="/privacy.html">Privacy Policy</a>
+    <a href="/contact.html">Contact</a>
+  </nav>
+</footer>
+
+<!-- ===================== settings ===================== -->
+<!-- Site convention: .settings-panel[data-open] wrapping a
+     .settings-sheet, rows as fieldset.settings-row + .segmented, booleans
+     as .settings-row.toggle-row. Board size sits where Mahjong's "Tile
+     size" sits, as the first row. -->
+<div class="settings-panel" id="fir-settings-panel" data-open="false">
+  <div class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="fir-settings-title">
+    <h2 id="fir-settings-title">Settings</h2>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label">Board size</legend>
+      <div class="segmented" id="fir-size-group">
+        <label><input type="radio" name="fir-size" value="9" checked><span>Small</span></label>
+        <label><input type="radio" name="fir-size" value="11"><span>Medium</span></label>
+        <label><input type="radio" name="fir-size" value="15"><span>Large</span></label>
+      </div>
+      <p class="fir-row-note">Small is the easiest to see and the quickest to finish. Takes effect on your next game.</p>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label">Board colour</legend>
+      <div class="segmented" id="fir-theme-group">
+        <label><input type="radio" name="fir-theme" value="wood" checked><span>Warm</span></label>
+        <label><input type="radio" name="fir-theme" value="slate"><span>Cool</span></label>
+        <label><input type="radio" name="fir-theme" value="paper"><span>Paper</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label">Who you play with</legend>
+      <div class="segmented" id="fir-mode-group">
+        <label><input type="radio" name="fir-mode" value="ai" checked><span>Computer</span></label>
+        <label><input type="radio" name="fir-mode" value="local"><span>Two players</span></label>
+      </div>
+    </fieldset>
+
+    <fieldset class="settings-row" id="fir-pace-row">
+      <legend class="settings-label">Computer's pace</legend>
+      <div class="segmented" id="fir-pace-group">
+        <label><input type="radio" name="fir-pace" value="easy" checked><span>Relaxed</span></label>
+        <label><input type="radio" name="fir-pace" value="medium"><span>Standard</span></label>
+        <label><input type="radio" name="fir-pace" value="hard"><span>Challenging</span></label>
+      </div>
+      <p class="fir-row-note">Relaxed plays gently and makes mistakes, so games stay close.</p>
+    </fieldset>
+
+    <div class="settings-row toggle-row">
+      <label for="fir-toggle-danger">Warn me before I can lose</label>
+      <input type="checkbox" id="fir-toggle-danger" checked>
+    </div>
+    <p class="fir-row-note fir-row-note-standalone">Marks any spot where the other side would get five in a row on their next turn.</p>
+
+    <div class="settings-row toggle-row">
+      <label for="fir-toggle-confirm">Ask me to confirm each move</label>
+      <input type="checkbox" id="fir-toggle-confirm" checked>
+    </div>
+    <p class="fir-row-note fir-row-note-standalone">Your first tap places a see-through stone. Tap again to make it final.</p>
+
+    <div class="settings-row toggle-row">
+      <label for="fir-toggle-sound">Sound</label>
+      <input type="checkbox" id="fir-toggle-sound" checked>
+    </div>
+
+    <div class="settings-row toggle-row">
+      <label for="fir-toggle-renju">Extra rules for the first player</label>
+      <input type="checkbox" id="fir-toggle-renju">
+    </div>
+    <p class="fir-row-note fir-row-note-standalone">Off by default. When on, the player with the dark stones can't use certain
+      strong shapes, which evens out the advantage of going first. Those spots are marked on the board.</p>
+
+    <div class="settings-row">
+      <span class="settings-label">Your games</span>
+      <dl class="settings-stats">
+        <dt>Rounds won</dt>
+        <dd id="fir-stat-wins">0</dd>
+        <dt>Best run of wins</dt>
+        <dd id="fir-stat-best">0</dd>
+        <dt>Badges earned</dt>
+        <dd id="fir-stat-badges">0</dd>
+      </dl>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label">Badges</span>
+      <ul class="fir-badges" id="fir-badges"></ul>
+    </div>
+
+    <button type="button" class="btn btn-accent settings-close" id="fir-settings-close">Close</button>
+  </div>
+</div>
+
+<!-- ===================== end-of-round ===================== -->
+<div class="modal-overlay" id="fir-result-modal" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="fir-result-title">
+    <h2 id="fir-result-title"></h2>
+    <p id="fir-result-note"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="fir-result-again">Play another round</button>
+      <button type="button" class="btn" id="fir-result-close">Look at the board</button>
+    </div>
+  </div>
+</div>
+
+<div id="fir-toasts" aria-live="polite"></div>
+
+<script type="module" src="./src/main.js"></script>
 </body>
 </html>

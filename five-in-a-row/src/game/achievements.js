@@ -7,19 +7,25 @@
 // Adding a 12th achievement later means adding one array entry, not
 // finding the right spot in a growing if/else chain.
 //
-// --- why 11, not 12 (QA pass) ------------------------------------------
+// --- wording ------------------------------------------------------------
 //
-// Milestone 7-2 shipped "Small Board" (beat Hard on 9x9) and "Big Board"
-// (beat Hard on 15x15) on the assumption a board-size picker would land
-// soon after. It never did — main.js's BOARD_SIZE is a hardcoded 15 and
-// CLAUDE.md section 8 still lists the picker as a later milestone — so
-// Small Board was a permanently un-earnable entry in a list the player
-// can see, and Big Board was just "beat Hard" wearing a misleading name.
-// Small Board is gone; Big Board became "Hard Mode" (id `hard-mode`),
-// which says what it actually checks. main.js carries the one-time
-// `big-board` -> `hard-mode` carry-over for players who'd already earned
-// it, and counts only ids that still exist here so a stale stored id
-// can't inflate the "N/11" counter — see its knownUnlockedAchievementIds().
+// Every title and description here is player-visible (main.js renders the
+// badge list in Settings) and was rewritten for this site's audience:
+// no contest framing and no jargon. "Beat Hard difficulty" became "Win a
+// round at the Challenging pace"; "Win a game after the AI once had an
+// open four" became "Win a round after the computer was one move away
+// from five". The CHECKS below are unchanged — only the strings are.
+// `difficulty === "hard"` still names the internal id, which the UI
+// surfaces as "Challenging".
+//
+// --- why 11 --------------------------------------------------------------
+//
+// An earlier version had a "Small Board"/"Big Board" pair keyed to a
+// board-size picker that did not exist at the time. Board size is a real
+// setting now, but these two were not reinstated: a badge that can only
+// be earned on a board size this audience is steered away from is a badge
+// that mostly signals "you are playing the wrong way". Board size is an
+// accessibility choice here, not an achievement axis.
 //
 // This module is pure: it only ever reads an AchievementContext object
 // and returns which ids currently qualify. It never touches
@@ -111,50 +117,50 @@ function winLineDirection(winLine) {
 export const ACHIEVEMENTS = [
   {
     id: "first-win",
-    title: "First Win",
-    description: "Win a game against the AI, any difficulty.",
+    title: "First Five",
+    description: "Get five in a row for the first time.",
     requiresCreditableWin: true,
     check: () => true,
   },
   {
     id: "hot-streak",
-    title: "Hot Streak",
-    description: "Reach a 5-game win streak against the AI.",
+    title: "Five Rounds",
+    description: "Win five rounds in a row.",
     requiresCreditableWin: true,
     check: (ctx) => !!ctx.streakResult && ctx.streakResult.current >= 5,
   },
   {
     id: "unstoppable",
-    title: "Unstoppable",
-    description: "Reach a 10-game win streak against the AI.",
+    title: "Ten Rounds",
+    description: "Win ten rounds in a row.",
     requiresCreditableWin: true,
     check: (ctx) => !!ctx.streakResult && ctx.streakResult.current >= 10,
   },
   {
     id: "sharpshooter",
-    title: "Sharpshooter",
-    description: "Win using 20 of your own stones or fewer.",
+    title: "Neat and Tidy",
+    description: "Win a round using 20 stones or fewer.",
     requiresCreditableWin: true,
     check: (ctx) => countStonesBy(ctx.gameState, ctx.humanPlayer) <= 20,
   },
   {
     id: "comeback",
-    title: "Comeback",
-    description: "Win a game after the AI once had an open four.",
+    title: "Turned It Around",
+    description: "Win a round after the computer was one move away from five.",
     requiresCreditableWin: true,
     check: (ctx) => ctx.everHadOpenFour[1 - ctx.humanPlayer],
   },
   {
     id: "untouchable",
-    title: "Untouchable",
-    description: "Win without ever letting the AI form an open three.",
+    title: "Kept It Quiet",
+    description: "Win a round without the computer ever getting a clear run of three.",
     requiresCreditableWin: true,
     check: (ctx) => !ctx.everHadOpenThree[1 - ctx.humanPlayer],
   },
   {
     id: "no-help-needed",
-    title: "No Help Needed",
-    description: "Beat Hard difficulty without using Undo or a Hint.",
+    title: "All On Your Own",
+    description: "Win at the Challenging pace without using Undo or Hint.",
     requiresCreditableWin: true,
     // Milestone 8-1 extended this gate to hints — the achievement's own
     // NAME was always broader than "no undo specifically," and a hint is
@@ -165,15 +171,15 @@ export const ACHIEVEMENTS = [
   },
   {
     id: "both-sides",
-    title: "Both Sides",
-    description: "Beat Hard difficulty playing as both Black and White (across any games).",
+    title: "Both Colours",
+    description: "Win at the Challenging pace with the dark stones, and again with the light stones.",
     requiresCreditableWin: true,
     check: (ctx) => ctx.difficulty === "hard" && ctx.hardWinsByColor[0] && ctx.hardWinsByColor[1],
   },
   {
     id: "hard-mode",
-    title: "Hard Mode",
-    description: "Beat Hard difficulty.",
+    title: "Challenging Pace",
+    description: "Win a round at the Challenging pace.",
     requiresCreditableWin: true,
     // No board-size condition — see the file header for why the old
     // Small/Big Board pair collapsed into this one.
@@ -181,14 +187,14 @@ export const ACHIEVEMENTS = [
   },
   {
     id: "local-legend",
-    title: "Local Legend",
-    description: "Complete 10 local 2-player games.",
+    title: "Playing Together",
+    description: "Finish ten two-player rounds.",
     requiresCreditableWin: false, // not a vs-AI result at all — see file header
     check: (ctx) => ctx.mode === "local" && ctx.localGamesCompleted >= 10,
   },
   {
     id: "diagonal-master",
-    title: "Diagonal Master",
+    title: "On the Diagonal",
     description: "Win with a diagonal line of five.",
     requiresCreditableWin: true,
     check: (ctx) => ctx.gameState.winLine !== null && winLineDirection(ctx.gameState.winLine) === "diagonal",

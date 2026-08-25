@@ -168,7 +168,21 @@ function defaultSettings() {
     theme: { selected: DEFAULT_THEME_ID },
     boardSize: DEFAULT_BOARD_SIZE,
     mode: "ai",
-    difficulty: "medium",
+    // Relaxed by default. The source shipped "medium". Measured on 9x9,
+    // a modelled first-time player wins 56.7% against Relaxed and 0%
+    // against Standard — starting anyone on Standard means starting them
+    // on a guaranteed loss, so the easiest setting is the default and
+    // the harder ones are opt-in. See game/ai.js's DIFFICULTIES.easy.
+    difficulty: "easy",
+    // Tap once to place a preview stone, tap the same point again (or
+    // press Place) to commit. Default ON: a mis-tap that immediately
+    // becomes a permanent move is the most costly error this game can
+    // produce, and confirming costs one extra tap.
+    confirmPlacement: true,
+    // Mark every point where the other player would win outright on
+    // their next move. Default ON: losing without understanding why is
+    // the single biggest reason a first-time player stops playing.
+    dangerWarning: true,
   };
 }
 
@@ -182,6 +196,9 @@ function sanitizeSettings(parsed) {
     boardSize: BOARD_SIZES.includes(parsed.boardSize) ? parsed.boardSize : DEFAULT_BOARD_SIZE,
     mode: MODES.includes(parsed.mode) ? parsed.mode : d.mode,
     difficulty: DIFFICULTIES.includes(parsed.difficulty) ? parsed.difficulty : d.difficulty,
+    confirmPlacement:
+      typeof parsed.confirmPlacement === "boolean" ? parsed.confirmPlacement : d.confirmPlacement,
+    dangerWarning: typeof parsed.dangerWarning === "boolean" ? parsed.dangerWarning : d.dangerWarning,
   };
 }
 
@@ -285,8 +302,21 @@ function sanitizeSavedGame(parsed) {
     board: board.map((row) => row.slice()),
     moves,
     mode: MODES.includes(parsed.mode) ? parsed.mode : "ai",
-    difficulty: DIFFICULTIES.includes(parsed.difficulty) ? parsed.difficulty : "medium",
+    difficulty: DIFFICULTIES.includes(parsed.difficulty) ? parsed.difficulty : "easy",
     humanPlayer: parsed.humanPlayer === 1 ? 1 : 0,
+    // Whose turn it is when play resumes. Derivable from moves.length on
+    // a normal board, but NOT on a restored one: this game is always
+    // "index 0 first, alternating", yet storing it explicitly means the
+    // restore path never has to re-derive a rule the rest of the app
+    // owns, and a corrupted/edited value is clamped here rather than
+    // producing a board where both sides think it is their turn.
+    turn: parsed.turn === 1 ? 1 : 0,
+    // Live-tracked achievement facts. They cannot be reconstructed from
+    // the board after a reload (undo destroys history, and a hint leaves
+    // no trace at all), so a restored game that omitted them would
+    // silently hand out "No Help Needed" to someone who had used both.
+    undoUsed: parsed.undoUsed === true,
+    hintUsed: parsed.hintUsed === true,
   };
 }
 
@@ -420,6 +450,28 @@ export function setMode(value) {
 
 export function getDifficulty() {
   return settings.difficulty;
+}
+
+// --- confirm-before-placing ----------------------------------------------
+
+export function isConfirmPlacementEnabled() {
+  return settings.confirmPlacement;
+}
+
+export function setConfirmPlacementEnabled(value) {
+  settings.confirmPlacement = !!value;
+  saveSettings();
+}
+
+// --- danger warning ------------------------------------------------------
+
+export function isDangerWarningEnabled() {
+  return settings.dangerWarning;
+}
+
+export function setDangerWarningEnabled(value) {
+  settings.dangerWarning = !!value;
+  saveSettings();
 }
 
 export function setDifficulty(value) {

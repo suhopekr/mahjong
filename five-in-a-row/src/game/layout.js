@@ -18,6 +18,29 @@ import { computeLayout, nearestDot } from "../core/grid.js";
 // padding floor below can never drift apart.
 export const STONE_RADIUS_FRACTION = 0.45;
 
+/**
+ * The tap catchment around each intersection, as a fraction of cellSize.
+ * 0.65 makes the hit circle 1.3x the visual cell width — deliberately
+ * LARGER than the gap between neighbouring points, so the catchments of
+ * adjacent intersections overlap slightly and there is no dead zone
+ * anywhere on the board. nearestDot() resolves the overlap by picking the
+ * genuinely closest point, so a wider radius never mis-assigns a tap that
+ * was clearly nearer some other point; all it does is stop a tap that
+ * landed between two points from being discarded entirely.
+ *
+ * This was 0.5 (exactly half a cell, i.e. catchments that tile the board
+ * without overlapping). That is the right number if you assume the tap
+ * lands where the player intended. For this site's audience — where a
+ * tremor or an imprecise touch routinely lands a few px off — a discarded
+ * tap reads as "the game ignored me," which is worse than snapping to the
+ * nearest point. Widening to 0.65 is what makes the effective touch
+ * target clear 44px on the default 9x9 board at phone widths: 40.8px
+ * cells become a 53px catchment at a 380px viewport. See boardLayout()'s
+ * own note on why the edge points are safe despite their catchment
+ * extending past the canvas.
+ */
+export const HIT_RADIUS_FRACTION = 0.65;
+
 // Grid line stroke width in CSS px, matching render.js's drawGridLines().
 // A stone at an edge/corner point needs the line's own half-width of
 // clearance too, on top of its radius — tiny at 1px, but it's what the
@@ -61,7 +84,21 @@ export function minPaddingForRadius(size, width, radiusFraction = STONE_RADIUS_F
  * @param {number} width - canvas CSS width in px
  * @param {number} height - canvas CSS height in px
  * @param {number} [padding] - a REQUESTED padding; silently raised to
- *   minPaddingForRadius()'s floor if it's too small to fit an edge stone
+ *   minPaddingForRadius()'s floor if it's too small to fit an edge stone.
+ *   Because that floor is derived from the stone radius, which is itself
+ *   a fraction of cellSize, the resulting padding is always PROPORTIONAL
+ *   to the cell — measured at 0.458-0.470 x cellSize across every board
+ *   size (9/11/15) and every viewport width, not a fixed pixel value.
+ *   That is what keeps an edge stone fully on-canvas at any size.
+ *
+ *   Note this padding is smaller than HIT_RADIUS_FRACTION, so an edge
+ *   point's tap catchment reaches ~0.19 x cellSize PAST the canvas edge.
+ *   That is harmless and in fact desirable: the part of the catchment
+ *   that falls outside the canvas simply can't receive a pointer event
+ *   (the canvas is the event target), while every pixel of canvas near
+ *   an edge point resolves to that point. The practical effect is that
+ *   the entire outer margin of the board is live for the edge row — the
+ *   place this audience most often taps short.
  *   (a caller trying to save every pixel on a small screen — see main.js's
  *   paddingFor() — should never have to also remember this floor itself;
  *   real bug this fixed, caught from an actual mobile screenshot where
@@ -74,17 +111,31 @@ export function boardLayout(size, width, height, padding = 40) {
 
 /**
  * Resolves a raw pointer position to the intersection it should snap to,
- * or null if the pointer is too far from every intersection to count as
- * "on the board." The catchment around each point is a circle of radius
- * cellSize/2 — because Gomoku's hit target is a POINT rather than an
- * edge, this radius is identical in every direction for every point,
- * corners and border points included. Dots and Boxes' edge-based hit
- * test had no such guarantee (a corner has fewer plausible edge
- * candidates than a mid-board vertex, producing an asymmetric dead zone)
- * — this function is exactly why Gomoku milestone 2 doesn't have that
- * problem, and it's plain geometry with no DOM dependency, so it's
- * Node-tested directly (see test/layout.test.js's symmetric-radius
- * sampling) rather than only checked by hand in a browser.
+ * or null if the pointer is genuinely nowhere near the board.
+ *
+ * Two acceptance rules, in order:
+ *
+ *   1. Within HIT_RADIUS_FRACTION x cellSize of the nearest point. Because
+ *      that radius exceeds half a cell, neighbouring catchments overlap
+ *      and the interior of the board has no dead zone at all.
+ *   2. Anywhere inside the canvas at all. This is what covers the four
+ *      CORNERS, and it is not a theoretical case — it was measured: on a
+ *      9x9 board at a 364px canvas the corner point sits at (18.9, 18.9),
+ *      so a tap on the literal canvas corner (0, 0) is 26.7px away while
+ *      the rule-1 radius is 26.5px. Rule 1 alone rejected it by 0.2px.
+ *      A player aiming at the corner stone and landing slightly outside
+ *      it would have been ignored, and the corner is exactly where an
+ *      imprecise tap lands short.
+ *
+ * Rule 2 is safe to state that broadly because the canvas IS the board
+ * and carries nothing else: every pixel of it belongs to some
+ * intersection, and nearestDot() already picks the genuinely closest one.
+ * The null return therefore only ever fires for coordinates outside the
+ * canvas — which a canvas-targeted pointer event cannot produce, but
+ * which callers (and tests) can still pass in.
+ *
+ * Plain geometry, no DOM dependency, so it is Node-tested directly rather
+ * than only checked by hand in a browser.
  * @param {ReturnType<typeof boardLayout>} layout
  * @param {number} x
  * @param {number} y
@@ -92,5 +143,7 @@ export function boardLayout(size, width, height, padding = 40) {
  */
 export function pointToIntersection(layout, x, y) {
   const { row, col, dist } = nearestDot(layout, x, y);
-  return dist <= layout.cellSize / 2 ? { row, col } : null;
+  if (dist <= layout.cellSize * HIT_RADIUS_FRACTION) return { row, col };
+  const insideCanvas = x >= 0 && y >= 0 && x <= layout.width && y <= layout.height;
+  return insideCanvas ? { row, col } : null;
 }

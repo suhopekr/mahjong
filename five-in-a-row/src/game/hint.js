@@ -140,7 +140,7 @@ function findWinIn1(board, player, candidates, renjuEnabled) {
  * 내 evaluate가 가장 높아지는 지점").
  * @returns {[number, number][]}
  */
-function findAllOpponentWinPoints(board, opponent, candidates, renjuEnabled) {
+export function findAllOpponentWinPoints(board, opponent, candidates, renjuEnabled = false) {
   const points = [];
   for (const [row, col] of candidates) {
     if (!isLegalForHint(board, row, col, opponent, renjuEnabled)) continue;

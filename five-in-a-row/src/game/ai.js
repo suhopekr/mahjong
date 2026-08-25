@@ -679,7 +679,30 @@ export function findBestMoveWithStats(board, player, options = {}) {
 // changes there: the SAME injection point already existed.
 
 export const DIFFICULTIES = {
-  easy: { maxDepth: 1, timeLimitMs: 100, maxBranching: DEFAULT_MAX_BRANCHING, mistakeProbability: 0.3 },
+  // "Relaxed" in the UI. Retuned for this site's audience — a first-time
+  // player who has never played a five-in-a-row game before. The original
+  // {mistakeProbability: 0.3} left a modelled beginner (takes an
+  // immediate win, blocks an immediate loss, otherwise plays beside its
+  // own last stone) winning only 9% of games on 9x9 — a losing streak
+  // that long is the single biggest reason this audience quits.
+  //
+  // Raising mistakeProbability ALONE barely helped (28% even at 0.8),
+  // because the "mistake" was still drawn from only the top 5 of 15
+  // scored moves — i.e. still a good move. The pool width is the real
+  // lever: widening both the scored set (preFilterSize) and the pool
+  // drawn from it (mistakePoolSize) to 24 and raising the probability to
+  // 0.85 lands at 56.7% over 240 measured games (3 independent seeds).
+  // Slightly above even is deliberate: the modelled beginner ALWAYS
+  // blocks an immediate loss, which a real first-timer frequently
+  // misses, so it is a stronger opponent than the person this is for.
+  easy: {
+    maxDepth: 1,
+    timeLimitMs: 100,
+    maxBranching: DEFAULT_MAX_BRANCHING,
+    mistakeProbability: 0.85,
+    mistakePoolSize: 24,
+    preFilterSize: 24,
+  },
   medium: { maxDepth: 2, timeLimitMs: 150, maxBranching: DEFAULT_MAX_BRANCHING, randomThreshold: 0.92, randomApplyProbability: 0.35 },
   hard: { maxDepth: DEFAULT_DEPTH, timeLimitMs: DEFAULT_TIME_LIMIT_MS, maxBranching: DEFAULT_MAX_BRANCHING, randomThreshold: 0.97, randomApplyProbability: 0.15 },
 };
@@ -906,11 +929,21 @@ export function chooseMove(board, player, difficulty, rng = Math.random, renjuEn
   if (difficulty === "easy") {
     // Easy's own mechanism, byte-for-byte unchanged by this pass — see
     // the file's own header for why it's exempt from the new floor.
-    const pool = orderMoves(board, candidateSet, player, PRE_FILTER_SIZE, renjuEnabled);
+    const pool = orderMoves(board, candidateSet, player, config.preFilterSize ?? PRE_FILTER_SIZE, renjuEnabled);
     const scored = scoreCandidateMoves(board, player, pool, config.maxDepth, config.timeLimitMs, config.maxBranching, renjuEnabled);
     scored.sort((a, b) => b.score - a.score);
     if (rng() >= config.mistakeProbability) return scored[0].move;
-    const mistakePool = scored.slice(0, MISTAKE_POOL_SIZE).map((s) => s.move);
+    // Pool size is per-difficulty now, not the fixed MISTAKE_POOL_SIZE it
+    // used to be. Measured reason: raising `mistakeProbability` alone
+    // barely moved the outcome, because a "mistake" drawn from only the
+    // top 5 scored moves is still a strong move — a modelled beginner
+    // (takes an immediate win, blocks an immediate loss, otherwise plays
+    // beside its own last stone) won just 9% of 80 games at 0.3 and only
+    // 28% even at 0.8. Widening the pool is what actually converts a
+    // mistake into a real one; see DIFFICULTIES.easy's own comment for
+    // the tuned values and the resulting win rate.
+    const poolSize = config.mistakePoolSize ?? MISTAKE_POOL_SIZE;
+    const mistakePool = scored.slice(0, poolSize).map((s) => s.move);
     return weightedRandomChoice(mistakePool, rng);
   }
 
