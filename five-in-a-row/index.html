@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<title>Five in a Row</title>
+<!--
+  No portal SDK script tag here, and no inline <style> block. Both are
+  deliberate and both are required by the site's Content-Security-Policy
+  (vercel.json): `script-src 'self'` admits no third-party script host,
+  and `style-src 'self'` admits no inline styles. The stylesheet below
+  and the module script at the bottom are both same-origin files, which
+  is exactly what those directives allow. ES modules are ordinary
+  script-src subjects, so `type="module"` needs nothing extra.
+-->
+<link rel="stylesheet" href="./style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="top-bar">
+      <div id="top-bar-left">
+        <button type="button" id="achievements-btn" aria-label="Achievements"></button>
+        <button type="button" id="theme-btn" class="icon-btn" aria-label="Board Theme"></button>
+      </div>
+      <button type="button" id="sound-toggle-btn" class="icon-btn" aria-label="Mute sound"></button>
+    </div>
+
+    <!-- Every .modal-panel is role="dialog" aria-modal="true" labelled by
+         its own <h2>; main.js's openModal()/closeModal() move focus in (to
+         the close button) and back out (to whatever opened it), close the
+         topmost one on Escape, and set `inert` on #top-bar/#main-content
+         for the duration so Tab can't wander into the dimmed page behind.
+         The attributes live here statically rather than being set from JS
+         so the markup is honest on its own. -->
+    <div id="achievements-overlay" class="modal-overlay" hidden>
+      <div id="achievements-panel" class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="achievements-title">
+        <div class="modal-header">
+          <h2 id="achievements-title">Achievements</h2>
+          <span id="achievements-count-label">0/11</span>
+          <button type="button" id="achievements-close-btn" class="modal-close-btn" aria-label="Close">✕</button>
+        </div>
+        <ul id="achievements-list"></ul>
+      </div>
+    </div>
+
+    <div id="theme-overlay" class="modal-overlay" hidden>
+      <div id="theme-panel" class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="theme-title">
+        <div class="modal-header">
+          <h2 id="theme-title">Board Theme</h2>
+          <button type="button" id="theme-close-btn" class="modal-close-btn" aria-label="Close">✕</button>
+        </div>
+        <ul id="theme-list"></ul>
+      </div>
+    </div>
+
+    <div id="settings-overlay" class="modal-overlay" hidden>
+      <div id="settings-panel" class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+        <div class="modal-header">
+          <h2 id="settings-title">Settings</h2>
+          <button type="button" id="settings-close-btn" class="modal-close-btn" aria-label="Close">✕</button>
+        </div>
+        <div id="settings-body">
+          <div class="setup-row">
+            <span class="setup-row-label">Mode</span>
+            <div class="seg-group" id="mode-toggle">
+              <button type="button" class="seg-btn" data-mode="ai">vs AI</button>
+              <button type="button" class="seg-btn" data-mode="local">2 Player</button>
+            </div>
+          </div>
+          <div class="setup-row" id="difficulty-row">
+            <span class="setup-row-label">Difficulty</span>
+            <div class="seg-group" id="difficulty-toggle">
+              <button type="button" class="seg-btn" data-difficulty="easy">Easy</button>
+              <button type="button" class="seg-btn" data-difficulty="medium">Medium</button>
+              <button type="button" class="seg-btn" data-difficulty="hard">Hard</button>
+            </div>
+          </div>
+          <!-- Intentionally empty: main.js fills this from core/storage.js's
+               own BOARD_SIZES, so the offered sizes and the persistable
+               sizes are guaranteed to be the same list. -->
+          <div class="setup-row">
+            <span class="setup-row-label">Board</span>
+            <div class="seg-group" id="board-size-toggle" aria-describedby="board-size-hint"></div>
+            <p class="setup-row-hint" id="board-size-hint">
+              Applies to your next game. A smaller board plays faster; a larger one leaves more room to maneuver.
+            </p>
+          </div>
+          <!-- "Renju Rules" is the one setting here whose LABEL doesn't
+               explain itself: Mode, Difficulty and Board are self-evident to
+               anyone, while Renju is a term only players who already know
+               the game recognize. So the rule gets one plain-English line
+               right under the toggle, stated in terms of what it DOES to
+               your own moves, not by naming the tournament ruleset it comes
+               from. `aria-describedby` ties it to the toggle so screen
+               readers announce the explanation with the control instead of
+               as a loose paragraph. Default is Off — freestyle. -->
+          <div class="setup-row">
+            <span class="setup-row-label">Renju Rules</span>
+            <div class="seg-group" id="renju-toggle" aria-describedby="renju-hint">
+              <button type="button" class="seg-btn" data-renju="off">Off</button>
+              <button type="button" class="seg-btn" data-renju="on">On</button>
+            </div>
+            <p class="setup-row-hint" id="renju-hint">
+              Evens out Black's first-move advantage: Black can't make a double three,
+              a double four, or a row of six or more. Forbidden points are marked on the board.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="achievement-toast-container" aria-live="polite"></div>
+
+    <!-- Everything that isn't #top-bar or a position:fixed modal/toast
+         lives here, so centering has exactly one place to happen.
+         #setup-panel and #game-content are mutually exclusive (main.js's
+         updatePhaseVisibility()); whichever is hidden is fully removed
+         from flex layout (display: none), so the other always gets the
+         entirety of #main-content's free space to itself. -->
+    <div id="main-content">
+      <div id="setup-panel">
+        <h1>Five in a Row</h1>
+        <div class="setup-tagline">Get five stones in a row before your opponent</div>
+
+        <div id="setup-secondary">
+          <button type="button" id="start-game-btn" class="btn-primary">
+            <span class="btn-title">Play</span>
+          </button>
+          <div id="play-summary"></div>
+          <button type="button" id="play-friend-btn" class="btn-secondary">Play with a friend</button>
+          <button type="button" id="settings-btn" class="link-btn">
+            <span class="btn-icon" id="settings-btn-icon"></span>
+            Settings
+          </button>
+        </div>
+      </div>
+
+      <div id="game-content">
+        <div id="turn-label" hidden></div>
+
+        <!-- The result card is a SIBLING of the board, not a child of it.
+             In flow above the board it covers nothing; the board itself is
+             dimmed instead (see #board-wrap.result-open), which is what
+             tells you a result state is open. It sits where #turn-label
+             was — that label is hidden at game over anyway, since "X's
+             turn" is no longer true — so nothing else on screen has to
+             move aside for it. -->
+        <div id="game-over-banner" hidden>
+          <div id="game-over-panel">
+            <div id="game-over-text"></div>
+            <div id="game-over-streak" hidden></div>
+            <div id="game-over-actions">
+              <button type="button" id="rematch-btn">Rematch</button>
+              <button type="button" id="game-over-new-game-btn">New Game</button>
+            </div>
+          </div>
+        </div>
+
+        <div id="board-wrap" hidden>
+          <canvas id="board"></canvas>
+          <div id="coin-flip-banner" hidden>
+            <div id="coin-flip-text"></div>
+          </div>
+        </div>
+
+        <div id="controls" hidden>
+          <button type="button" id="hint-btn">Hint</button>
+          <button type="button" id="undo-btn">Undo</button>
+          <button type="button" id="new-game-btn">New Game</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

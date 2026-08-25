@@ -1,0 +1,1569 @@
+/* five-in-a-row/style.css
+ *
+ * Extracted verbatim from the Gomoku source's inline <style> block. It is
+ * an external stylesheet here for one hard reason: this site's
+ * Content-Security-Policy (vercel.json) sets `style-src 'self'`, which
+ * admits no inline <style> element at all. The rules themselves are
+ * unchanged — this step is the logic port, and the visual design pass is
+ * a separate step that is free to replace this file wholesale.
+ *
+ * Known dead rules: selectors for the Daily Challenge UI (#daily-entry-*,
+ * #daily-status-*, .daily-badge-*, #game-over-daily-*) and for theme
+ * lock states (.theme-row.locked) target elements this port no longer
+ * renders. They are left in place rather than pruned, because pruning
+ * them is a design-pass decision and removing rules is the one edit that
+ * can silently change how a surviving element looks.
+ */
+
+  :root {
+    --bg: #f4efe6;
+    --panel: #ffffff;
+    --text: #2b2b2b;
+    --muted: #8a8478;
+    --accent: #e4572e;
+    /* Interaction-states pass: hover/active shades for the accent tier
+       (in-game New Game, the game-over panel's Rematch/Keep playing) —
+       same ~8%-darker-then-further-darker two-step .btn-primary's own
+       --cta-primary-hover/--cta-primary-active use below, computed with
+       the identical per-channel ratio (not eyeballed a second time) so
+       the two accent-colored tiers in this app darken by the same
+       visual amount on press even though they're two different base
+       hues. */
+    --accent-hover: #cf4b26;
+    --accent-active: #bf4422;
+
+    /* One shared timing token — the only 5 properties ANY hover/active/
+       focus-visible/disabled rule in this file ever changes
+       (background-color/box-shadow/transform/border-color/color) use
+       this, never a bespoke duration, so every interactive element in
+       the app animates at the same speed. One shared focus ring too: a
+       double ring (an inner ring in the page's own cream background
+       color, then an outer accent ring) rather than a single ring
+       directly on the element — a ring drawn straight onto an already-
+       orange button (.btn-primary, New Game) would nearly disappear
+       against it; the cream gap guarantees contrast against ANY
+       background this app puts a focusable control on (white icon
+       pills, orange CTAs, transparent link text). References
+       var(--cta-primary) (defined below, in the CTA-hierarchy pass's
+       own :root block) rather than repeating its literal #d2562e hex a
+       second time — CSS custom properties resolve lazily, so referencing
+       a variable declared later in the file works identically to one
+       declared earlier; this is a single always-in-sync source for that
+       color, not a value change from what was asked. */
+    --transition-ui: 140ms ease-out;
+    --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--cta-primary);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    height: 100%;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overscroll-behavior: none;
+    /* Disables the mobile long-press menu (text-selection callout,
+       "Save Image"/"Search" popups) — a real requirement for a
+       touch-first game, previously missing entirely.
+       touch-action: none already lives on #board itself (main.js/
+       render.js's own canvas setup) — this is a different, page-wide
+       concern (long-press callouts can fire outside the canvas too, e.g.
+       long-pressing a button or the board's own background). No input/
+       textarea exists anywhere in this page today, but the exception
+       rule below is added preemptively so a future one doesn't silently
+       inherit unselectable text. */
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+  }
+
+  input, textarea {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+  }
+
+  #app {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 12px;
+    gap: 10px;
+  }
+
+  /* Milestone 8-2d (vertical centering): everything BELOW the top bar
+     lives inside this wrapper, which is the only thing that centers —
+     #top-bar itself stays pinned at the top of #app, outside this
+     element entirely, so it can never be pushed around by whatever
+     centering happens below it.
+     `min-height: 0` overrides flexbox's default `min-height: auto` on a
+     flex item, which otherwise refuses to shrink below its CONTENT size
+     — without it, oversized content (a small landscape viewport, see
+     #game-content below) would just grow #main-content (and #app, and
+     the page) taller than the viewport instead of triggering this
+     element's own `overflow-y: auto`, silently defeating the entire
+     point of having it. */
+  #main-content {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    overflow-y: auto;
+  }
+
+  /* Same move Dots and Boxes made under a short/narrow viewport (CLAUDE.md
+     section 6): trim the chrome around the board, not the board itself —
+     every pixel here is a pixel the 15x15 grid doesn't get. */
+  @media (max-width: 400px) {
+    #app { padding: 6px; gap: 6px; }
+  }
+
+  /* Milestone 8-2b (layout fix): the title used to live INSIDE #top-bar,
+     centered via `position: absolute` siblings on both sides — on a
+     320-390px phone, #top-bar-left's own natural width (three
+     text-bearing buttons) could exceed the space actually free next to a
+     centered, unconstrained h1, so the two visually collided. The fix
+     isn't a media query that hides/clips the title — it's that the title
+     no longer lives in #top-bar at all: it's the first child of
+     #setup-panel instead (below), which already has its own
+     `setupPanel.hidden = gamePhase !== 'setup'` lifecycle (main.js) — so
+     the title shows once, on the entry screen, and never has to share a
+     row with anything else, on any width. #top-bar itself is now ONLY
+     ever two icon-only button groups — a real flex row (not absolute
+     positioning), which can't overlap by construction regardless of
+     viewport width. */
+  #setup-panel h1 {
+    font-size: 1.6rem;
+    font-weight: 800;
+    margin: 0 0 4px;
+    letter-spacing: 0.02em;
+    color: var(--text);
+  }
+
+  /* Repositioning pass ("Daily Five"): a one-line statement of what this
+     app actually is, directly under the name — the store listing's own
+     opening sentence in miniature. Sits above the hero button rather than
+     inside it so it reads as a description of the PRODUCT, not a caption
+     on one button. */
+  .setup-tagline {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 600;
+    text-align: center;
+    margin: 0 0 4px;
+  }
+
+  /* Always visible regardless of gamePhase, deliberately — muting isn't
+     a game setting that could discard a game in progress, and a player
+     may want to mute before ever starting one. */
+  #top-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    max-width: 560px;
+    /* Pinned at the top of #app, outside #main-content's own centering
+       entirely (milestone 8-2d) — flex-shrink: 0 is defensive belt-and-
+       suspenders so it can never be squeezed even if #main-content's
+       content ever pushed #app itself to its own overflow limit. */
+    flex-shrink: 0;
+  }
+
+  #top-bar-left {
+    display: flex;
+    gap: 6px;
+  }
+
+  /* Shared shape for every icon-only top-bar button (sound/daily/theme) —
+     44px touch target (Apple HIG / WCAG 2.5.5, same as the global `button`
+     rule below), circular, and flex-centered so an injected <svg> icon
+     (main.js's ICONS — milestone 8-2b replaced every emoji here with
+     inline SVG, see that section's own comment) sits centered without
+     relying on line-height tricks the way a single emoji character could.
+     `position: relative` is unused by sound/theme but costs nothing and
+     is what #daily-btn's own corner badge (below) is positioned against. */
+  .icon-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 999px;
+    position: relative;
+  }
+
+  /* Interaction-states pass — the "icon pill" tier: every circular
+     icon-only button in the app (top-bar's own 3 .icon-btn instances
+     plus #achievements-btn, which isn't literally .icon-btn but is the
+     same 44px circular shape with the same job) and every modal's own
+     close button (.modal-close-btn, defined later in this file — see
+     that rule's own comment on its 44px touch-target history). One
+     combined selector here rather than repeating the same 3 rules next
+     to each of those 3 separately-defined components. Sound's own
+     on/off state is carried ENTIRELY by which icon main.js swaps in
+     (ICONS.speakerOn vs. speakerMuted — the muted glyph already draws
+     its own strike-through lines) — this hover/active pair adds no
+     on/off-dependent background of its own, so a muted vs. unmuted
+     button hovers identically apart from the icon itself, exactly the
+     "don't let hover fight the toggle's own state" guard asked for. */
+  @media (hover: hover) and (pointer: fine) {
+    .icon-btn:hover,
+    #achievements-btn:hover,
+    .modal-close-btn:hover {
+      background: #f5efe6;
+      transform: scale(1.05);
+    }
+  }
+
+  .icon-btn:active,
+  #achievements-btn:active,
+  .modal-close-btn:active {
+    transform: scale(0.95);
+  }
+  /* :focus-visible relies on the generic button:focus-visible ring
+     added below (near the base `button` rule) — none of these three
+     carry a decorative resting box-shadow worth preserving alongside
+     it, unlike .btn-primary/.btn-secondary. */
+
+  .icon { width: 20px; height: 20px; flex-shrink: 0; }
+  /* Small enough to sit inline with text (achievement/theme row
+     descriptions) without pushing the line height around. */
+  .icon-inline { width: 14px; height: 14px; vertical-align: -2px; }
+  /* Small enough to fit inside #daily-btn's own 16px corner badge circle. */
+  .icon-badge { width: 10px; height: 10px; }
+  /* Plain wrapper span main.js injects a static icon into
+     (#play-friend-btn's Settings link, #daily-entry-btn) — explicit flex
+     so it centers correctly as a flex child regardless of its own default
+     inline display. */
+  .btn-icon { display: flex; align-items: center; }
+
+  /* Achievements keeps its count text ("3/11") alongside its icon —
+     unlike Daily/Theme, that number is genuinely useful at a glance and
+     costs little width, so it stayed icon+text rather than going
+     icon-only (CLAUDE.md milestone 8-2b's own reasoning). */
+  #achievements-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-height: 44px;
+    padding: 0 12px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 700;
+  }
+
+  /* Not-played-yet: a small accent dot — the same "something new here"
+     affordance a notification badge gives, doing the discovery-inviting
+     job the removed "Daily" text label used to do, without needing text.
+     Already-played: a muted circle with a tiny check/cross/dash glyph
+     (main.js's ICONS.check/cross/dash) reporting today's result — muted
+     rather than accent-colored specifically to read as "already handled,"
+     the opposite signal from the accent dot. */
+  .daily-badge-dot {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--accent);
+    box-shadow: 0 0 0 2px var(--panel);
+  }
+
+  .daily-badge-result {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 16px;
+    height: 16px;
+    border-radius: 999px;
+    background: var(--muted);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 0 2px var(--panel);
+  }
+
+  /* --- achievements + daily-status modals ---------------------------------
+     Shared shell (dimmed backdrop, centered panel) for both — same overlay/
+     panel shape D&B's own achievements modal used, carried over as a
+     pattern, not literal code, per CLAUDE.md section 3's "재사용 가능한 건
+     코드가 아니라 아키텍처 패턴" note about this project's D&B lineage. */
+
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.45);
+    padding: 16px;
+  }
+
+  .modal-overlay[hidden] { display: none; }
+
+  .modal-panel {
+    background: var(--panel);
+    border-radius: 14px;
+    width: 100%;
+    max-width: 480px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 18px 10px;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+  }
+
+  .modal-header h2 {
+    margin: 0;
+    font-size: 1.05rem;
+  }
+
+  #achievements-count-label {
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-weight: 600;
+    margin-right: auto;
+    margin-left: 8px;
+  }
+
+  /* Milestone 8-2 (mobile verification): was 36x36px, the one button in
+     this file NOT following the 44px minimum touch target every other
+     button here explicitly cites (Apple HIG / WCAG 2.5.5) — an oversight
+     caught by a Playwright sweep over every visible button's own
+     getBoundingClientRect(), not something visible from the CSS alone. */
+  .modal-close-btn {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    border-radius: 999px;
+  }
+
+  /* --- daily status modal ("already played today") ----------------------- */
+
+  #daily-status-body {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 0.9rem;
+  }
+
+  #daily-status-result {
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  #daily-status-streak.new-best {
+    color: var(--accent);
+  }
+
+  #daily-status-note {
+    color: var(--muted);
+    font-size: 0.82rem;
+  }
+
+  #achievements-list {
+    list-style: none;
+    margin: 0;
+    padding: 8px;
+    overflow-y: auto;
+  }
+
+  .achievement-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    padding: 10px 10px;
+    border-radius: 10px;
+  }
+
+  /* Unlocked rows get a tinted background to draw the eye; locked rows
+     stay on the panel's own background — but per this milestone's explicit
+     requirement, locked rows still show their FULL title and description,
+     just dimmed rather than hidden or replaced with "???". */
+  .achievement-row.unlocked {
+    background: rgba(228, 87, 46, 0.08);
+  }
+
+  /* Was font-size-driven (a single emoji character) — now hosts an
+     injected SVG (ICONS.trophy/ICONS.lock, main.js), sized directly via
+     .icon rather than through line-height. */
+  .achievement-row-icon {
+    display: flex;
+    align-items: center;
+    color: var(--text);
+  }
+
+  .achievement-row.locked .achievement-row-icon {
+    opacity: 0.35;
+  }
+
+  .achievement-row-title {
+    font-weight: 700;
+    font-size: 0.92rem;
+  }
+
+  .achievement-row.locked .achievement-row-title {
+    color: var(--muted);
+  }
+
+  .achievement-row-description {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  /* --- theme picker (milestone 7-4) -------------------------------------
+     Same locked/unlocked row shape as .achievement-row above (dimmed icon,
+     full title+description always shown even locked) — reused pattern,
+     not reused CSS, since a theme row also needs a color swatch an
+     achievement row never did. */
+
+  #theme-list {
+    list-style: none;
+    margin: 0;
+    padding: 8px;
+    overflow-y: auto;
+  }
+
+  .theme-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 10px;
+    border-radius: 10px;
+    cursor: pointer;
+    border: 2px solid transparent;
+  }
+
+  .theme-row.selected {
+    border-color: var(--accent);
+  }
+
+  .theme-row.locked {
+    cursor: default;
+  }
+
+  /* Interaction-states pass originally left this row mouse-only (a
+     plain <li> with a click listener, no tabindex). The QA pass closed
+     that gap: unlocked rows are now role="button" tabindex="0" with
+     Enter/Space handling (main.js's renderThemeList()), so they get the
+     same focus ring every real button draws. Locked rows stay
+     unfocusable — they have nothing to activate — and keep `cursor:
+     default` above / stay excluded from :hover (nothing to invite a
+     click toward). */
+  .theme-row:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+
+  @media (hover: hover) and (pointer: fine) {
+    .theme-row:not(.locked):hover {
+      background: rgba(0, 0, 0, 0.04);
+    }
+  }
+
+  .theme-row:not(.locked):active {
+    background: rgba(0, 0, 0, 0.07);
+  }
+
+  .theme-row { transition: background-color var(--transition-ui); }
+
+  /* Pure-CSS color preview — no image assets (CLAUDE.md milestone 7-4's
+     explicit constraint): a board-colored square with two small stone-
+     colored dots, all backgrounds set inline from game/themes.js's own
+     color data by main.js, so this file never hardcodes a theme's colors
+     itself. */
+  .theme-swatch {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+  }
+
+  .theme-swatch-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 999px;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  }
+
+  .theme-row-name {
+    font-weight: 700;
+    font-size: 0.92rem;
+  }
+
+  .theme-row.locked .theme-row-name {
+    color: var(--muted);
+  }
+
+  .theme-row-description {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+
+  .theme-row.locked .theme-swatch {
+    opacity: 0.45;
+  }
+
+  /* --- achievement toasts ------------------------------------------------ */
+
+  #achievement-toast-container {
+    position: fixed;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    pointer-events: none;
+  }
+
+  .achievement-toast {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--panel);
+    color: var(--text);
+    border-radius: 999px;
+    padding: 10px 18px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+    animation: toast-in 0.2s ease;
+    white-space: nowrap;
+  }
+
+  @keyframes toast-in {
+    from { transform: translateY(-14px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+
+  /* --- setup screen ---------------------------------------------------- */
+  /* NOTE (port): the source project inverted this hierarchy so that its
+     Daily Challenge card, not Play, was the hero. This port has no Daily
+     Challenge, so #start-game-btn is the hero again — the rules below
+     that style the daily card are dead and are left for the design pass
+     to remove. The accent/hero treatment described here belonged to
+     #daily-entry-btn; #start-game-btn (relabeled "Practice vs AI" in the
+     markup) drops to the same subdued `.link-btn` look as "Play with a
+     friend" and "Settings" — demoted, not removed, exactly the
+     instruction's own "보조 버튼으로 강등." Every element's id and click
+     handler is untouched (main.js) — only which one gets the visual
+     weight, and where each sits in #setup-panel, changed. */
+
+  /* Milestone 8-2d: vertically centers itself within #main-content's own
+     free space via a WEIGHTED pair of ::before/::after spacers rather
+     than equal top/bottom margins — biased slightly toward the top
+     (`--v-top` < `--v-bottom`) for an OPTICAL center rather than a
+     mathematical 50/50 one (CLAUDE.md's own before/after comparison
+     settled on the exact ratio — see that section). `flex: 1` +
+     `min-height: 0` make #setup-panel itself the item that fills
+     #main-content's available height (so the spacers have real free
+     space to split); the spacers use `flex-grow` (not fixed heights), so
+     on a small enough viewport that #setup-panel's own content already
+     fills #main-content, both spacers collapse to 0 and the panel simply
+     sits flush at the top — the same overflow-safe behavior
+     `margin: auto` gives #game-content below, just with an unequal split
+     instead of an equal one. */
+  #setup-panel {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    max-width: 360px;
+    /* 45:55 (top:bottom) — picked by actually rendering and comparing 3
+       candidates (50:50, 47:53, 45:55) at 1440x900 and looking at the
+       screenshots, not by picking a number from the middle of the
+       user's suggested 45-48% range on faith. 50:50 read as visibly
+       bottom-heavy: #main-content itself already starts well below the
+       viewport's own top edge (below #top-bar), so a mathematically
+       centered block within JUST #main-content still lands with its
+       midpoint noticeably below the FULL page's midpoint — 45:55 was the
+       candidate that actually landed closest to true full-page center in
+       the real rendered measurement (space-above vs. space-below the
+       content block came out at 299px/295px against a 900px-tall
+       viewport — closer to even than 50:50's own 258px/270px measured
+       within #main-content's smaller box). 47:53 was a legible middle
+       ground but visibly still lower than 45:55. */
+    --v-top: 0.9;
+    --v-bottom: 1.1;
+  }
+
+  #setup-panel::before,
+  #setup-panel::after {
+    content: "";
+    flex-shrink: 1;
+    flex-basis: 0;
+    min-height: 0;
+    width: 100%;
+  }
+
+  #setup-panel::before { flex-grow: var(--v-top); }
+  #setup-panel::after { flex-grow: var(--v-bottom); }
+
+  #setup-panel[hidden] { display: none; }
+
+  /* Feedback pass 3 (CTA hierarchy): "a big accent button" and "today's
+     puzzle" are no longer the same thing by construction — exactly one
+     .btn-primary is ever on screen (main.js toggles it between
+     #daily-entry-btn and #start-game-btn depending on whether today's
+     challenge is already done), everything else is .btn-secondary (one,
+     outlined) or .link-btn (plain text, the rest). --cta-primary is
+     DELIBERATELY its own color, not --accent (#e4572e) — close ("같은
+     계열"), not identical, so this pass doesn't ripple into New Game/
+     Rematch/every other --accent-colored element that was never in
+     scope here. */
+  :root {
+    --cta-primary: #d2562e;
+    /* Interaction-states pass: two distinct shades now, not one shared
+       between hover AND active (the earlier CTA-hierarchy pass's own
+       #b24927 sat closer to what this pass calls "active" than
+       "hover" — recomputed both from the same per-channel darkening
+       ratio this pass's own tokens use throughout, see --accent-hover/
+       --accent-active's own comment in the top :root block). */
+    --cta-primary-hover: #bf4a26;
+    --cta-primary-active: #b04322;
+    --link-color: #6b6560;
+  }
+
+  /* Below Practice in the incomplete-daily state — "what Practice will
+     start" (CLAUDE.md milestone 8-2b's original reasoning for this text
+     is unchanged). Hidden once today's challenge is already done: that
+     information moves into #start-game-btn's own .btn-sub instead (see
+     main.js's updatePracticeCta()) rather than existing as a second,
+     now-redundant line. */
+  #play-summary {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 600;
+    text-align: center;
+  }
+
+  #play-summary[hidden] { display: none; }
+
+  #setup-secondary {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    margin-top: 10px;
+  }
+
+  /* Plain text link tier — Settings always lives here; Practice/Play
+     with a friend do too, UNTIL today's challenge is done, at which
+     point main.js promotes them to .btn-primary/.btn-secondary instead
+     (same elements, classes swapped, not a second pair of buttons). */
+  .link-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    box-shadow: none;
+    color: var(--link-color);
+    font-weight: 600;
+    padding: 10px 12px;
+    /* No visible box in any resting/hover state — this only ever
+       matters once :focus-visible's box-shadow ring below actually
+       needs a shape to follow (a square-cornered ring around inline
+       text reads as a mistake; a slightly rounded one doesn't). */
+    border-radius: 6px;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .link-btn:hover {
+      color: #3f3a35;
+      text-decoration: underline;
+      text-underline-offset: 3px;
+    }
+  }
+
+  .link-btn:active { color: #2b2824; }
+  .link-btn:focus-visible { box-shadow: var(--focus-ring); }
+
+  /* The ONE big accent CTA — whichever element currently owns it
+     (#daily-entry-btn when today's challenge isn't done yet,
+     #start-game-btn once it is). Column layout for its own 1-2 lines of
+     text (title + optional .btn-sub); #daily-entry-btn's extra icon/meta
+     lines are added on top of this by its own more specific rules below,
+     not by overriding these. */
+  .btn-primary {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    width: 100%;
+    max-width: 420px;
+    min-height: 60px;
+    border-radius: 999px;
+    background: var(--cta-primary);
+    color: white;
+    font-size: 1.125rem;
+    font-weight: 700;
+    padding: 10px 24px;
+    box-shadow: 0 4px 14px rgba(210, 86, 46, 0.35);
+  }
+
+  /* Interaction-states pass: hover LIFTS (translateY(-1px) + a slightly
+     bigger/softer shadow, "떠오름") and active PRESSES (translateY(1px)
+     + a smaller shadow, "눌림") — two visibly different directions
+     rather than one flat darken, so pressing this button reads as a
+     real press even on a trackpad that never triggers hover at all.
+     --cta-primary-hover's own value changed in this pass (was #b24927,
+     now #bf4a26 — the earlier CTA-hierarchy pass only had ONE darkened
+     shade to share between hover and press; this pass gives each its
+     own, computed by the same per-channel ratio, and the old single
+     shade turned out to sit closer to what THIS pass calls "active"
+     than "hover" — #b24927 vs. the new --cta-primary-active #b04322). */
+  @media (hover: hover) and (pointer: fine) {
+    .btn-primary:hover {
+      background: var(--cta-primary-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 6px 18px rgba(210, 86, 46, 0.42);
+    }
+  }
+
+  .btn-primary:active {
+    transform: translateY(1px);
+    background: var(--cta-primary-active);
+    box-shadow: 0 2px 6px rgba(210, 86, 46, 0.3);
+  }
+
+  /* Appends --focus-ring to the SAME resting box-shadow this button
+     already has (not a bare outline swapped in) — box-shadow follows
+     this button's own border-radius: 999px pill shape exactly, which
+     `outline` only does in the newest browsers, so this reads correctly
+     everywhere. When a keyboard-focused button is ALSO moused over
+     (trackpad hover-then-tab, or vice versa), this rule's later source
+     position wins over :hover's own box-shadow entirely (same
+     specificity, last-in-source wins) — the ring stays visible, at the
+     cost of losing hover's own extra lift/shadow-growth for that one
+     combined moment, an acceptable trade favoring the accessibility
+     signal. */
+  .btn-primary:focus-visible {
+    box-shadow: 0 4px 14px rgba(210, 86, 46, 0.35), var(--focus-ring);
+  }
+
+  /* opacity: 1 overrides the generic button:disabled 0.4 dimming below
+     — these two colors already read as "disabled" on their own; dimming
+     them further would just muddy them, not clarify anything. Shared
+     between .btn-primary and .btn-secondary (next rule down) — the
+     spec's own "primary와 동일 규칙" for secondary's disabled state. */
+  .btn-primary:disabled,
+  .btn-secondary:disabled {
+    opacity: 1;
+    background: #d8cfc4;
+    color: #a09888;
+    box-shadow: none;
+    cursor: default;
+  }
+
+  /* The one allowed second tier — outlined, not filled, so it visibly
+     yields to whichever button currently holds .btn-primary. */
+  .btn-secondary {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 420px;
+    min-height: 60px;
+    border-radius: 999px;
+    background: transparent;
+    box-shadow: none;
+    border: 1.5px solid var(--cta-primary);
+    color: var(--cta-primary);
+    font-size: 1.05rem;
+    font-weight: 700;
+  }
+
+  @media (hover: hover) and (pointer: fine) {
+    .btn-secondary:hover {
+      background: rgba(210, 86, 46, 0.08);
+    }
+  }
+
+  .btn-secondary:active {
+    background: rgba(210, 86, 46, 0.14);
+    transform: translateY(1px);
+  }
+
+  .btn-secondary:focus-visible { box-shadow: var(--focus-ring); }
+
+  /* Only the border needs its own override here — background/color/
+     box-shadow/cursor already come from the shared
+     .btn-primary:disabled, .btn-secondary:disabled rule above; this
+     button's own accent-colored border (1.5px solid var(--cta-primary),
+     see its resting rule above) would otherwise be the one leftover
+     accent-colored pixel on an otherwise fully muted disabled button. */
+  .btn-secondary:disabled {
+    border-color: #d8cfc4;
+  }
+
+  /* #start-game-btn's own title/sub split (Practice/Keep Practicing +,
+     once promoted to .btn-primary, a "vs Hard AI"-style sub line — see
+     main.js's updatePracticeCta()). Plain <span>s, not flex children of
+     .link-btn/.btn-primary directly, so the SAME two elements work
+     whichever class the button currently has. */
+  .btn-title { display: block; }
+
+  .btn-sub {
+    display: block;
+    font-size: 0.78rem;
+    font-weight: 600;
+    opacity: 0.85;
+  }
+
+  .btn-sub[hidden] { display: none; }
+
+  /* #daily-entry-btn itself only ever carries LAYOUT (icon/title/meta/
+     summary/countdown, stacked and centered) — its actual color/shape
+     comes from whichever state class is also applied: .btn-primary
+     (today's challenge not done yet) or .completed (already done, see
+     below). Never both at once (main.js's updateDailyEntryPoint()). */
+  .daily-entry-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    text-align: center;
+  }
+
+  .daily-entry-btn.btn-primary { padding: 18px 24px; }
+
+  /* Icon inherits the button's own `color` via currentColor (ICONS' own
+     SVGs, main.js) — no separate color rule needed here, just a size bump
+     over the top bar's 20px .icon default; this button is meant to read
+     as the screen's clear focal point. Hidden once today's challenge is
+     done (.completed below) — the flat info card doesn't need it. */
+  #daily-entry-icon .icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .daily-entry-title {
+    font-weight: 800;
+    font-size: 1.05rem;
+  }
+
+  /* Date + board size/AI level — the incomplete state's own 2nd line
+     (icon + title + this = the spec's "2줄 구성"). Hidden once today's
+     challenge is done (.completed below) — redundant with the result
+     you already know by then. */
+  .daily-entry-meta {
+    font-size: 0.85rem;
+    font-weight: 600;
+    opacity: 0.9;
+  }
+
+  /* Streak/result text — only ever shown once today's challenge is done
+     (.completed below adds it back). The incomplete state's own button
+     is exactly 2 lines (icon+title+meta, this spec's own "2줄 구성") —
+     this element still exists and still gets its text set every render
+     (main.js's updateDailyEntryPoint(), unconditionally), it just isn't
+     shown until there's a result to report. */
+  .daily-entry-summary {
+    display: none;
+    font-size: 0.85rem;
+    font-weight: 600;
+  }
+
+  /* Only shown once today's challenge is already done (main.js's
+     updateDailyEntryPoint()) — "come back tomorrow" made concrete instead
+     of just implied. */
+  .daily-entry-countdown {
+    font-size: 0.78rem;
+    font-weight: 600;
+    opacity: 0.85;
+  }
+
+  /* Once today's challenge is done, the hero becomes a flat INFO CARD,
+     not a button that happens to be a different color — no shadow, no
+     border, a background just barely darker than the page's own so it
+     still reads as a distinct block without competing for attention
+     (that job now belongs to #start-game-btn's own .btn-primary right
+     below it). Still a real <button> (unchanged click handler — opens
+     the day's result in more detail), just not styled like one anymore. */
+  .daily-entry-btn.completed {
+    background: #ece4d6;
+    color: var(--text);
+    box-shadow: none;
+    border-radius: 16px;
+    padding: 14px 20px;
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .daily-entry-btn.completed #daily-entry-icon,
+  .daily-entry-btn.completed .daily-entry-meta {
+    display: none;
+  }
+
+  .daily-entry-btn.completed .daily-entry-summary {
+    display: block;
+    color: var(--text);
+    font-weight: 700;
+  }
+
+  .daily-entry-btn.completed .daily-entry-countdown {
+    color: var(--muted);
+  }
+
+  /* Interaction-states pass: still a real, clickable <button> in this
+     state (opens the day's result in more detail — same click handler
+     as the incomplete state, unchanged) even though it's styled as a
+     flat info card, not a CTA — so it still gets its own hover/active/
+     focus states, just faint ones that don't make it compete with
+     #start-game-btn's own .btn-primary right below it (THAT'S the
+     actual CTA once today's challenge is done). */
+  @media (hover: hover) and (pointer: fine) {
+    .daily-entry-btn.completed:hover { background: #e3dbcb; }
+  }
+
+  .daily-entry-btn.completed:active { background: #d9d0be; }
+  .daily-entry-btn.completed:focus-visible { box-shadow: var(--focus-ring); }
+
+  .setup-row {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+  }
+
+  .setup-row-label {
+    font-size: 0.78rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  /* Explanatory line under a setting whose name isn't self-explanatory
+     (only Renju has one today — see its own comment in the markup).
+     Sentence case and NOT uppercase/letter-spaced, unlike the label
+     above: this is prose to read, not a heading to scan, and the two
+     have to look different or the row reads as two competing titles.
+     `text-wrap: pretty` avoids a lonely last word on the third line
+     where it's supported, and degrades to normal wrapping where it
+     isn't. */
+  .setup-row-hint {
+    margin: -2px 0 0;
+    font-size: 0.8rem;
+    line-height: 1.45;
+    color: var(--muted);
+    text-align: center;
+    text-wrap: pretty;
+  }
+
+  .seg-group {
+    display: flex;
+    background: var(--panel);
+    border-radius: 999px;
+    padding: 3px;
+    gap: 2px;
+    box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+    width: 100%;
+  }
+
+  .seg-btn {
+    flex: 1;
+    font: inherit;
+    background: transparent;
+    color: var(--text);
+    border: none;
+    padding: 8px 10px;
+    border-radius: 999px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 44px;
+  }
+
+  .seg-btn.active {
+    background: var(--accent);
+    color: white;
+  }
+
+  /* Interaction-states pass. Unselected segments get a faint NEUTRAL
+     tint on hover (never accent) — an accent-tinted hover on an
+     unselected segment would read as "already picked," fighting the
+     one real signal (.active's own solid accent fill) this toggle has
+     for "which option is selected." The selected segment gets its own
+     darker accent instead, so it doesn't look inert under the mouse
+     compared to its unselected siblings. */
+  @media (hover: hover) and (pointer: fine) {
+    .seg-btn:not(.active):hover { background: rgba(0, 0, 0, 0.05); }
+    .seg-btn.active:hover { background: var(--accent-hover); }
+  }
+
+  .seg-btn:active { transform: scale(0.96); }
+  .seg-btn.active:active { background: var(--accent-active); }
+  .seg-btn:focus-visible { box-shadow: var(--focus-ring); }
+
+  /* Only present in the DOM/toggleable when mode === 'ai'. */
+  #difficulty-row.hidden { display: none; }
+
+  /* #settings-body wraps the 3 .setup-row toggles above inside
+     #settings-overlay's modal-panel (milestone 8-2b moved them out of the
+     always-visible setup screen) — same padding/gap shape as
+     #daily-status-body's own modal-body pattern, reused rather than
+     invented fresh. */
+  /* `overflow-y: auto` + `min-height: 0` for the same reason
+     #achievements-list/#theme-list already have their own scroll: the
+     panel is capped at `max-height: 80vh`, so on a short viewport SOME
+     child has to be the one that scrolls. Settings was the only modal
+     body without it — its three toggle rows fit inside 80vh on every
+     tall viewport, so nothing exposed it until this row gained an
+     explanatory line and a 375px-tall landscape phone clipped the Renju
+     toggle against the panel's bottom edge with no way to reach it (the
+     header stays pinned, which is why the scroll belongs on the body
+     rather than the panel). `min-height: 0` is the flex-item half of the
+     fix — without it this child refuses to shrink below its content
+     height and `overflow-y` never gets anything to do, the same trap
+     #main-content's own comment documents. */
+  #settings-body {
+    padding: 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-height: 0;
+    overflow-y: auto;
+  }
+
+  /* Short viewports (a phone in landscape, ~375px tall) — the hero
+     button's richer content (repositioning pass: meta + status lines,
+     sometimes a countdown too) made the setup screen tall enough to
+     need #main-content's own scroll at this height, which the button-
+     sweep test caught directly (a real measured regression, not a
+     guess). Same move as the existing `@media (max-width: 400px)` rule
+     above (CLAUDE.md/D&B lineage: trim the CHROME around the content,
+     not the content itself) — mirrored on the height axis instead of
+     width. Scrolling would have been a legitimate fallback (#main-
+     content already supports it, same as the game screen below), but
+     the setup screen was always meant to stay light enough not to need
+     it, so closing the gap here first. */
+  @media (max-height: 420px) {
+    #setup-panel { gap: 6px; }
+    /* Matches .daily-entry-btn.btn-primary/.completed's own specificity
+       (2 classes) — a bare `.daily-entry-btn` rule here would lose to
+       those and silently no-op, which is exactly what happened before
+       this pass added those two state classes (caught by re-reasoning
+       through CSS specificity while touching this rule, not by a failed
+       render — worth double-checking any time a rule's own selector
+       gains an extra class elsewhere). */
+    .daily-entry-btn.btn-primary,
+    .daily-entry-btn.completed {
+      padding: 14px 20px;
+      gap: 2px;
+    }
+    #setup-secondary { margin-top: 4px; gap: 6px; }
+  }
+
+  /* --- in-game chrome --------------------------------------------------- */
+
+  /* Milestone 8-2d: wraps #turn-label/#board-wrap/#controls as ONE group
+     so they center together as a block (not each individually) — `flex:
+     1; min-height: 0` makes this the item that fills #main-content's
+     free space, same role #setup-panel plays on the setup screen.
+     Centered via `margin: auto` on the first/last real child (below),
+     NOT `justify-content: center` on this wrapper — that's the specific
+     trap CLAUDE.md's own note on this milestone calls out: a
+     `justify-content: center` flex container clips content at the START
+     edge when it overflows (a small landscape viewport with the board +
+     turn label + controls all present is exactly the case that can
+     overflow #main-content's height) and — because centering already
+     "hid" that overflow behind the container's own bounds — no scroll
+     gesture can ever reach the clipped part either, since the container
+     never registers a scrollable range on that side. `margin: auto`
+     doesn't have this failure mode: auto margins can't go negative, so
+     on overflow they collapse to 0 and the content just flows from the
+     top instead, inside #main-content's own `overflow-y: auto` — fully
+     scrollable, nothing ever unreachable. */
+  #game-content {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+  }
+
+  #game-content[hidden] { display: none; }
+
+  /* margin-top/margin-bottom: auto here (not justify-content: center on
+     #game-content, see that rule's own comment) — targeted at these two
+     specific ids rather than :first-child/:last-child so the centering
+     stays correct even if #turn-label/#board-wrap/#controls' own
+     relative visibility ever stops being all-or-nothing (main.js's
+     updatePhaseVisibility() toggles all three from the same condition
+     today, but this doesn't rely on that staying true). */
+  #turn-label {
+    margin-top: auto;
+    font-size: 0.95rem;
+    color: var(--muted);
+    min-height: 1.2em;
+    transition: color var(--transition-ui);
+  }
+
+  /* Hint-quality pass: the SAME #turn-label element, not a new one (see
+     that rule's own comment on why) — main.js's updateTurnLabel() adds
+     this class exactly while hintCell is set, swapping the plain muted
+     turn indicator for a bolder, accent-colored callout so a line as
+     important as "Block this or lose next turn" doesn't read as just
+     more ambient status text. */
+  #turn-label.hint-active {
+    color: var(--accent);
+    font-weight: 700;
+  }
+
+  #controls { margin-bottom: auto; }
+
+  #turn-label[hidden], #board-wrap[hidden], #controls[hidden] { display: none; }
+
+  /* The board's size is driven by WIDTH alone — `aspect-ratio` makes it
+     square and main.js's resize() reads clientWidth for both canvas
+     dimensions. That holds only while the viewport is taller than it is
+     wide, which is exactly the assumption an embedded frame breaks: a
+     WIDE, SHORT host frame (a bottom bar eating ~90px) means a ~1000x500
+     play area handed the board its full 560px while leaving under 500px
+     of height for board + turn label + controls — the board ran straight
+     off the bottom. Caught in an embed preview, not by any viewport this
+     project had tested: milestone 8-2d's six widths are all portrait,
+     and the one landscape case (667x375) was written off as "scrollable"
+     — which a reviewer looking at a cut-off board will not do.
+     `--board-max` is set by main.js's updateBoardMax() from the height
+     actually left after the label and buttons; min() then takes whichever
+     of the three limits binds first, so the board shrinks to fit a short
+     frame instead of overflowing it. The fallback keeps this rule correct
+     before/without JS (a stylesheet that only works once JS has run is a
+     trap of its own) — 560px, i.e. exactly the old behavior. */
+  #board-wrap {
+    position: relative;
+    width: min(100%, 560px, var(--board-max, 560px));
+    aspect-ratio: 1 / 1;
+  }
+
+  #board {
+    width: 100%;
+    height: 100%;
+    display: block;
+    touch-action: none;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  }
+
+  /* The "a result is open" signal, now that the card no longer sits on
+     the board to say so by itself: the finished position desaturates and
+     dims slightly, the way a disabled control does.
+     Deliberately a FILTER rather than the obvious dark scrim overlay,
+     which was the first attempt and failed a real test — over Neon's
+     near-black board a dark wash at any subtle opacity is invisible, so
+     two of the four themes would have had no signal at all. Desaturation
+     works in both directions: it mutes Wood's warm grain AND Neon's cyan
+     grid, so every theme reads the same "this board is finished" state
+     (checked on all four, not assumed).
+     Not a blur, at any strength: the entire point of moving the card off
+     the board was that the final position stays READABLE, and blurring a
+     560px canvas is also exactly the per-frame GPU work a low-end phone
+     shouldn't be handed. The stones keep their own shape and contrast
+     here; only the color's insistence drops. */
+  #board {
+    transition: filter 0.25s ease;
+  }
+
+  #board-wrap.result-open #board {
+    filter: saturate(0.5) brightness(0.94);
+  }
+
+  /* --- coin flip: board is still empty here, so a near-opaque wash is
+     fine — nothing underneath is worth preserving visibility of yet
+     (contrast with #game-over-banner below, which deliberately is NOT
+     opaque, because the final board IS worth preserving). ------------- */
+
+  #coin-flip-banner {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.92);
+  }
+
+  #coin-flip-banner[hidden] { display: none; }
+
+  /* Milestone 8-2c: dropped the 🪙 coin emoji (and the Daily intro's own
+     📅 swap-in) entirely rather than replacing it with an SVG — every
+     OTHER icon in this app (calendar/trophy/palette/speaker) stands for a
+     persistent feature you can tap; a coin here was the one purely
+     decorative icon in the set, and CLAUDE.md's own "미니멀한 어휘" bar
+     for this project's chrome reads better without it than with a
+     coin-shaped icon that doesn't map to anything. The text alone (below)
+     carries the moment — font-size/weight bumped slightly from before to
+     compensate for the lost visual anchor. */
+  #coin-flip-text {
+    font-size: 1.4rem;
+    font-weight: 700;
+    text-align: center;
+    animation: coin-flip-pop 0.25s ease;
+  }
+
+  @keyframes coin-flip-pop {
+    from { transform: scale(0.7); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+
+  /* --- game over: deliberately transparent on the OUTER banner — only
+     the inner panel gets a background. The finished board (and its win
+     line, drawn by game/render.js as part of normal rendering) is the
+     payoff of a game and must stay visible behind/around the panel. A
+     shared opaque wash here (the mistake Dots and Boxes made) would
+     flatten the final board to gray right when it matters most. -------- */
+
+  /* `padding` so the two off-center placements below (see main.js's
+     gameOverPlacement()) sit inside the board's own edge instead of
+     hugging it — the panel is meant to get out of the win line's way,
+     not to look like it fell off the board. */
+  /* In flow above the board (see the markup note) rather than layered on
+     top of it. `margin-top: auto` takes over #turn-label's job in the
+     centering pair — that label is hidden while a result is open, so
+     without this the whole group would jump to the top of the free space
+     the moment the game ended. */
+  #game-over-banner {
+    margin-top: auto;
+    width: 100%;
+    display: flex;
+    justify-content: center;
+  }
+
+  #game-over-banner[hidden] { display: none; }
+
+  /* Fades in rather than appearing instantly, because it no longer
+     appears at the same moment the game ends: main.js holds it back
+     until the win line has finished sweeping (GAME_OVER_REVEAL_MS), and
+     a panel that pops in hard right as the line lands reads as an
+     interruption of the moment instead of a follow-up to it. Respects
+     prefers-reduced-motion via the global rule further down, same as
+     every other animation here. */
+  /* The board's own max width — deliberately WITHOUT `--board-max`, even
+     though #board-wrap includes it and matching all three would line the
+     two edges up exactly. That version shipped for about ten minutes and
+     fed back on itself: the card's height is subtracted from the board's
+     available height, so a taller card shrinks the board, `--board-max`
+     drops, the card gets NARROWER, its buttons wrap to two lines, and it
+     gets taller again — visibly, on the daily result card (4 content
+     rows) in the portal's short frame. Sizing the card off the viewport
+     alone breaks that loop: on any viewport where the board is limited
+     by WIDTH (desktop, phone portrait — i.e. nearly all of them) this
+     still resolves to exactly the board's width and the edges line up
+     anyway; only in a short frame does the card stay wider than the
+     board it sits above, which is the harmless direction.
+     Shadow softened from the old overlay's 0.3: it no longer has to lift
+     off a board it covers, it just has to sit on the page. */
+  #game-over-panel {
+    pointer-events: auto;
+    width: min(100%, 560px);
+    background: var(--panel);
+    border-radius: 12px;
+    padding: 16px 22px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.16);
+    animation: game-over-panel-in 0.22s ease-out;
+  }
+
+  /* Short viewports pay for this card in board size (updateBoardMax()
+     subtracts its height from the board's), so here it stops being a
+     stacked card and becomes a single results ROW — headline, stats and
+     buttons on one line. Same trim-the-chrome move #setup-panel already
+     makes at this height, but the axis flip is what actually pays: a
+     4-row result card costs the board ~110px stacked and ~55px in
+     a row, and a wide-and-short embed frame
+     has horizontal room to spare precisely when it has no vertical room
+     at all. `flex-wrap` keeps it honest on a narrow-AND-short viewport,
+     where a single row genuinely doesn't fit. */
+  @media (max-height: 560px) {
+    #game-over-panel {
+      /* Wider than the 560px cap above, purely to buy the row a chance
+         to stay ONE row: the daily result's headline + stats + two
+         buttons run ~690px, so at 560 they wrapped onto a second line
+         and gave back half of what the row layout just saved. Only ever
+         applies where vertical space is the scarce one. */
+      width: min(100%, 720px);
+      flex-direction: row;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      padding: 10px 16px;
+      gap: 6px 16px;
+    }
+
+    #game-over-text { font-size: 1.05rem; }
+
+    /* The negative top margins that tuck these under the headline in the
+       stacked layout are meaningless side by side. */
+    #game-over-streak,
+    #game-over-daily-streak,
+    #game-over-daily-stats {
+      margin-top: 0;
+    }
+  }
+
+  @keyframes game-over-panel-in {
+    from { opacity: 0; transform: translateY(6px); }
+    to { opacity: 1; transform: none; }
+  }
+
+  #game-over-text {
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+
+  /* vs-AI only (CLAUDE.md milestone 7-1) — pulled up toward the headline
+     text rather than using the panel's full 14px gap, since it reads as
+     a subtitle of the win/loss line, not a separate paragraph. */
+  #game-over-streak {
+    margin-top: -8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  #game-over-streak[hidden] { display: none; }
+
+  /* A broken streak just uses the normal text color/weight above; a
+     freshly-set record gets called out with the same accent used
+     everywhere else "this is the notable thing" (active player card,
+     primary buttons) already means in this UI. */
+  #game-over-streak.new-best {
+    color: var(--accent);
+    font-size: 1.05rem;
+  }
+
+  /* Daily Challenge only — same visual treatment as #game-over-streak
+     above (they're never both shown at once: recordStreakOnce() never
+     runs during a daily game, and recordDailyResultOnce() only runs
+     during one — see main.js). */
+  #game-over-daily-streak {
+    margin-top: -8px;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  #game-over-daily-streak[hidden] { display: none; }
+
+  #game-over-daily-streak.new-best {
+    color: var(--accent);
+    font-size: 1.05rem;
+  }
+
+  /* Retention pass: "오늘의 기록(수, 시간)" — daily only, sits above the
+     streak line (a plain fact about THIS game, not a running total like
+     the streak below it). Muted/small deliberately — it's context, not
+     the headline the win/loss text already is. */
+  #game-over-daily-stats {
+    margin-top: -8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-weight: 500;
+  }
+
+  #game-over-daily-stats[hidden] { display: none; }
+
+  #game-over-actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  #controls {
+    display: flex;
+    gap: 10px;
+  }
+
+  /* Mobile WebKit/Blink paint a translucent grey flash over anything
+     tappable on touch-down; the buttons already have their own :active
+     state and the board has its own ghost-stone preview, so the flash
+     is pure visual noise on top of both (and on #board it can cover the
+     whole canvas for a frame). */
+  button, .theme-row, #board {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button {
+    font: inherit;
+    border: none;
+    background: var(--panel);
+    color: var(--text);
+    padding: 10px 18px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: 0.85rem;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+    /* 44px is the accepted minimum touch target (Apple HIG / WCAG 2.5.5) —
+       the buttons can afford it even though the board's own intersections
+       can't (CLAUDE.md milestone 2's measured cellSize numbers). */
+    min-height: 44px;
+    /* Interaction-states pass: every button in the app inherits this —
+       the ONLY 5 properties any hover/active/focus-visible/disabled
+       rule anywhere in this file ever changes. Listed as 5 separate
+       `<property> var(--transition-ui)` entries (not the bare `all`
+       keyword) so nothing else (width, padding, layout-affecting
+       properties) ever animates by accident. */
+    transition:
+      background-color var(--transition-ui),
+      box-shadow var(--transition-ui),
+      transform var(--transition-ui),
+      border-color var(--transition-ui),
+      color var(--transition-ui);
+  }
+
+  button:active { transform: translateY(1px); }
+  button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Generic fallback ring for every button that doesn't define its own
+     richer :focus-visible below (icon pills, modal close buttons,
+     Hint/Undo, the game-over panel's plain New Game twin, segmented
+     toggles) — .btn-primary/.btn-secondary override this with their
+     own version that also preserves their resting decorative shadow
+     (see those rules' own comments). :focus (not :focus-visible) is
+     never styled anywhere in this file, per this pass's own guard — a
+     mouse click that happens to also land tab-order focus on a button
+     it just visibly pressed doesn't need a SEPARATE ring on top of
+     that; :focus-visible already restricts this to exactly the cases
+     (Tab, and other keyboard/programmatic focus) where a visible
+     landmark is the only way to know where you are. */
+  /* outline: none is required here, not optional — without it Chromium's
+     own default focus-visible outline (a blue ring, unrelated to any
+     color this app defines) renders IN ADDITION TO the box-shadow ring
+     above, not instead of it (confirmed by actually looking at a
+     screenshot — the earlier CTA-hierarchy pass's own outline-based
+     rules never hit this because setting ANY outline value at all
+     already replaces the UA default; this box-shadow-only approach
+     needs the explicit opt-out). The box-shadow ring is the only ring
+     this app draws now. */
+  button:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+
+  /* Interaction-states pass — the "white pill" tier: Hint/Undo (in-game
+     controls) and the game-over panel's own non-accent New Game twin
+     (a DIFFERENT id, #game-over-new-game-btn, from in-game's
+     #new-game-btn — see the accent-tier rule near the end of this file
+     for why that one's excluded here). All three rely entirely on the
+     base `button` rule above for their resting look (no dedicated CSS
+     rule of their own exists), so their states live here, next to that
+     base rule, rather than invented a separate anchor for 3 ids with no
+     shared class. */
+  @media (hover: hover) and (pointer: fine) {
+    #hint-btn:hover,
+    #undo-btn:hover,
+    #game-over-new-game-btn:hover {
+      background: #f5efe6;
+      transform: translateY(-1px);
+    }
+  }
+  /* :active/:disabled/:focus-visible for this tier are exactly the
+     generic button rules just above (translateY(1px) press, 0.4-opacity
+     disabled, the shared ring) — nothing more specific needed. */
+
+  @media (prefers-reduced-motion: reduce) {
+    /* Removes `transform` from the animated property list — hover/
+       active/focus-visible STATE CHANGES still apply instantly (a
+       lifted button still lifts, a pressed one still presses), only
+       the MOTION of getting there is what this guard removes.
+       background-color/box-shadow/border-color/color keep fading
+       smoothly; those are color/shadow crossfades, not the kind of
+       movement prefers-reduced-motion exists to suppress. */
+    button, .theme-row {
+      transition-property: background-color, box-shadow, border-color, color;
+    }
+
+    /* The result panel still appears (it carries the score and the only
+       way forward) — only its slide-and-fade entrance is dropped, same
+       principle as the transform removal above. */
+    #game-over-panel {
+      animation: none;
+    }
+  }
+
+  /* #start-game-btn dropped from this list (repositioning pass) — it's a
+     .link-btn now, demoted alongside "Play with a friend"/"Settings".
+     #daily-keep-playing-btn joins it instead: the daily result screen's
+     own accent CTA, same role #rematch-btn plays for every other game
+     mode (the two are mutually exclusive — updateGameOverBanner() in
+     main.js hides exactly one of them per game, never both). */
+  #new-game-btn,
+  #rematch-btn,
+  #daily-keep-playing-btn {
+    background: var(--accent);
+    color: white;
+  }
+
+  /* Interaction-states pass — the "accent" tier: "New Game=primary
+     계열" (this pass's own spec) means the SAME lift+darken+grow-shadow
+     shape .btn-primary uses above, not a copy of its exact box-shadow
+     values — these three buttons' own resting shadow is still just the
+     base `button` rule's subtle `0 1px 4px rgba(0,0,0,0.12)` (never
+     changed to .btn-primary's stronger one; this pass only ADDS states,
+     it doesn't restyle an already-shipped resting look nobody asked
+     for), so their hover/active shadows are scaled to match that
+     subtler starting point instead of inflating it to .btn-primary's
+     own scale. */
+  @media (hover: hover) and (pointer: fine) {
+    #new-game-btn:hover,
+    #rematch-btn:hover,
+    #daily-keep-playing-btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+    }
+  }
+
+  #new-game-btn:active,
+  #rematch-btn:active,
+  #daily-keep-playing-btn:active {
+    background: var(--accent-active);
+    transform: translateY(1px);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+  }
+  /* :focus-visible/:disabled: the generic button rules above (the
+     shared ring, and the generic 0.4-opacity dim — none of these three
+     is ever actually set .disabled today, see main.js's own audit in
+     this pass's report, so no bespoke disabled colors were invented for
+     a state that can't currently happen). */
