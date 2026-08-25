@@ -277,6 +277,39 @@ function toast(text) {
   setTimeout(() => el.remove(), TOAST_MS);
 }
 
+// --- analytics ------------------------------------------------------------
+//
+// Same shape as the Mahjong page's own trackEvent (game.js): check that
+// gtag actually exists before calling, and swallow anything that throws.
+// An ad blocker, a privacy extension, or a failed googletagmanager load
+// all leave window.gtag undefined — none of which may affect the game.
+//
+// `game_name` is stamped here rather than at each call site, exactly as
+// the Mahjong side does it. Without it, GA merges both games'
+// game_start/game_win into one number and neither game's completion rate
+// means anything.
+function trackEvent(name, params) {
+  try {
+    if (typeof window.gtag === "function") {
+      window.gtag("event", name, { game_name: "five_in_a_row", ...params });
+    }
+  } catch {
+    // Measurement failures are never allowed to reach the player.
+  }
+}
+
+/** The settings that describe a round, shared by game_start and game_win
+ * so the two are directly comparable in a report. */
+function roundParams() {
+  return {
+    board_size: boardSize,
+    // The internal difficulty ids, not the UI wording — "easy" stays
+    // stable in reports even if the visible label changes again.
+    pace: difficulty,
+    mode: mode,
+  };
+}
+
 // --- layout / rendering ---------------------------------------------------
 
 function resize() {
@@ -492,6 +525,11 @@ function startGame() {
       refreshBoardDerivedState();
       render();
       persistGame();
+      // Fired when play actually begins, not when startGame() is called —
+      // a round abandoned during the opening note was never really started.
+      // A restored game does not fire this either (restoreGame() has its
+      // own path), so game_start counts rounds begun, not page loads.
+      trackEvent("game_start", roundParams());
       maybeStartAiTurn();
     },
     reduceMotion ? 0 : OPENING_NOTE_MS,
@@ -616,6 +654,17 @@ function commitMove(row, col, player) {
     playGameOverSound();
     recordStreakOnce();
     evaluateAndUnlockAchievements();
+    // Only a win by the person playing — a loss or a draw is not a
+    // game_win, and in two-player mode there is no "you" to credit, so
+    // that mode reports the outcome without claiming a winner.
+    if (mode === "ai" && gameState.winner === humanPlayer) {
+      trackEvent("game_win", {
+        ...roundParams(),
+        moves: gameState.moves.length,
+        undo_used: undoUsedThisGame,
+        hint_used: hintUsedThisGame,
+      });
+    }
   } else {
     persistGame();
   }

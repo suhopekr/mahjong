@@ -952,7 +952,12 @@
   function trackEvent(name, params) {
     try {
       if (typeof window.gtag === 'function') {
-        window.gtag('event', name, params || {});
+        // game_name은 호출부 7곳에 각각 넣지 않고 여기서 한 번에 붙인다 —
+        // 누락 위험이 없고, 앞으로 추가되는 이벤트도 자동으로 라벨링된다.
+        // 사이트에 게임이 둘 이상이므로 이 라벨이 없으면 GA에서 두 게임의
+        // game_start/game_win이 한 덩어리로 합쳐져 전환율을 못 본다.
+        // params가 game_name을 직접 넘기면 그쪽이 이긴다(Object.assign 순서).
+        window.gtag('event', name, Object.assign({ game_name: 'mahjong' }, params || {}));
       }
     } catch (e) {
       // 계측 실패는 조용히 무시 — 게임에는 어떤 영향도 주지 않는다.

@@ -3,8 +3,22 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Five in a Row — Free Online Game</title>
-<meta name="description" content="Place your stones and get five in a row. Free, no download, no sign-up, no time limit. Large board, big buttons, undo any time." />
+<title>Five in a Row — Free Online Game, Big Board, No Download</title>
+<meta name="description" content="Play Five in a Row free online — no download, no sign-up, no time limit. An easy five in a row game with a large, high-contrast board, big buttons, and unlimited undo.">
+<link rel="canonical" href="https://easymahjongsolitaire.com/five-in-a-row/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Five in a Row — Free Online Game, Big Board, No Download">
+<meta property="og:description" content="Play Five in a Row free online — no download, no sign-up, no time limit. A large, high-contrast board with big buttons and unlimited undo.">
+<meta property="og:image" content="https://easymahjongsolitaire.com/five-in-a-row/og-image.png">
+<meta property="og:url" content="https://easymahjongsolitaire.com/five-in-a-row/">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- Favicon: inline SVG data URI, same approach as the rest of the site
+     (no image file). A board fragment with one dark and one light stone,
+     in this game's own board colour. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23146b4c'/%3E%3Crect x='16' y='16' width='68' height='68' rx='10' fill='%23ded2b8'/%3E%3Cg stroke='%232f2a20' stroke-width='3'%3E%3Cline x1='16' y1='50' x2='84' y2='50'/%3E%3Cline x1='50' y1='16' x2='50' y2='84'/%3E%3C/g%3E%3Ccircle cx='50' cy='50' r='13' fill='%231a1a1a'/%3E%3Ccircle cx='50' cy='16' r='11' fill='%23f2f2ee' stroke='%232f2a20' stroke-width='3'/%3E%3C/svg%3E">
 <!--
   Two stylesheets, in this order and only this order:
 
@@ -30,6 +44,90 @@
 -->
 <link rel="stylesheet" href="/style.css" />
 <link rel="stylesheet" href="./style.css" />
+
+<!-- Vercel Web Analytics — served from the deployed domain itself, same
+     as every other page on this site. -->
+<script defer src="/_vercel/insights/script.js"></script>
+
+<!-- Google Analytics 4 — the SAME measurement ID and the SAME /ga-init.js
+     the rest of the site uses, so there is one place to change the ID and
+     one privacy configuration (anonymize_ip on, google_signals off). The
+     events this page sends carry game_name: "five_in_a_row" so they never
+     merge with the Mahjong page's own game_start/game_win. If either
+     script is blocked, src/main.js's trackEvent checks window.gtag before
+     calling and the game is unaffected. -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPBFW58QG6"></script>
+<script src="/ga-init.js"></script>
+
+<!-- JSON-LD: WebApplication, matching the Mahjong page's own block. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Five in a Row",
+  "alternateName": "Free Five in a Row",
+  "url": "https://easymahjongsolitaire.com/five-in-a-row/",
+  "description": "Free online Five in a Row with a large high-contrast board, unlimited undo, hints, and no time limit. No download or account required.",
+  "applicationCategory": "GameApplication",
+  "genre": "Board Game",
+  "operatingSystem": "Any (web browser)",
+  "browserRequirements": "Requires JavaScript",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is Five in a Row free to play?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. This five in a row game is completely free to play, with no purchases, subscriptions, or hidden fees." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need to download anything?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No download is required. It runs directly in your web browser on desktop, tablet, or phone — just open the page and play. There is no app to install and no account to create, which makes it one of the simpler free online games for seniors, no download needed." }
+    },
+    {
+      "@type": "Question",
+      "name": "How do you win at five in a row?",
+      "acceptedAnswer": { "@type": "Answer", "text": "You win by getting five of your stones in an unbroken line — across, down, or diagonally. You and the computer take turns placing one stone at a time, and whoever lines up five first wins the round." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a time limit?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. There is no time limit, no countdown, and no clock anywhere on the screen. Take as long as you like over each move." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I undo a move?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes, undo is unlimited. One press takes back your last move and the computer's reply together, and you can keep pressing it all the way back to an empty board." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is it easy enough for a complete beginner?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The computer starts on its most relaxed setting, which plays gently and makes mistakes so rounds stay close. The board also marks any spot where the other side could get five on their next turn, so you are never caught out by a move you did not see coming." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I make the board easier to see?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The board is already a large board game for seniors by default — the smallest board, the biggest squares, high-contrast lines and stones with heavy outlines. In Settings you can switch between three board colours, and turn on a step that asks you to confirm each move before it is final." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it save my game?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Your board and move history are saved automatically in your browser, so you can close the tab and pick up right where you left off." }
+    }
+  ]
+}
+</script>
 </head>
 <body class="ads-off">
 
@@ -112,7 +210,107 @@
   <div class="ad-slot ad-slot--320x100 ad-slot-mobile-only" aria-hidden="true">Advertisement</div>
   <div class="ad-slot ad-slot--728x90 ad-slot-desktop-only" aria-hidden="true">Advertisement</div>
 
-</main>
+<!-- Same structure as the Mahjong page's own .content section: an intro
+     h2, a How to Play h2 with a short list, then an FAQ of .faq-item
+     blocks whose h3/p pairs match the FAQPage JSON-LD in <head> one for
+     one. The .content class comes from the site stylesheet.
+
+     Keyword note: the page targets "Five in a Row". "Gomoku" is the same
+     game and is worth exactly one mention for anyone searching it, but it
+     is not the primary term — almost nobody in this game's audience calls
+     it that, and leading with it would make the page look like it is
+     about something they do not recognise. -->
+<section class="content">
+  <h2>Play Five in a Row Free Online</h2>
+  <p>
+    This is an easy five in a row game that runs straight in your browser — no download, no
+    installer, and no account required. You place stones on a board and try to line up five of
+    them before the other side does. The rules take about ten seconds to learn, which is why the
+    game has stayed popular for well over a century. It is also known as gomoku, or five-in-a-row.
+  </p>
+  <p>
+    Everything here is built to be easy to see and easy to tap. It is deliberately a large board
+    game for seniors: the default board is the smallest one, so every square is big, and the lines
+    and stones are high-contrast with heavy outlines rather than thin grey strokes. Buttons are
+    oversized, every one of them has a word on it rather than just an icon, and Undo, Hint, New
+    game and Settings all stay on screen instead of hiding behind a menu.
+  </p>
+  <p>
+    There is no time limit, no countdown, and no score to protect. Undo is unlimited, hints are
+    unlimited, and nothing is locked behind a level or an achievement. If you are looking for free
+    online games for seniors, no download and no sign-up, this one asks nothing of you but a tap
+    to begin — and it remembers your board if you close the tab.
+  </p>
+
+  <h2>How to Play Five in a Row</h2>
+  <p>
+    The goal is to get five of your stones in an unbroken row — across, down, or diagonally. You
+    and the computer take turns placing one stone at a time on any empty spot. Whoever lines up
+    five first wins the round.
+  </p>
+  <ul>
+    <li><strong>Take your turn:</strong> tap an empty spot on the board. On a touch screen your
+      first tap puts down a see-through stone, and tapping the same spot again — or pressing
+      Place stone — makes it final. That way a mis-tap costs you nothing.</li>
+    <li><strong>Watch for the warning:</strong> if the other side could get five on their very
+      next turn, those spots are ringed on the board and the line above it says so in words.
+      Blocking one of them is usually your best move.</li>
+    <li><strong>Undo</strong> as many times as you like, with no limit. One press takes back your
+      move and the computer's reply together.</li>
+    <li><strong>Hint</strong> suggests a spot and tells you why it is a good one, as often as you
+      want to ask.</li>
+    <li><strong>Settings</strong> lets you change the board size, pick from three board colours,
+      slow the computer down or speed it up, and play against another person instead.</li>
+  </ul>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq-item">
+    <h3>Is Five in a Row free to play?</h3>
+    <p>Yes. This five in a row game is completely free to play, with no purchases, subscriptions,
+      or hidden fees.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Do I need to download anything?</h3>
+    <p>No download is required. It runs directly in your web browser on desktop, tablet, or
+      phone — just open the page and play. There is no app to install and no account to create,
+      which makes it one of the simpler free online games for seniors, no download needed.</p>
+  </div>
+  <div class="faq-item">
+    <h3>How do you win at five in a row?</h3>
+    <p>You win by getting five of your stones in an unbroken line — across, down, or diagonally.
+      You and the computer take turns placing one stone at a time, and whoever lines up five
+      first wins the round.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Is there a time limit?</h3>
+    <p>No. There is no time limit, no countdown, and no clock anywhere on the screen. Take as
+      long as you like over each move.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Can I undo a move?</h3>
+    <p>Yes, undo is unlimited. One press takes back your last move and the computer's reply
+      together, and you can keep pressing it all the way back to an empty board.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Is it easy enough for a complete beginner?</h3>
+    <p>Yes. The computer starts on its most relaxed setting, which plays gently and makes
+      mistakes so rounds stay close. The board also marks any spot where the other side could get
+      five on their next turn, so you are never caught out by a move you did not see coming.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Can I make the board easier to see?</h3>
+    <p>The board is already a large board game for seniors by default — the smallest board, the
+      biggest squares, high-contrast lines and stones with heavy outlines. In Settings you can
+      switch between three board colours, and turn on a step that asks you to confirm each move
+      before it is final.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Does it save my game?</h3>
+    <p>Yes. Your board and move history are saved automatically in your browser, so you can close
+      the tab and pick up right where you left off.</p>
+  </div>
+</section>
 
 <footer class="site-footer">
   <p>Five in a Row — a free, no-download board game. Nothing to install, no account needed.</p>
