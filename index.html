@@ -156,6 +156,35 @@
     </aside>
   </div>
 
+  <!-- Cross-game entry point. Sits below the board and its controls, never
+       above them: the space above the game is the most expensive on the
+       page, and someone who arrived from an ad should reach the board
+       without passing anything that invites them elsewhere first.
+
+       Deliberately NOT a top nav bar. Two games do not justify one, and a
+       nav bar would put that invitation above the board on every page.
+       The Five in a Row page keeps its own header link back here — the
+       asymmetry is intentional, since traffic arrives at Mahjong.
+
+       The whole card is one <a>. A small "play" button inside a card is a
+       small target inside a large thing that already looks pressable,
+       which is exactly the mismatch that makes people miss. -->
+  <section class="game-cards" aria-labelledby="more-games-title">
+    <h2 id="more-games-title">More Free Games</h2>
+    <ul class="game-card-grid">
+      <li>
+        <a class="game-card" href="/five-in-a-row/" id="link-crossgame-card">
+          <img class="game-card-thumb" src="/five-in-a-row-thumb.png" width="720" height="720"
+               alt="Five in a Row board with black and white stones" decoding="async">
+          <span class="game-card-body">
+            <span class="game-card-title">Five in a Row</span>
+            <span class="game-card-desc">Line up five stones on a big, easy-to-see board.</span>
+          </span>
+        </a>
+      </li>
+    </ul>
+  </section>
+
   <!-- AD SLOT: adsense (desktop footer 728x90) -->
   <div class="ad-slot ad-slot--728x90 ad-slot-desktop-only" aria-hidden="true">Advertisement</div>
 
@@ -253,13 +282,24 @@
 </main>
 
 <footer class="site-footer">
-  <p>Free Mahjong Solitaire — a lightweight, no-download tile matching game. No account needed.</p>
-  <nav class="footer-nav" aria-label="Site pages">
-    <a href="/daily.html">Daily Challenge</a>
-    <a href="/five-in-a-row/">More Free Games</a>
-    <a href="/about.html">About</a>
-    <a href="/privacy.html">Privacy Policy</a>
-    <a href="/contact.html">Contact</a>
+  <p>Free, easy online games — no download, no sign-up, no time limit.</p>
+    <nav class="footer-nav" aria-label="Site pages">
+    <div class="footer-nav-group">
+      <span class="footer-nav-label" id="footer-games-label">Games</span>
+      <div class="footer-nav-links" aria-labelledby="footer-games-label">
+        <a href="/" aria-current="page">Mahjong Solitaire</a>
+        <a href="/daily.html">Daily Challenge</a>
+        <a href="/five-in-a-row/" id="link-crossgame-footer">Five in a Row</a>
+      </div>
+    </div>
+    <div class="footer-nav-group">
+      <span class="footer-nav-label" id="footer-site-label">Site</span>
+      <div class="footer-nav-links" aria-labelledby="footer-site-label">
+        <a href="/about.html">About</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
   </nav>
 </footer>
 

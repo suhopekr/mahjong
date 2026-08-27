@@ -536,6 +536,100 @@ body.is-fullscreen .board-viewport {
   .ad-slot-desktop-only { display: flex; }
 }
 
+/* ---- "More Free Games" 카드 섹션 -----------------------------------------
+ * 보드와 컨트롤 "아래"에만 둔다. 상단 네비바는 만들지 않는다 — 게임 2개에
+ * 네비바는 과하고, 무엇보다 광고로 들어온 사용자가 보드에 닿기 전에 다른
+ * 곳으로 나갈 구실을 만들면 안 된다.
+ *
+ * 카드 전체가 <a>다. 큰 카드 안에 작은 "play" 버튼을 넣는 구성은 누를 수
+ * 있어 보이는 큰 덩어리와 실제 타겟이 어긋나는 형태라, 이 사용자층이 가장
+ * 자주 헛누르는 패턴이다. 최소 높이 88px.
+ *
+ * 광고로 오인되지 않게: 섹션 제목이 있고, 테두리가 --felt-dark(배경 대비
+ * 9.19:1)로 .btn과 같은 "누를 수 있는 것" 색이며, 아래 광고 슬롯과는 40px
+ * 여백으로 떨어뜨린다. 모바일에서는 728x90 슬롯이 display:none이라 애초에
+ * 인접하지 않는다.
+ * ------------------------------------------------------------------------- */
+.game-cards {
+  margin: 8px auto 40px;
+  padding: 0 16px;
+  max-width: 900px;
+}
+
+.game-cards h2 {
+  font-size: 20px;
+  margin: 0 0 12px;
+}
+
+/* 지금은 카드 1개지만 2~3개로 늘어나면 자동으로 여러 열이 된다 — 카드가
+ * 추가될 때 CSS를 다시 손대지 않아도 되도록. */
+.game-card-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.game-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 88px;
+  padding: 12px;
+  border: 2px solid var(--felt-dark);
+  border-radius: var(--radius-lg);
+  background: var(--tile-face);
+  text-decoration: none;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.game-card:hover {
+  background: var(--btn-bg-hover);
+  box-shadow: var(--shadow-sm);
+}
+
+.game-card:active {
+  background: var(--paper-dim);
+}
+
+.game-card:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* width/height를 CSS에서 명시적으로 고정한다 — <img>의 width/height 속성과
+ * 함께 두면 이미지가 도착하기 전에도 자리가 확정되어 CLS가 0이 된다. */
+.game-card-thumb {
+  width: 88px;
+  height: 88px;
+  flex: 0 0 88px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--tile-edge);
+  background: var(--paper-dim);
+}
+
+.game-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.game-card-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.game-card-desc {
+  font-size: 16px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: var(--felt-dark);
+}
+
 /* ---- 다른 게임으로 보내는 크로스 링크 -------------------------------------
  * 위치는 두 곳뿐이다: 승리 모달의 버튼 "아래", 그리고 본문 맨 끝. 헤더나
  * 보드 근처에는 절대 두지 않는다 — 이 사이트의 주 사용자는 게임을 바로
@@ -951,13 +1045,60 @@ body.ads-off .sidebar {
   font-size: 15px;
 }
 .footer-nav a {
+  /* 44px 최소 타겟. 예전 padding: 6px 2px는 실측 약 34px로, 손이 정확하지
+   * 않은 사용자에게는 링크 사이를 헛누르기 쉬운 크기였다. inline-flex +
+   * min-height로 글자 높이와 무관하게 44px를 보장한다. */
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 4px 6px;
   color: #5c665e;
   text-decoration: underline;
-  padding: 6px 2px; /* 터치 타겟 여유 */
 }
 .footer-nav a:hover,
 .footer-nav a:focus-visible {
   color: var(--ink);
+}
+
+/* ---- 푸터 2그룹 구조 -------------------------------------------------------
+ * 게임이 둘이 되면서 링크를 평면 나열로 두면 사이트가 무엇을 제공하는지
+ * 읽히지 않는다. Games / Site 두 묶음으로 나눠 "게임이 여러 개인 사이트"로
+ * 읽히게 한다. 홈페이지의 <title>/<h1>/meta description은 EMD 키워드를
+ * 담당하므로 건드리지 않는다 — 푸터는 SEO 가중치가 낮아 넓혀도 손해가 없다.
+ * ------------------------------------------------------------------------- */
+.footer-nav-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.footer-nav-label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--felt-dark);
+}
+
+.footer-nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px 18px;
+}
+
+/* 현재 보고 있는 페이지는 밑줄을 빼고 굵게 — 색에만 기대지 않는다. */
+.footer-nav a[aria-current="page"] {
+  color: var(--ink);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+@media (max-width: 520px) {
+  .footer-nav {
+    gap: 14px 20px;
+  }
 }
 
 /* 보조 페이지(About/Privacy/Contact) 헤더의 "게임으로 돌아가기" 링크 */

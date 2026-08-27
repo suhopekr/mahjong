@@ -1099,6 +1099,26 @@ toggleRenju.addEventListener("change", () => {
   render();
 });
 
+// --- cross-game links -----------------------------------------------------
+//
+// Mirrors the Mahjong page's own wiring. Reported with from/to reversed so
+// the two directions are distinguishable in one report, and with the same
+// `placement` vocabulary. game_name is added by trackEvent itself.
+//
+// Navigation is never delayed to wait on delivery — GA4 sends via
+// sendBeacon, and making someone wait on measurement is the wrong trade.
+for (const [id, placement] of [
+  ["fir-link-crossgame-win", "win_modal"],
+  ["fir-link-crossgame-footer", "footer"],
+]) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.addEventListener("click", () => {
+      trackEvent("cross_game_click", { from: "five_in_a_row", to: "mahjong", placement });
+    });
+  }
+}
+
 // --- boot -----------------------------------------------------------------
 
 new ResizeObserver(resize).observe(boardWrap);

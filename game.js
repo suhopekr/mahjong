@@ -929,7 +929,14 @@
       elapsedMsBase: currentElapsedMs(),
       savedAt: Date.now(),
       hintUsed: hintUsedThisGame,
-      paused: isPaused, // 요구사항 4: 일시정지 상태로 닫았다 오면 그대로 복원
+      // `paused` is kept so an older build reading this same key still
+      // behaves. It is no longer what the restore paths consult — see
+      // shouldRestorePaused().
+      paused: isPaused,
+      // The field that actually matters on restore: was this pause the
+      // player's own doing? An automatic pause never sets it, so a save
+      // written while the tab was hidden cannot come back as a modal.
+      pausedByUser: pausedByUser,
     };
     if (dailyMode) payload.dateStr = state.dailyDateStr;
     saveJSON(key, payload);
@@ -977,7 +984,9 @@
    * 유실되더라도 링크는 즉시 동작해야 한다. */
   function wireCrossGameLinks() {
     var links = [
+      { id: 'link-crossgame-card', placement: 'card_section' },
       { id: 'link-crossgame-win', placement: 'win_modal' },
+      { id: 'link-crossgame-footer', placement: 'footer' },
       { id: 'link-crossgame-content', placement: 'content' }
     ];
     links.forEach(function (entry) {
@@ -1660,7 +1669,22 @@
   // 아래 modalPause가 다른 모달들과 똑같이 .modal-overlay라서
   // crazygames-integration.js의 기존 MutationObserver가 별도 코드 없이도
   // gameplayStop/Start를 걸어준다.
+  // Three separate flags, because the root cause of the back-button bug was
+  // ONE boolean carrying two meanings. Each of these answers exactly one
+  // question:
+  //   isPaused      - is the Paused MODAL up?
+  //   pausedByUser  - did the PLAYER ask for it? (provenance of isPaused)
+  //   autoPaused    - is the clock suspended because the page isn't visible?
+  //
+  // The important consequence: an automatic pause NEVER sets isPaused and
+  // never opens the modal. Hiding the tab stops the clock and nothing else.
+  // The modal exists to tell someone "you paused this"; showing it to
+  // someone who only switched tabs — or who pressed Back — tells them
+  // something that isn't true, and on the way back from another page it
+  // hid the board they were expecting.
   var isPaused = false;
+  var pausedByUser = false;
+  var autoPaused = false;
 
   // 이 페이지가 daily.html(데일리 챌린지)로 열렸는지 — initApp에서
   // document.body.dataset.daily를 읽어 딱 한 번 정해진다. 이 값에 따라
@@ -1872,24 +1896,91 @@
     if (focusResume && btnPauseResumeEl) btnPauseResumeEl.focus();
   }
 
-  function pauseGame() {
+  /**
+   * @param {{byUser?: boolean}} [opts] - byUser:true means the player
+   *   pressed Pause. Anything else is the system reacting to the page
+   *   being hidden, which only stops the clock.
+   *
+   * The default is deliberately the SYSTEM path. A future call site that
+   * forgets to pass an intent will quietly stop the clock rather than
+   * throwing a modal in someone's face — the failure mode that caused
+   * this bug, and its predecessor, should not be the one you get for
+   * free.
+   */
+  function pauseGame(opts) {
+    if (!(opts && opts.byUser)) { autoPauseTimer(); return; }
     if (!canPause()) return;
+    pausedByUser = true;
     enterPausedState(true);
     announce('Game paused.');
     saveGameProgress();
   }
 
+  /**
+   * Stops the clock while the page isn't visible. No modal, no isPaused.
+   *
+   * Bails if something else already stopped the clock (the "no matching
+   * pairs" wait, or a user pause) — otherwise autoResumeTimer() would
+   * later restart a timer it never stopped, which is how a "harmless"
+   * resume turns into a wrong elapsed time.
+   */
+  function autoPauseTimer() {
+    if (!state || autoPaused) return;
+    if (state.timerPaused) return;
+    autoPaused = true;
+    pauseElapsedTimer();
+    saveGameProgress();
+  }
+
+  /** Undoes autoPauseTimer(). A user pause outranks it and keeps the
+   *  clock stopped. */
+  function autoResumeTimer() {
+    if (!autoPaused) return;
+    autoPaused = false;
+    if (isPaused) return;
+    resumeElapsedTimer();
+  }
+
   function resumeGame() {
     if (!isPaused) return;
     isPaused = false;
+    pausedByUser = false;
     closeModal(modalPause);
     resumeElapsedTimer();
     announce('Game resumed.');
     saveGameProgress();
   }
 
+  /**
+   * The ONE place that decides whether a restored save comes back paused.
+   *
+   * Both restore paths call this. They used to decide separately, which is
+   * exactly why the previous round of this bug got fixed in
+   * resumeSavedGame() and left in bootstrapDailyMode() — two copies of a
+   * judgement drift the moment one of them is touched.
+   *
+   * @param {object} saved
+   * @param {boolean} userAskedToContinue - true on the "Welcome back"
+   *   path, where the player has just pressed Continue. That press is an
+   *   explicit "resume", so it outranks whatever the save says; re-opening
+   *   the Paused modal there would ignore the button they just pressed.
+   *   The daily page restores silently with no press at all, so it passes
+   *   false and honours the save.
+   */
+  function shouldRestorePaused(saved, userAskedToContinue) {
+    if (userAskedToContinue) return false;
+    // `pausedByUser` specifically, never the older `paused` field: that one
+    // was true for automatic pauses too, so honouring it would reopen the
+    // modal for someone who only ever switched tabs. Saves written before
+    // this field existed have no way to tell the two apart, and are
+    // therefore treated as automatic — no modal. No migration needed.
+    return !!(saved && saved.pausedByUser);
+  }
+
+  /** Both Pause buttons (desktop toolbar, mobile menu) route through
+   *  here, and both are the player acting deliberately. */
   function togglePauseGame() {
-    if (isPaused) resumeGame(); else pauseGame();
+    if (isPaused) resumeGame(); else pauseGame({ byUser: true });
   }
 
   // ---- 상태 표시 갱신 -------------------------------------------------------
@@ -2082,6 +2173,8 @@
     clearPendingStuckTimeout();
     modalStuckMode = null;
     isPaused = false;
+    pausedByUser = false;
+    autoPaused = false;
     closeModal(modalPause);
     consecutiveAutoShuffles = 0;
     hintUsedThisGame = false;
@@ -2162,19 +2255,29 @@
     hintSlots.clear();
     fullRender();
     updateStatusStrip();
-    // 이 함수는 오직 "Welcome back" 모달의 Continue 버튼 클릭에서만
-    // 호출된다(코드 전체에서 호출부가 이 한 곳뿐) — 즉 호출된다는 것
-    // 자체가 이미 사용자가 명시적으로 재개 의사를 밝혔다는 뜻이다.
-    // saved.paused(탭 숨김 등으로 자동 일시정지됐던 시점의 스냅샷)를
-    // 여기서 다시 반영해 Paused 화면을 재오픈하면, 방금 사용자가 누른
-    // "Continue"를 무시하고 한 번 더 일시정지를 강제하는 이중 게이팅이
-    // 된다(버그로 리포트됨) — 그래서 saved.paused 값과 무관하게 항상
-    // 진행 상태로 복원한다. 자동으로(사용자 클릭 없이) 조용히 복원하는
-    // bootstrapDailyMode()는 이 함수를 안 쓰는 별개 경로라 그쪽의 같은
-    // 분기는 그대로 둔다 — 거기는 명시적 클릭이 없으므로 저장된
-    // paused를 존중하는 게 맞다.
-    startTimerLoop();
-    announce('Game resumed.');
+    // 이 함수는 오직 "Welcome back" 모달의 Continue 클릭에서만 호출된다 —
+    // 즉 호출된다는 것 자체가 사용자가 명시적으로 재개 의사를 밝혔다는
+    // 뜻이라, 저장본이 뭐라고 하든 Paused 화면을 다시 열지 않는다. 그러면
+    // 방금 누른 "Continue"를 무시하고 한 번 더 일시정지를 강제하는 이중
+    // 게이팅이 되기 때문이다(과거 버그로 리포트됨).
+    //
+    // 갱신(이번 수정): 그 판단이 이제 이 함수 안에 흩어져 있지 않고
+    // shouldRestorePaused()라는 한 함수에 있으며, bootstrapDailyMode()도
+    // 같은 함수를 쓴다. 지난번에는 이 경로만 고쳐지고 데일리 경로에는 같은
+    // 분기가 그대로 남아 있었는데, 판단이 두 벌로 존재하면 한쪽만 고쳐지는
+    // 건 시간 문제였다. 차이는 userAskedToContinue 인자 하나로 표현된다.
+    // 이 분기는 오늘 기준 도달하지 않는다 — userAskedToContinue=true면
+    // shouldRestorePaused()가 항상 false를 돌려주기 때문이다. 그럼에도
+    // 두 호출부가 같은 모양을 갖도록 남겨둔다: 정책이 바뀔 때 고칠 곳이
+    // 판정 함수 한 곳으로 유지되고, 이 경로만 다른 방식으로 분기하다가
+    // 다시 어긋나는 일이 생기지 않는다.
+    if (shouldRestorePaused(saved, true)) {
+      pausedByUser = true;
+      enterPausedState(true);
+    } else {
+      startTimerLoop();
+      announce('Game resumed.');
+    }
     // 저장된 paused:true를 즉시 false로 덮어써 둔다 — isPaused는 이미
     // false이므로 saveGameProgress()가 paused:false를 기록한다. 이걸
     // 안 해도 이 함수 자체가 saved.paused를 더는 안 읽으니 재발은 안
@@ -2216,7 +2319,13 @@
         hintSlots.clear();
         fullRender();
         updateStatusStrip();
-        if (saved.paused) {
+        // 같은 판정 함수를 쓴다. false를 넘기는 이유: 데일리는 "이어할까?"를
+        // 묻지 않고 조용히 복원하므로 사용자의 명시적 재개 클릭이 없다.
+        // 따라서 저장된 pausedByUser를 존중한다 — 다만 자동 일시정지는
+        // 애초에 그 필드를 세우지 않으므로, 탭을 가렸다 돌아온 것만으로는
+        // 여기서 모달이 뜨지 않는다. 그게 이번 수정의 핵심이다.
+        if (shouldRestorePaused(saved, false)) {
+          pausedByUser = true;
           enterPausedState(true);
           announce("Today's challenge resumed, still paused.");
         } else {
@@ -2533,12 +2642,42 @@
       resumeGame();
     });
 
-    // 탭이 백그라운드로 가면 자동 일시정지(요구사항 3) — 돌아와도 자동
-    // 재개하지 않고 Paused 화면을 그대로 유지해, 준비되기 전에 타이머가
-    // 도는 것을 막는다. canPause()가 이미 진행 중인 게임이 아니거나 다른
-    // 모달이 떠 있는 경우를 걸러주므로 여기서는 그냥 호출만 하면 된다.
+    // ---- 페이지 가시성 / bfcache ------------------------------------------
+    //
+    // 탭이 가려지면 시계만 멈춘다. 모달은 띄우지 않는다 — 사용자가 요청한
+    // 적이 없기 때문이고, 무엇보다 그 모달이 열린 채로 페이지가 bfcache에
+    // 들어가면 뒤로가기로 돌아왔을 때 보드 대신 Paused 화면이 나온다.
+    // 65세 이상 사용자에게 그건 "덜 돌아왔다"로 읽혀서, 뒤로가기를 한 번 더
+    // 누르고 사이트를 완전히 떠나는 경로가 된다.
     document.addEventListener('visibilitychange', function () {
-      if (document.hidden) pauseGame();
+      if (document.hidden) autoPauseTimer(); else autoResumeTimer();
+    });
+
+    // pagehide는 visibilitychange의 보강이다. iOS Safari는 다른 페이지로
+    // 이동할 때 visibilitychange를 신뢰할 만하게 쏘지 않는 경우가 있는데,
+    // pagehide는 bfcache 진입 시점에 확실히 발생한다. 둘 다 같은 함수를
+    // 부르고 그 함수는 멱등이라 두 번 불려도 무해하다.
+    window.addEventListener('pagehide', function () { autoPauseTimer(); });
+
+    // bfcache 복원. 스크립트가 다시 실행되지 않고 페이지가 얼어붙은 그대로
+    // 돌아오므로, 돌아왔다는 사실을 알려주는 건 이 이벤트뿐이다 — 이전에는
+    // 이걸 듣는 코드가 저장소 전체에 하나도 없었고, 그게 이 버그의 직접
+    // 원인이었다. persisted가 false면 평범한 로드라 initApp()이 처음부터
+    // 다시 도니 되돌릴 것이 없다.
+    window.addEventListener('pageshow', function (e) {
+      if (!e.persisted) return;
+      autoResumeTimer();
+      // 방어선: 사용자가 요청하지 않은 Paused 화면이 떠 있는 채로 복원됐다면
+      // 닫는다. isPaused와 무관하게 "모달이 실제로 열려 있는가"를 직접 본다 —
+      // 이 버그의 본질이 "상태 플래그와 화면이 어긋난 채로 얼어붙는 것"이었기
+      // 때문에, 플래그를 믿고 판단하면 어긋난 바로 그 경우를 놓친다. (이전
+      // 빌드가 만든 bfcache 항목처럼, isPaused는 false인데 모달만 열려 있는
+      // 조합이 실제로 가능하다.) 직접 누른 일시정지는 그대로 유지한다.
+      if (!pausedByUser && modalPause && modalPause.dataset.open === 'true') {
+        isPaused = false;
+        closeModal(modalPause);
+        resumeElapsedTimer();
+      }
     });
 
     document.getElementById('btn-stuck-newgame').addEventListener('click', startNewGame);

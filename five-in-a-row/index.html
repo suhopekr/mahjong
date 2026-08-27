@@ -313,13 +313,24 @@
 </section>
 
 <footer class="site-footer">
-  <p>Five in a Row — a free, no-download board game. Nothing to install, no account needed.</p>
-  <nav class="footer-nav" aria-label="Site pages">
-    <a href="/">Mahjong Solitaire</a>
-    <a href="/daily.html">Daily Challenge</a>
-    <a href="/about.html">About</a>
-    <a href="/privacy.html">Privacy Policy</a>
-    <a href="/contact.html">Contact</a>
+  <p>Free, easy online games — no download, no sign-up, no time limit.</p>
+    <nav class="footer-nav" aria-label="Site pages">
+    <div class="footer-nav-group">
+      <span class="footer-nav-label" id="footer-games-label">Games</span>
+      <div class="footer-nav-links" aria-labelledby="footer-games-label">
+        <a href="/" id="fir-link-crossgame-footer">Mahjong Solitaire</a>
+        <a href="/daily.html">Daily Challenge</a>
+        <a href="/five-in-a-row/" aria-current="page">Five in a Row</a>
+      </div>
+    </div>
+    <div class="footer-nav-group">
+      <span class="footer-nav-label" id="footer-site-label">Site</span>
+      <div class="footer-nav-links" aria-labelledby="footer-site-label">
+        <a href="/about.html">About</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
   </nav>
 </footer>
 
@@ -423,6 +434,12 @@
       <button type="button" class="btn btn-accent" id="fir-result-again">Play another round</button>
       <button type="button" class="btn" id="fir-result-close">Look at the board</button>
     </div>
+    <!-- Mirror of the Mahjong win modal's own cross-link: below the
+         actions, a plain underlined link rather than a button, so "Play
+         another round" stays the obvious next step. -->
+    <p class="cross-game-cta">
+      <a class="cross-game-link" href="/" id="fir-link-crossgame-win">Try our other free game — Mahjong Solitaire</a>
+    </p>
   </div>
 </div>
 
