@@ -1206,6 +1206,104 @@
   function markInstallHintSeen() {
     try { window.localStorage.setItem(STORAGE_KEYS.installHint, '1'); } catch (e) { /* ignore */ }
   }
+  /* ---- 어느 안내를 보여줄 것인가 --------------------------------------------
+   * 이 모달은 원래 iPhone 경로와 Android 경로를 나란히 적어 두고 사용자가
+   * 자기 것을 고르게 했다. 두 가지가 잘못이었다. 데스크톱에서도 그대로 떠서
+   * 존재하지 않는 메뉴를 가리켰고, 기기가 맞는 사용자에게도 안내를 읽기 전에
+   * "내 것은 어느 쪽인가"라는 문제를 하나 더 얹었다. 없는 메뉴를 찾게 만드는
+   * 것은 이 사용자층에서 그대로 이탈이다.
+   *
+   * 그래서 규칙을 하나로 줄였다: 지금 이 브라우저에서 실제로 되는 방법
+   * 하나만 보여주고, 확신이 없으면 아무것도 보여주지 않는다. 틀린 안내는
+   * 없는 안내보다 나쁘다 — 없으면 그냥 계속 놀지만, 틀리면 있지도 않은
+   * 메뉴를 뒤지다 게임을 떠난다.
+   * ------------------------------------------------------------------------- */
+
+  // 이미 홈 화면에서 실행 중인 사람에게 "홈 화면에 추가하세요"가 뜨는 것은
+  // 그 자체로 결함이다. display-mode는 표준이지만 iOS Safari가 늦게 지원했고,
+  // 그 이전 버전은 navigator.standalone으로만 알 수 있어 둘 다 본다.
+  function isStandaloneInstall() {
+    try {
+      if (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) return true;
+    } catch (e) { /* matchMedia 미지원 — 아래 iOS 전용 플래그로 넘어간다 */ }
+    return window.navigator.standalone === true;
+  }
+
+  // null을 돌려주면 "안내할 방법이 없다"는 뜻이고, 호출부는 모달을 아예 열지
+  // 않는다. 데스크톱이 여기에 해당한다 — 브라우저 데이터를 실수로 지울 위험이
+  // 모바일보다 낮고, 설치 경로는 메뉴 세 단계 깊이에 있으며, 이 사이트에는
+  // manifest가 없어 실제로 얻는 저장소 내구성 이득도 사실상 없다.
+  function detectInstallPlatform() {
+    var ua = window.navigator.userAgent || '';
+    // iPadOS 13+는 데스크톱 Safari와 같은 UA를 보낸다. 터치 포인트 수가
+    // 남아 있는 유일한 구분선이다.
+    var isIOS = /iPad|iPhone|iPod/.test(ua) ||
+                (/Macintosh/.test(ua) && window.navigator.maxTouchPoints > 1);
+    var isAndroid = /Android/.test(ua);
+    if (!isIOS && !isAndroid) return null;
+
+    // 페이스북/인스타그램 등 앱에 내장된 브라우저. Meta 광고 유입의 상당수가
+    // 여기로 들어오는데 이 브라우저들에는 홈 화면 추가 기능이 아예 없다.
+    // 없는 메뉴를 안내하는 대신 진짜 브라우저로 나가라고 말해야 한다.
+    var isInApp = /FBAN|FBAV|FB_IAB|Instagram|Line\/|KAKAOTALK|NAVER|MicroMessenger|Snapchat|Pinterest|TikTok|; wv\)/.test(ua);
+
+    if (isIOS) {
+      // iOS는 모든 브라우저가 WebKit이지만 "Add to Home Screen"은 Safari 앱
+      // 안에만 있다. 엔진이 같다고 기능이 같지 않다.
+      if (isInApp || /CriOS|FxiOS|EdgiOS|OPiOS|GSA\//.test(ua)) return 'ios-other';
+      return 'ios-safari';
+    }
+    if (isInApp) return 'android-inapp';
+    if (/Chrome\//.test(ua) && !/EdgA|OPR\/|SamsungBrowser|Firefox/.test(ua)) return 'android-chrome';
+    // Samsung Internet과 Firefox Android에도 홈 화면 추가는 있지만 메뉴
+    // 위치와 이름이 서로 다르다. 아이콘이나 정확한 경로를 지어내지 않고
+    // "브라우저 메뉴"까지만 말한다 — 확인할 수 없는 것은 주장하지 않는다.
+    return 'android-other';
+  }
+
+  // **굵게** 만 처리한다. 문구가 코드 안에 있는 이유는 플랫폼마다 본문 첫
+  // 문장까지 달라지기 때문 — "이 브라우저로는 안 된다"는 경우 "홈 화면에
+  // 추가하면 안전하다"는 전제 자체가 성립하지 않는다.
+  var INSTALL_HINT_COPY = {
+    'ios-safari': {
+      body: 'Your stats, badges, and daily history are saved only in this browser. Adding this page to your home screen keeps them much safer.',
+      steps: 'Tap the **Share** button — the square with an arrow pointing up — then scroll down and tap **Add to Home Screen**.'
+    },
+    'ios-other': {
+      body: 'Your stats, badges, and daily history are saved only in this browser. This browser cannot add pages to your home screen, but Safari can.',
+      steps: 'Open this page in **Safari** to save this game to your home screen. Then tap the **Share** button and choose **Add to Home Screen**.'
+    },
+    'android-chrome': {
+      body: 'Your stats, badges, and daily history are saved only in this browser. Adding this page to your home screen keeps them much safer.',
+      steps: 'Tap the **\u22ee** menu at the top right, then tap **Add to Home screen**.'
+    },
+    'android-inapp': {
+      body: 'Your stats, badges, and daily history are saved only in this browser. This browser cannot add pages to your home screen, but Chrome can.',
+      steps: 'Open this page in **Chrome** to save this game to your home screen. Look for **Open in Chrome** in this app\u2019s menu.'
+    },
+    'android-other': {
+      body: 'Your stats, badges, and daily history are saved only in this browser. Adding this page to your home screen keeps them much safer.',
+      steps: 'Open your browser\u2019s menu and choose **Add to Home screen**.'
+    }
+  };
+
+  // innerHTML을 안 쓰는 이유는 보안이 아니라(문자열이 전부 위 상수다) 이
+  // 함수가 나중에 커질 때다 — 노드로 시작해 두면 그때 위험해질 자리가 없다.
+  function setTextWithBold(el, source) {
+    el.textContent = '';
+    var parts = source.split('**');
+    for (var i = 0; i < parts.length; i++) {
+      if (!parts[i]) continue;
+      if (i % 2 === 1) {
+        var strong = document.createElement('strong');
+        strong.textContent = parts[i];
+        el.appendChild(strong);
+      } else {
+        el.appendChild(document.createTextNode(parts[i]));
+      }
+    }
+  }
+
   // 다른 안내(모달)들과 같은 modal-overlay/openModal·closeModal 틀을 그대로
   // 쓴다 — 보드 영역을 영구히 차지하는 배너 대신, 한 번 뜨고 닫으면 끝나는
   // 대화상자라 모바일의 "보드가 화면 대부분을 차지" 원칙을 해치지 않는다.
@@ -1213,8 +1311,19 @@
     var el = document.getElementById('modal-install-hint');
     if (!el || hasSeenInstallHint()) return;
     if (Object.keys(achievements.unlocked).length < 3) return;
+    if (isStandaloneInstall()) return;
+    var platform = detectInstallPlatform();
+    var copy = platform && INSTALL_HINT_COPY[platform];
+    if (!copy) return;
+    var bodyEl = document.getElementById('install-hint-body');
+    var stepsEl = document.getElementById('install-hint-steps');
+    // 문구를 못 채우면 제목과 Got it 버튼만 남은 빈 모달이 된다 — 그럴 바엔
+    // 열지 않는다.
+    if (!bodyEl || !stepsEl) return;
+    setTextWithBold(bodyEl, copy.body);
+    setTextWithBold(stepsEl, copy.steps);
     openModal(el);
-    trackEvent('homescreen_prompt_shown', {});
+    trackEvent('homescreen_prompt_shown', { install_platform: platform });
   }
   function dismissInstallHint() {
     var el = document.getElementById('modal-install-hint');
@@ -2788,7 +2897,13 @@
     // ---- 홈 화면 추가 안내 카드(요구사항 D-10) --------------------------------
     var installHintCloseBtn = document.getElementById('install-hint-close');
     if (installHintCloseBtn) installHintCloseBtn.addEventListener('click', dismissInstallHint);
-    maybeShowInstallHint(); // 이전 세션에서 이미 배지 3개 이상이었다면 이번에 처음 보여줌
+    // 여기서 maybeShowInstallHint()를 부르지 않는다. 원래는 "이전 세션에서
+    // 이미 배지 3개 이상이었다면 이번에 처음 보여준다"는 일회성 마이그레이션
+    // 이었는데, 그 역할은 오래전에 끝났고 대신 이런 상태를 만들었다: 이
+    // 모달은 backdrop 클릭으로도 Escape로도 닫히지 않아서, 안 본 것으로
+    // 표시되는 유일한 길이 "Got it"을 누르는 것이다. 무엇인지 모르고 새로고침
+    // 하거나 탭을 닫은 사람은 그 뒤 모든 방문에서 이 모달을 다시 만난다.
+    // 이제 노출 지점은 승리 직후 한 곳(checkAchievementsOnWin)뿐이다.
 
     // ---- 백업/복원(요구사항 D-11) — 있는 페이지에서만 동작 -------------------
     var backupExportBtn = document.getElementById('btn-backup-export');

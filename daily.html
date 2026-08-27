@@ -220,15 +220,13 @@
   </div>
 </div>
 
+<!-- index.html과 같은 안내(game.js가 본문을 채운다) — 마크업도 동일해야
+     한다. 한쪽만 고치면 데일리 페이지에만 옛 문구가 남는다. -->
 <div class="modal-overlay" id="modal-install-hint" data-open="false">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="install-hint-title">
     <h2 id="install-hint-title">Keep your progress safe</h2>
-    <p>Your stats, badges, and daily history live only in this browser. Adding this page to your
-      home screen makes it much less likely to be cleared by accident.</p>
-    <p class="install-hint-steps"><strong>iPhone/iPad (Safari):</strong> tap the Share icon, then
-      "Add to Home Screen".</p>
-    <p class="install-hint-steps"><strong>Android (Chrome):</strong> tap the ⋮ menu, then
-      "Add to Home screen" or "Install app".</p>
+    <p id="install-hint-body"></p>
+    <p class="install-hint-steps" id="install-hint-steps"></p>
     <div class="modal-actions">
       <button type="button" class="btn btn-accent" id="install-hint-close">Got it</button>
     </div>

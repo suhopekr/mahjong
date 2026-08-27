@@ -644,6 +644,18 @@ body.is-fullscreen .board-viewport {
  *
  * 색은 --felt-dark on --paper = 9.19:1로 본문 텍스트와 동일한 대비다.
  * ------------------------------------------------------------------------- */
+/* 승리 모달의 "Try today's Daily Challenge"는 .modal-actions 바깥에 있어서
+ * 혼자만 내용 폭(259px 고정)이었고, 바로 아래 New Game은 전체 폭이었다.
+ * 같은 모달 안에서 같은 .btn이 서로 다른 폭 규칙을 따르면 둘 중 하나는
+ * 버튼이 아닌 다른 무엇으로 읽힌다. 높이는 위의 .modal-box .btn이 이미
+ * 맞춰 주므로 여기서는 폭만 맞춘다. */
+#win-daily-cta {
+  margin: 0 0 16px;
+}
+#win-daily-cta .btn {
+  width: 100%;
+}
+
 .cross-game-cta {
   margin: 14px 0 0;
   text-align: center;
@@ -942,6 +954,27 @@ body.ads-off .sidebar {
 }
 .modal-overlay[data-open="true"] { display: flex; }
 
+/* ---- 동시에 열리는 두 모달의 순서 -------------------------------------------
+ * 승리 순간 checkAchievementsOnWin()이 세 번째 배지를 열면 홈 화면 추가
+ * 안내가 승리 모달과 같이 열린다. 사이트에서 두 모달이 동시에 뜨는 경우는
+ * 여기 하나뿐이다.
+ *
+ * 지금까지는 둘 다 z-index: 200이었고, 마크업에서 승리 모달이 뒤에 있다는
+ * 이유만으로 위에 그려졌다. 결과는 맞았지만 그 근거가 어디에도 적혀 있지
+ * 않아서, 모달 하나를 다른 자리로 옮기는 순간 조용히 뒤집힌다 — 그러면
+ * 방금 판을 깬 사람에게 "홈 화면에 추가하세요"가 먼저 뜨고 자기 기록은
+ * 그 뒤에 가려진다.
+ *
+ * 순서를 값으로 적는다. 승리 모달이 위다: 방금 해낸 일이 먼저고, 안내는
+ * 그것을 닫은 뒤에 드러나는 다음 이야기다. 안내를 명시적으로 200에 두는
+ * 것은 값이 필요해서가 아니라(이미 상속받는다) 두 값이 나란히 있어야
+ * 어느 쪽이 위인지 한눈에 보이기 때문이다.
+ *
+ * 배지 토스트(z-index: 300)는 둘 다보다 위에 남는다 — 의도된 그대로다.
+ * ------------------------------------------------------------------------- */
+#modal-install-hint { z-index: 200; }
+#modal-win { z-index: 210; }
+
 .modal-box {
   background: var(--paper);
   border-radius: var(--radius-lg);
@@ -961,8 +994,23 @@ body.ads-off .sidebar {
 .modal-actions {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 16px;
   margin-top: 18px;
+}
+/* 사이트의 모든 모달 버튼 크기가 정해지는 단 한 곳. 개별 모달에서 다시
+ * 정의하지 않는다 — 예전에는 Paused의 Resume만 60px/20px로 따로 키워
+ * 두었는데, 그러면 같은 모양의 버튼이 화면마다 다른 크기로 나타나서
+ * "이건 아까 그 버튼과 같은 것인가"를 매번 다시 판단하게 만든다. 크기
+ * 하나를 외우게 하는 편이 낫다.
+ *
+ * 48px(.btn의 기본 바닥)이 아니라 56px인 이유는 이 모달들이 전부 결정
+ * 지점이기 때문이다 — 새 게임을 시작할지, 이어서 할지. 잘못 눌렀을 때
+ * 되돌리기 가장 어려운 버튼들이 가장 작았다.
+ *
+ * .modal-actions가 아니라 .modal-box를 기준으로 잡은 것은 액션 행 바깥에
+ * 있는 버튼도 같은 규칙을 받아야 하기 때문이다(승리 모달의 Daily CTA). */
+.modal-box .btn {
+  min-height: 56px;
 }
 /* author 규칙(.modal-actions{display:flex})이 hidden 속성의 UA 기본
  * display:none보다 우선순위가 높아 그냥 두면 hidden이 무시된다 —
@@ -988,12 +1036,11 @@ body.ads-off .sidebar {
   font-variant-numeric: tabular-nums;
   font-size: 20px;
 }
-/* "큰 Resume 버튼" 요구사항 — 다른 모달 액션 버튼보다 한 단계 크게. */
-.btn-pause-resume {
-  min-height: 60px;
-  font-size: 20px;
-  padding: 14px 28px;
-}
+/* .btn-pause-resume은 이제 크기를 바꾸지 않는다. 예전에는 "큰 Resume 버튼"
+ * 요구사항으로 60px/20px였는데, 그 목적(누르기 쉬울 것)은 모달 버튼 전체가
+ * 56px로 올라가면서 이미 달성됐고, 남은 것은 이 버튼만 다른 크기라는
+ * 사실뿐이었다. 클래스는 마크업에 남겨 둔다 — 나중에 색이나 위치를 이
+ * 버튼에만 주고 싶어질 때 붙일 자리가 필요하다. */
 
 /* ---- 본문 SEO 섹션 ------------------------------------------------------- */
 .content {
