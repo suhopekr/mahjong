@@ -126,15 +126,37 @@
   border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: var(--shadow-md);
+  /* 캔버스가 이 안을 꽉 채우지만, 모서리 반올림 때문에 래퍼가 직접
+   * 맞는 픽셀이 남는다. 캔버스와 같은 규칙을 줘 그 자리만 예외가 되지
+   * 않게 한다. */
+  touch-action: manipulation;
 }
 
 #fir-board {
   display: block;
   width: 100%;
   height: 100%;
-  /* The canvas handles its own pointer input; without this a touch-drag
-   * scrolls the page instead of reaching the board. */
-  touch-action: none;
+  /* `manipulation`, not `none`.
+   *
+   * This was `none`, to stop a touch-drag from scrolling the page instead
+   * of reaching the board. It did that, and it also switched off
+   * pinch-zoom for anything starting on the canvas — which on a phone is
+   * most of the screen. For a player who needs to magnify the board to
+   * see it, that is the one gesture they cannot afford to lose, and the
+   * board was the one place it did not work.
+   *
+   * `manipulation` keeps pinch and pan and drops only double-tap zoom,
+   * which is what actually broke placing a stone: confirming means
+   * tapping the same spot twice, and Safari reads that as "zoom here".
+   *
+   * The drag that `none` was protecting is not a real loss. Touch input
+   * here is taps only — updateHoverPreview() ignores anything that isn't
+   * a mouse — so a drag on the board was never doing anything except
+   * withholding the scroll. And when the browser now claims a drag as a
+   * scroll it fires pointercancel, which core/input.js already handles by
+   * dropping the active pointer, so the finger lifting somewhere else
+   * cannot land a stone. */
+  touch-action: manipulation;
   /* A long press on a canvas raises the "Save Image" callout on mobile,
    * directly on top of the board. */
   -webkit-user-select: none;

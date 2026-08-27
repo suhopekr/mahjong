@@ -65,11 +65,23 @@ export function attachPointerHandlers(canvas, { onMove, onDown, onUp, onCancel }
     if (activePointerId === null) onCancel && onCancel();
   }
 
-  // Belt-and-suspenders alongside the CSS `touch-action: none` on the
-  // canvas — without one of these, a touch-drag scrolls/zooms the page
-  // instead of drawing an edge, which reads as "the game is broken" on
-  // mobile with zero error to debug from.
-  canvas.style.touchAction = "none";
+  // Belt-and-suspenders alongside the stylesheet's `touch-action` on the
+  // canvas. This is an INLINE style, so it wins over the stylesheet — the
+  // two must say the same thing or this one silently decides.
+  //
+  // It says `manipulation` now, matching five-in-a-row/style.css. It used
+  // to say `none`, which also switched off pinch-zoom for any gesture
+  // starting on the canvas, and on a phone the canvas is most of the
+  // screen. Double-tap zoom is the only gesture that needed to go: this
+  // game is confirmed by tapping the same spot twice, and Safari reads
+  // that as "zoom here". Pinch has to stay — a player who needs the board
+  // bigger has no other way to get it.
+  //
+  // A touch-drag can now scroll the page, which is fine: touch input here
+  // is taps only, and the browser fires pointercancel when it takes the
+  // gesture, which handlePointerCancel above already treats as "this
+  // pointer is gone" — so a finger lifting elsewhere cannot place a stone.
+  canvas.style.touchAction = "manipulation";
 
   canvas.addEventListener("pointermove", handlePointerMove);
   canvas.addEventListener("pointerdown", handlePointerDown);

@@ -217,6 +217,15 @@ a:visited { color: #5c3d99; }
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: background-color 0.15s ease, color 0.15s ease, transform 0.05s ease;
+  /* iOS Safari는 같은 자리를 빠르게 두 번 누르면 확대로 해석한다. 버튼은
+   * 연달아 눌리는 것이 정상이고(Hint를 두 번, 오목의 "Place stone"으로
+   * 연속 착수), 그때마다 화면이 튀면 조작이 안 된다.
+   *
+   * manipulation은 더블탭 확대만 끄고 핀치 확대와 스크롤은 그대로 둔다 —
+   * 65세 이상 사용자에게 확대는 실제로 필요한 기능이라 전면 차단(none이나
+   * user-scalable=no)은 선택지가 아니다. 본문과 FAQ의 텍스트에는 손대지
+   * 않아 거기서는 더블탭 확대가 그대로 살아 있다. */
+  touch-action: manipulation;
   /* .btn is also used on <a> (Daily Challenge entry points, win-screen CTA) —
    * without this they'd keep the browser's default link underline and look
    * out of place next to the real <button> ones beside them. */
@@ -343,6 +352,14 @@ body[data-show-timer="false"] .timer-stat { display: none; }
   max-width: 1060px;
   margin-left: auto;
   margin-right: auto;
+  /* 보드 패널 전체가 더블탭 확대에서 빠진다. .board-scale-wrap에도 같은
+   * 값이 있는데, 그건 타일 사이 빈 자리를 위한 것이고 이건 보드 둘레에
+   * 남는 펠트 여백(패딩과 예약된 높이의 나머지)을 위한 것이다 — 히트
+   * 테스트로 확인해 보면 그 가장자리가 실제로 이 요소에 닿는다. 이 요소는
+   * overflow:auto라 스크롤 컨테이너이기도 해서, 자식 쪽 규칙이 경계 너머로
+   * 미치는지에 기대지 않고 여기에도 직접 적어 둔다.
+   * 핀치 확대와 스크롤은 manipulation이 그대로 살려 둔다. */
+  touch-action: manipulation;
 }
 
 /* #board와 항상 같은 크기(JS가 둘 다 geometry.width/height로 맞춤).
@@ -351,6 +368,10 @@ body[data-show-timer="false"] .timer-stat { display: none; }
 .board-scale-wrap {
   position: relative;
   flex: 0 0 auto;
+  /* 타일 사이의 빈 펠트를 두 번 누르는 것도 더블탭 확대가 된다 —
+   * .tile-btn만 막아두면 타일을 살짝 빗나간 탭에서 화면이 튄다.
+   * 핀치 확대는 manipulation이 그대로 살려 둔다. */
+  touch-action: manipulation;
 }
 
 .board {
@@ -1316,6 +1337,9 @@ body.ads-off .sidebar {
     color: var(--btn-active-text);
   }
   .mobile-actionbar-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  /* .btn과 같은 이유 — 이 바의 Undo/Hint는 연달아 눌리는 것이 정상이다.
+   * 이 버튼들은 .btn 클래스를 쓰지 않으므로 따로 적어줘야 한다. */
+  .mobile-actionbar-btn { touch-action: manipulation; }
 
   .mobile-menu-sheet {
     position: fixed;
