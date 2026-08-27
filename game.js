@@ -1591,8 +1591,28 @@
     }
   }
 
-  var BOARD_VIEWPORT_VPAD = 40; // .board-viewport padding: 20px 위+아래(style.css와 동기화 필요)
-  var BOTTOM_BREATHING_ROOM = 20; // 보드 아래 살짝 여백(뷰포트 바닥에 딱 붙지 않게)
+  // 예전에는 BOARD_VIEWPORT_VPAD = 40 을 상수로 두고 "style.css와 동기화
+  // 필요"라고 적어 뒀었다. 동기화는 진작에 깨져 있었다 — style.css의
+  // @media (max-width: 640px)가 .board-viewport의 padding을 10px로 줄이므로
+  // 모바일에서 실제 상하 여백은 20px인데 JS는 계속 40px을 빼고 있었다.
+  // 그만큼 보드가 쓸 수 있는 세로 공간을 스스로 20px 깎아먹었고, 세로가
+  // 빠듯한 작은 폰일수록 손해가 컸다.
+  //
+  // 주석으로 지키라고 부탁하는 대신 렌더된 값을 그냥 읽는다. 액션바 높이를
+  // 재서 쓰는 것과 같은 이유다: CSS가 유일한 진실이고, 여기서는 그것을
+  // 물어보기만 한다.
+  function boardViewportVPad() {
+    var cs = window.getComputedStyle(viewportEl);
+    return (parseFloat(cs.paddingTop) || 0) + (parseFloat(cs.paddingBottom) || 0);
+  }
+  // 보드 아래 살짝 여백(뷰포트 바닥에 딱 붙지 않게).
+  //
+  // !! style.css의 .board-viewport min-height 예약과 짝이다 !!
+  // 저쪽은 아래 availableH 식을 CSS로 미리 계산해 두어 첫 페인트부터 보드
+  // 자리를 잡아 둔다(CLS). 이 값이나 아래 식이 바뀌면 그쪽 166px도 같이
+  // 바뀌어야 한다. 패딩은 예외다 — boardViewportVPad()가 렌더된 값을 읽으
+  // 므로 CSS 쪽만 고치면 JS는 알아서 따라온다.
+  var BOTTOM_BREATHING_ROOM = 20;
   // 이건 "터치 타겟 보호용 최소 배율"이 아니라 그냥 극단적으로 좁은 화면
   // (예: 아주 작은 임베드 iframe)에서 배율이 0에 가까워져 타일이 아예
   // 안 보이는 사고를 막는 기술적 안전장치일 뿐이다 — 48px 원칙은 이제
@@ -1655,11 +1675,21 @@
     // 모바일 폭(640px 미만)에서는 화면 하단에 고정 액션바가 떠 있어 그만큼
     // 보드가 쓸 수 있는 세로 공간이 줄어든다. 하드코딩 대신 실제 렌더된
     // 높이를 재서 뺀다(safe-area-inset-bottom 패딩까지 이미 반영된 값이라
-    // 기기별로 따로 계산할 필요가 없다). 데스크톱 폭에서는 CSS가 이 바를
-    // display:none으로 감춰 offsetParent가 null이 되므로 0으로 취급된다.
-    var actionbarH = (mobileActionbarEl && mobileActionbarEl.offsetParent !== null)
+    // 기기별로 따로 계산할 필요가 없다).
+    //
+    // "보이는가"를 display로 판정한다. 예전에는 offsetParent !== null 이었고,
+    // 데스크톱에서 CSS가 display:none으로 감추면 null이 된다는 것까지는
+    // 맞았다. 놓친 것은 이 바가 position:fixed라는 점이다 — 명세상 고정 위치
+    // 요소의 offsetParent는 언제나 null이라, 이 조건은 모바일에서도 거짓이
+    // 었다. 즉 61px짜리 바가 한 번도 차감된 적이 없었고, 세로 공간이 빠듯한
+    // 320x568 / 360x640에서 맨 아랫줄 타일이 바 밑으로 11px 들어가 있었다.
+    // 안 보이는 타일은 못 누르는 타일이다.
+    //
+    // 전체화면에서도 이 바는 계속 떠 있으므로(헤더/본문만 숨긴다) 그때도
+    // 차감되는 것이 맞다.
+    var actionbarH = (mobileActionbarEl && window.getComputedStyle(mobileActionbarEl).display !== 'none')
       ? mobileActionbarEl.getBoundingClientRect().height : 0;
-    var availableH = Math.max(60, vp.height - viewportEl.offsetTop - BOARD_VIEWPORT_VPAD - BOTTOM_BREATHING_ROOM - actionbarH);
+    var availableH = Math.max(60, vp.height - viewportEl.offsetTop - boardViewportVPad() - BOTTOM_BREATHING_ROOM - actionbarH);
     var scaleH = naturalGeometry.height > availableH ? availableH / naturalGeometry.height : 1;
 
     var scale = Math.max(TECHNICAL_MIN_SCALE, Math.min(1, scaleW, scaleH));
