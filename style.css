@@ -1388,3 +1388,140 @@ body.ads-off .sidebar {
   .game-shell { padding-top: 8px; }
   .toolbar { margin-bottom: 8px; }
 }
+
+/* ---- /guides/ 아티클 섹션 ------------------------------------------------
+ * 게임 페이지와 헤더/푸터는 그대로 쓰되, 본문은 "읽는 페이지"로 만든다.
+ * .content가 이미 65ch·18px·1.65를 잡아 주므로 여기서는 읽기 흐름에만
+ * 필요한 것(제목 블록, 목차, 관련 게임 카드, 목록 페이지)을 얹는다.
+ * 폰트 크기는 전부 18px 이상 — 시니어 대상 규칙을 아티클에서도 유지.
+ * ------------------------------------------------------------------------- */
+
+/* 아티클 본문은 .content(820px)보다 좁게 — 긴 글은 한 줄이 짧을수록
+ * 눈이 다음 줄을 덜 놓친다. 65ch 캡은 .content p가 이미 걸고 있지만,
+ * 제목·목차·구분선까지 같은 폭으로 맞춰야 단이 흐트러지지 않는다. */
+.article {
+  max-width: 68ch;
+}
+.article h2 {
+  font-size: 25px;
+  margin-top: 44px;
+}
+.article h3 {
+  font-size: 20px;
+  margin-top: 30px;
+}
+/* 본문 문단은 .content p(18px/1.65)를 상속받되 행간을 조금 더 연다 —
+ * 게임 페이지의 짧은 안내문과 달리 여기서는 길게 이어 읽는다. */
+.article p,
+.article li {
+  line-height: 1.75;
+  max-width: none;
+}
+.article ul,
+.article ol {
+  padding-left: 1.3em;
+}
+.article li {
+  margin: 8px 0;
+}
+
+.article-title {
+  margin: 8px 0 0;
+  font-size: clamp(26px, 4vw, 34px);
+  line-height: 1.25;
+}
+.article-date {
+  margin: 8px 0 0;
+  color: #5c665e;
+  font-size: 16px;
+}
+
+/* 목차 — 글이 길어도 "어디쯤인지" 먼저 보여 준다. 링크는 푸터와 같은
+ * 44px 최소 타겟. */
+.toc {
+  margin: 28px 0 8px;
+  padding: 16px 20px;
+  background: var(--paper-dim);
+  border-radius: var(--radius-md);
+}
+.toc h2 {
+  margin: 0;
+  font-size: 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--felt-dark);
+}
+.toc ol {
+  margin: 8px 0 0;
+  padding-left: 1.4em;
+}
+.toc li {
+  margin: 0;
+}
+.toc a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 18px;
+}
+
+/* 앵커로 점프했을 때 제목이 헤더 밑에 딱 붙지 않게 여유를 준다. */
+.article h2[id] {
+  scroll-margin-top: 16px;
+}
+
+/* 글 끝의 "관련 게임" 카드 — 읽고 나면 바로 플레이로 이어지게. */
+.related-game {
+  margin-top: 44px;
+  padding: 20px;
+  background: var(--paper-dim);
+  border-left: 5px solid var(--felt);
+  border-radius: var(--radius-md);
+}
+.related-game h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+.related-game p {
+  margin: 0 0 14px;
+}
+
+/* 목록 페이지 — 카드 하나가 곧 링크 하나. */
+.guide-list {
+  list-style: none;
+  margin: 24px 0 0;
+  padding: 0;
+}
+.guide-list > li {
+  margin: 0 0 18px;
+  padding: 18px 20px;
+  background: var(--paper-dim);
+  border-radius: var(--radius-md);
+  max-width: none;
+}
+.guide-list h2 {
+  margin: 0;
+  font-size: 22px;
+}
+.guide-list h2 a {
+  text-decoration: none;
+}
+.guide-list h2 a:hover,
+.guide-list h2 a:focus-visible {
+  text-decoration: underline;
+}
+.guide-list .article-date {
+  margin: 4px 0 0;
+}
+.guide-list p {
+  margin: 8px 0 0;
+}
+
+/* 아티클 헤더의 "목록으로" 링크. .tagline과 달리 모바일에서도 유지된다 —
+ * 아티클 페이지에는 보드가 없으니 세로 공간을 아낄 이유가 없고, 이게
+ * 유일한 상위 이동 수단이다. */
+.site-header .article-crumb {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
