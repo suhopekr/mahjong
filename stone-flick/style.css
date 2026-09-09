@@ -1,0 +1,1063 @@
+/* System font stack only — a webfont is a network request and bytes,
+   both of which the series' hard constraints spend elsewhere. */
+/* Registered so the act-to-act change can be TRANSITIONED. A plain
+   custom property is a string as far as the cascade is concerned and
+   jumps; typed as a colour it interpolates, which is the difference
+   between the table warming as you walk into act 4 and the page
+   flickering when you press Next. Browsers without @property simply
+   get the jump. */
+@property --table {
+  syntax: "<color>"; inherits: true; initial-value: #2e2116;
+}
+@property --table-edge {
+  syntax: "<color>"; inherits: true; initial-value: #0b0908;
+}
+:root {
+  transition: --table 500ms linear, --table-edge 500ms linear;
+  --bg: #14100c;
+  --panel: #211a13;
+  --panel-2: #2c2319;
+  --ink: #f3e9db;
+  --muted: #a8977f;
+  --dim: #8d7d68;
+  --accent: #e0b26a;
+  --accent-ink: #2a1d0c;
+  --radius: 14px;
+  --topbar-h: 52px;
+  /* #app's own padding, as variables rather than literals, because the
+     two-column game layout has to SUBTRACT them to work out how tall the
+     board can be — and the short-landscape query overrides both. A
+     literal in two places is a literal that goes out of sync. */
+  --app-pad-t: max(14px, env(safe-area-inset-top));
+  --app-pad-b: max(10px, env(safe-area-inset-bottom));
+  /* The pull-back gutter under the board (.board-wrap's margin-bottom). */
+  --board-gutter: 16px;
+}
+* { box-sizing: border-box; }
+/* Required by CrazyGames' technical requirements, and independently
+   right for this game: the whole board is a drag surface, and without
+   this a pull-back that starts on the canvas selects the HUD text
+   behind it or pops the iOS callout menu mid-shot. */
+html, body, #app, #app * {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  /* iOS will still offer to drag an element out of the page as an
+     image, and a canvas is an image as far as it is concerned. */
+  -webkit-user-drag: none;
+}
+html, body {
+  margin: 0; padding: 0; height: 100%;
+  color: var(--ink);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+/* --- the table -----------------------------------------------------
+   The board is square and the screen is not, so on anything wider than
+   it is tall there is a column of page on each side of the board that
+   the game has nothing to put in. It was flat black, and a 570px board
+   floating in 1160px of black is the single thing that made the game
+   look unfinished in the portal frame.
+
+   What goes there is a SURFACE, not a picture. Two reasons, and they
+   are the same reason: game/render.js's whole shading model — every
+   prop's body gradient, rim occlusion and specular — assumes the board
+   is the brightest object on the screen, and it assumes the eye has
+   nothing else to look at. A per-stage illustration behind the board
+   would break both, and would cost a hundred assets to break them with.
+   A lit table breaks neither: it is darker than the board everywhere
+   (game/themes.js's surroundWarm/Cool are picked against each board's
+   own tone, and test/theme-surround.test.js measures it), it has no
+   detail to compete with a 17px prop, and it costs nothing to load.
+
+   --table is set per theme AND per act by main.js's applySurround(),
+   which is where the "different background every stage" idea ends up:
+   a temperature that walks from warm to cool across the ten acts. */
+body {
+  display: flex; flex-direction: column; align-items: center;
+  background:
+    radial-gradient(var(--table-r, 78vmax) var(--table-r, 78vmax)
+      at var(--table-x, 50%) var(--table-y, 46%),
+      var(--table, #2e2116) 0%,
+      var(--table, #2e2116) 34%,
+      var(--table-edge, #0b0908) 100%),
+    var(--table-edge, #0b0908);
+  background-attachment: fixed;
+}
+
+#app {
+  width: 100%; max-width: 720px; height: 100%;
+  display: flex; flex-direction: column;
+  /* Left/right use max() so a notch or a rounded corner never clips the
+     back button, while a device with no inset still gets the 12px the
+     layout was designed with. CrazyGames' own requirements call for
+     safe-area support because their app runs the game edge to edge. */
+  /* The top inset gets a FLOOR, not just the safe area. On a desktop
+     browser env(safe-area-inset-top) is 0, which pinned the back button
+     and the sound button flush against the very top edge of the frame —
+     the single thing that made the game screen feel cramped rather than
+     composed. A phone with a notch already has its own inset and takes
+     the larger of the two. */
+  padding: var(--app-pad-t) max(12px, env(safe-area-inset-right))
+           var(--app-pad-b) max(12px, env(safe-area-inset-left));
+}
+
+/* 720px is a reading width — right for the menu, the stage list and the
+   theme picker, and wrong for the board, which is the content rather
+   than a column of text. CrazyGames embeds at up to 1920x1080, and at
+   that size the cap left a 696px board sitting in the middle of a
+   1080px-tall page with everything else black; test/screens.mjs
+   measures it at the portal's own four iframe sizes and that is how it
+   was found. Raising it only for the game screen keeps the text screens
+   at a sane width. A browser without :has() simply keeps the old
+   behaviour, which is small rather than broken. */
+/* 1100 was the board's cap when the board was the only thing in the
+   box. With the bar standing beside it (see the shape-keyed media
+   query at the bottom of this sheet) the sidebar's 210px + 16px gap
+   would come straight out of the board on a 1920-wide portal frame,
+   shrinking it to pay for the fix. Raising the cap by exactly that
+   much keeps the board the size it already was. */
+#app:has(#screen-game.active) { max-width: 1326px; }
+.screen { display: none; flex: 1; flex-direction: column; min-height: 0; }
+.screen.active { display: flex; }
+
+/* Every screen is topbar + body, and the BODY is what gets centered —
+   both axes, on every screen, at every size. The topbar stays pinned at
+   the top because a back button that floats to the middle of the screen
+   is not a back button. */
+.topbar {
+  display: flex; align-items: center; gap: 8px;
+  min-height: var(--topbar-h); flex: none; padding: 4px 2px;
+}
+.topbar h1 { font-size: 20px; margin: 0; letter-spacing: 0.3px; }
+.topbar .spacer { flex: 1; }
+
+.screen-body {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  align-items: center;      /* horizontal */
+  overflow-y: auto;
+}
+/* `margin: auto 0` rather than `justify-content: center`: when the
+   content is taller than the box (a long stage list on a short phone),
+   auto margins resolve to 0 and the content scrolls from its top,
+   whereas centering would clip the first row above the scroll origin
+   with no way to reach it. */
+.centered {
+  margin: auto 0; width: 100%;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 8px 0 16px;
+}
+
+button {
+  font: inherit; color: inherit; cursor: pointer;
+  background: var(--panel-2); border: 1px solid rgba(255,255,255,0.09);
+  border-radius: 10px; padding: 10px 14px;
+  transition: transform 0.06s ease, background 0.15s ease, border-color 0.15s ease;
+  touch-action: manipulation;
+}
+button:hover:not(:disabled) { background: #3a2f22; }
+button:active:not(:disabled) { transform: translateY(1px); }
+button:disabled { opacity: 0.45; cursor: default; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+button.primary {
+  background: var(--accent); color: var(--accent-ink);
+  border-color: transparent; font-weight: 650;
+}
+button.primary:hover:not(:disabled) { background: #eec18a; }
+button.icon {
+  padding: 0; width: 42px; height: 42px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+/* Ghost: the full 42px tap target, almost no visual weight. A row of
+   filled slabs at the top of the screen competes with the board for
+   attention it has not earned — these are controls you reach for
+   deliberately, not things to look at. */
+button.icon.ghost {
+  background: transparent; border-color: transparent; color: var(--muted);
+}
+button.icon.ghost:hover:not(:disabled) {
+  background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: var(--ink);
+}
+/* An icon button that grows a word when there is room for one. Restart
+   was mistaken for undo on sight, and a better glyph only narrows that
+   gap — the word closes it. It is also what the portal's own quality
+   guidance asks for: a button should say how to proceed. Sound stays
+   icon-only because a speaker is not ambiguous. */
+button.icon.labeled .btn-lbl { display: none; }
+/* 370px, not 520 — measured rather than guessed. On a 390px phone the
+   bar was carrying the back button, the stage, the score and two icons
+   in 366px of usable width with ~80px to spare, which is more than the
+   word needs. The narrowest thing this has to survive is the portal's
+   800x450 embed and a 390px phone, and both are checked. */
+@media (min-width: 370px) {
+  button.icon.labeled {
+    width: auto; min-width: 42px; padding: 0 13px 0 10px; gap: 7px;
+  }
+  button.icon.labeled .btn-lbl { display: inline; font-size: 13.5px; }
+}
+/* Inline SVG rather than emoji. The previous game in this series
+   replaced its emoji icons with SVG for exactly this reason: an emoji
+   is a font glyph, so it renders differently on every platform (the
+   speaker emoji in particular comes out as a flat outline on some
+   systems and a colored blob on others) and it cannot inherit the UI's
+   own color. */
+button.icon svg { width: 20px; height: 20px; display: block; }
+
+/* --- menu --- */
+.brand { text-align: center; }
+.brand .mark { font-size: 44px; font-weight: 750; letter-spacing: -1px; margin: 0; }
+.brand .tag { color: var(--muted); margin: 8px 0 0; font-size: 15px; }
+.menu-actions {
+  display: flex; flex-direction: column; gap: 10px;
+  width: 100%; max-width: 380px; padding: 26px 0 14px;
+}
+.menu-actions > button { padding: 15px; font-size: 17px; }
+.menu-note { color: var(--dim); font-size: 13px; text-align: center; margin: 0; }
+
+/* --- menu: one hero, four tiles, two utilities --- */
+.hero {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 16px 18px 14px; text-align: center;
+}
+.hero-label { font-size: 19px; font-weight: 700; line-height: 1.2; }
+.hero-bar {
+  height: 5px; border-radius: 3px; overflow: hidden; width: 100%;
+  background: rgba(0,0,0,0.22);
+}
+.hero-bar > i { display: block; height: 100%; background: rgba(0,0,0,0.5); border-radius: 3px; }
+.hero-stats {
+  display: flex; justify-content: center; align-items: baseline; gap: 10px;
+  font-size: 12.5px; font-weight: 600; opacity: 0.72; letter-spacing: 0.2px;
+}
+/* The two halves of the line are different facts -- how far through the
+   campaign, and how well -- so they get a divider rather than just
+   space, which at this size reads as one run-on number. */
+.hero-stats > span + span::before { content: "·"; opacity: 0.55; margin-right: 10px; }
+
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+/* Site build: the one way back to the rest of easymahjongsolitaire.com,
+   on the home screen only — never on a gameplay screen. */
+.site-home-link {
+  display: block; text-align: center; margin: 14px 0 0; padding: 8px;
+  color: var(--muted); font-size: 13px; text-decoration: underline; text-underline-offset: 3px;
+}
+.site-home-link:hover { color: inherit; }
+.mode {
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 13px 14px; min-height: 66px; text-align: center;
+}
+.mode-name { font-size: 15.5px; font-weight: 650; display: flex; align-items: center; justify-content: center; gap: 7px; }
+.mode-sub { font-size: 12.5px; color: var(--dim); font-weight: 500; }
+.mode.soon { opacity: 0.5; cursor: default; }
+.soon-chip {
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.9px; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 999px; border: 1px solid currentColor; opacity: 0.75;
+}
+
+#screen-menu .topbar { gap: 2px; }
+
+/* --- stage select --- */
+.stage-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px; width: 100%; max-width: 560px;
+}
+/* A chapter heading spans the whole grid so the cards under it read as
+   belonging to it, and carries that chapter's own count -- the number a
+   player wants when they are deciding whether to go back. */
+.chapter {
+  grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: baseline;
+  margin: 14px 2px 0; font-size: 13px; font-weight: 700; letter-spacing: 0.6px;
+  text-transform: uppercase; color: var(--muted);
+}
+.chapter:first-child { margin-top: 0; }
+.chapter-count { font-weight: 600; letter-spacing: 0; text-transform: none; color: var(--dim); }
+.stage-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  background: var(--panel); border: 1px solid rgba(255,255,255,0.08);
+  border-radius: var(--radius); padding: 12px 12px 10px; text-align: left;
+  min-height: 84px;
+}
+.stage-card .no {
+  font-size: 10px; color: var(--muted);
+  letter-spacing: 0.12em; text-transform: uppercase;
+}
+.stage-card .nm {
+  font-size: 26px; font-weight: 600; line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+/* "Locked" is a word, not a number, and at 26px it wraps out of the
+   card on a narrow phone. */
+.stage-card.locked .nm { font-size: 15px; }
+.stage-card .meta { font-size: 12px; color: var(--dim); margin-top: auto; }
+.stage-card.cleared { border-color: rgba(224,178,106,0.5); }
+.stage-card.locked { opacity: 0.4; }
+
+/* --- two-player setup --- */
+.setup-label { margin: 0 0 12px; font-size: 15px; color: var(--muted); }
+.segmented {
+  display: flex; gap: 6px; background: var(--panel); padding: 6px;
+  border-radius: 14px; border: 1px solid rgba(255,255,255,0.08);
+}
+.segmented button {
+  min-width: 58px; background: transparent; border-color: transparent;
+  font-variant-numeric: tabular-nums; font-size: 17px;
+}
+.segmented button[aria-pressed="true"] {
+  background: var(--accent); color: var(--accent-ink); font-weight: 650;
+}
+.setup-note {
+  margin: 14px 0 22px; font-size: 13px; color: var(--dim);
+  text-align: center; max-width: 300px; min-height: 34px;
+}
+#screen-versus .centered > button.primary { min-width: 200px; padding: 14px; font-size: 17px; }
+
+/* --- themes --- */
+.theme-list { display: flex; flex-direction: column; gap: 10px; width: 100%; max-width: 420px; }
+.theme-row {
+  display: flex; align-items: center; gap: 12px; width: 100%;
+  background: var(--panel); border-radius: var(--radius); padding: 12px;
+  border: 1px solid rgba(255,255,255,0.08); text-align: left;
+}
+.theme-row.selected { border-color: var(--accent); }
+.swatch { width: 44px; height: 44px; border-radius: 10px; flex: none; border: 1px solid rgba(0,0,0,0.35); }
+.theme-row .nm { font-weight: 600; }
+.theme-row .desc { font-size: 12px; color: var(--dim); }
+
+/* --- game --- */
+/* --- the game bar ---
+   One row that owns everything outside the board: leave, which stage,
+   the score, restart, sound. It replaced three separate strips (a
+   topbar, a HUD line and a pair of slab buttons under the board) that
+   shared no alignment and no spacing rhythm, which is what made the
+   screen read as scattered parts rather than an interface.
+
+   Restart and Menu used to sit BELOW the board, which is exactly where
+   the control needs empty space: your stones are on the bottom row and
+   aiming means dragging down past them, so a full-power pull ran the
+   pointer straight over two buttons. Moving them up removes a real
+   misfire and gives the drag its gutter back. */
+.gamebar {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  flex: none;
+  padding: 0 0 14px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.07);
+}
+.gb-left, .gb-tools { display: flex; align-items: center; gap: 6px; }
+/* Off everywhere by default; the two-column layout is the only place it
+   is turned on, and `.off` (set for two-player, which is not scored)
+   stays stronger than that. */
+.gb-progress { display: none; flex-direction: column; line-height: 1.05; }
+.gb-progress .lbl {
+  font-size: 9.5px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--dim); font-weight: 500;
+}
+.gb-progress .val { font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.gb-progress .val i { font-style: normal; font-size: 13px; font-weight: 500; color: var(--dim); margin-left: 5px; }
+.gb-progress.over .val b { color: #e0836a; }
+.par-track { display: none; gap: 5px; margin-top: 10px; flex-wrap: wrap; }
+.par-track i {
+  display: block; width: 20px; height: 5px; border-radius: 2.5px;
+  background: rgba(255,255,255,0.18);
+}
+.par-track i.used { background: var(--accent); }
+/* Past par the extra pips are a different colour rather than more of
+   the same: the row has stopped counting down to a target and started
+   counting up from one. */
+.par-track i.over { background: #e0836a; }
+/* The word costs about 100px, and the measurement above says the top
+   bar has ~80px of slack on a 390px phone with ONE labelled button in
+   it. So Preview is icon-only everywhere the bar is a bar, and grows
+   its word only in the two-column layout, where it has a whole column
+   to grow into. Restart keeps its word in both, because "was mistaken
+   for undo on sight" was the reason it got one. */
+/* `button.icon` sets `display: inline-flex`, which is two classes and
+   therefore outranks the UA sheet's `[hidden] { display: none }` — so
+   an icon button with the hidden attribute stayed on screen, taking its
+   42px out of a bar that had none to spare. It looked like a layout bug
+   and was a specificity one. */
+button.icon[hidden] { display: none; }
+/* Buttons whose word only fits where there is a column to put it in.
+   Restart keeps its word everywhere — "mistaken for undo on sight" was
+   the reason it got one — but Preview and Sound would take the bar past
+   the width it has, so theirs appears in the sidebar layout only. */
+button.icon.labeled.sidebar-word { padding: 0; width: 42px; min-width: 42px; gap: 0; }
+button.icon.labeled.sidebar-word .btn-lbl { display: none; }
+/* Held, not spent: the one control in the game that changes colour to
+   say it is armed. */
+.gb-tools .preview.ready {
+  color: var(--accent);
+  border-color: rgba(224,178,106,0.4);
+  background: rgba(224,178,106,0.12);
+  opacity: 1;
+}
+.gb-tools .preview.ready:disabled { opacity: 1; cursor: default; }
+.gb-tools { justify-self: end; }
+
+/* "STAGE" is a label and "16" is the value, so they are set as a label
+   and a value: micro caps over a large tabular numeral. The number is
+   what the player refers to, so it gets the size. */
+.gb-id { display: flex; align-items: center; min-width: 0; }
+/* ONE LINE, in both layouts. Stacked as a label over a value it read as
+   a third statistic sitting next to the score; on one line it reads as
+   the name of the thing you are playing, which is what it is. It is
+   also NARROWER that way, which is what let it into a 390px bar
+   alongside everything else. */
+.gb-title {
+  display: flex; flex-direction: row; align-items: baseline; gap: 7px;
+  line-height: 1.05; margin-left: 4px;
+}
+.gb-title .lbl {
+  font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--dim); font-weight: 500;
+}
+.gb-title .val {
+  font-size: 19px; font-weight: 600; letter-spacing: 0.2px;
+  font-variant-numeric: tabular-nums;
+}
+.gb-title.wordy .val { font-size: 15px; }
+.gb-title.wordy .lbl { display: none; }
+/* On the narrowest phones the word gives way to the number. "69" alone
+   is unambiguous under a card that says Stage on every other screen;
+   366px of bar shared four ways is not. */
+@media (max-width: 369px) {
+  .gb-title .lbl { display: none; }
+}
+/* The word STAGE costs about 46px, which a 390px bar does not have to
+   spare once the number is on the same line as it. Four pixels come off
+   the bar's own gaps rather than off any one element — measured at 380
+   against 376 of usable width, and a bar that overflows by four pixels
+   is still a bar that overflows. */
+@media (max-width: 429px) {
+  .gamebar { gap: 9px; }
+  .gb-title { gap: 6px; margin-left: 0; }
+  /* A 390px bar holds four groups and, measured, it cannot hold
+     "STAGE 66" AND the score AND the word Restart AND sound with any
+     air between them: the content comes to 353px of 376, so the score
+     ends up 2px from the stage number and reads as one run of digits.
+     One word has to go, and Restart's is the cheaper loss — a circular
+     arrow is a standard glyph, it keeps its tooltip and its aria-label,
+     and the stage number is the thing a player reads to know where they
+     are. The sound button stays a button because muting is
+     time-critical in a way restarting is not. */
+  .gb-tools button.icon.labeled { width: 42px; min-width: 42px; padding: 0; gap: 0; }
+  .gb-tools button.icon.labeled .btn-lbl { display: none; }
+}
+
+/* The score reads as a duel: your side, a divider, their side, mirrored
+   so both numbers sit against the centre line. */
+.gb-score {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  justify-self: center;
+}
+
+/* `hidden` has to beat the flex above it — the draw shot has no score
+   to show, and a stale 1-0 there would be reporting on nothing. */
+.gb-score[hidden] { display: none; }
+
+.count {
+  display: flex; align-items: center; gap: 7px;
+  padding: 3px 2px 4px; border-bottom: 2px solid transparent;
+  font-variant-numeric: tabular-nums;
+}
+.count b { font-size: 17px; font-weight: 600; }
+.count.p1 { flex-direction: row-reverse; }
+.pip {
+  width: 13px; height: 13px; border-radius: 50%; display: inline-block;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+.pip.p0 { background: radial-gradient(circle at 35% 32%, #bcbcbc, #262626 60%, #101010); }
+.pip.p1 { background: radial-gradient(circle at 35% 32%, #ffffff, #f2f2ee 60%, #dcdcd8); }
+/* Whose turn it is, marked by an underline as well as by colour — the
+   board's own readability contract says hue is the last channel, and it
+   is the one a colour-blind player does not get. */
+.count.active { color: var(--accent); border-bottom-color: var(--accent); }
+.gb-div { width: 1px; height: 18px; background: rgba(255,255,255,0.12); }
+
+/* HARD is a state of the same stage, not a different stage, so it is a
+   chip beside the number rather than anything that changes the title's
+   shape. Bordered rather than filled: the bar's one saturated thing is
+   whose turn it is, and a solid badge here would outrank it. */
+/* The same word on the Continue button, which is the one filled slab on
+   the menu: the accent outline the HUD chip uses would be invisible on
+   an accent background, so this one is drawn in the button's own ink. */
+.btn-chip {
+  display: inline-block; margin-left: 9px; vertical-align: 2px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent-ink); border: 1px solid rgba(0,0,0,0.38); border-radius: 3px;
+  padding: 2px 6px; opacity: 0.82;
+}
+
+.hard-chip {
+  align-self: center; margin-left: 9px; flex: none;
+  font-size: 9.5px; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid var(--accent); border-radius: 3px;
+  padding: 2px 6px;
+}
+
+/* --- the rewarded-ad offer --- */
+.ad-offer { margin: 4px 0 12px; }
+.ad-offer button {
+  display: flex; align-items: center; justify-content: center; gap: 9px;
+  width: 100%;
+}
+.ad-badge {
+  display: inline-flex; align-items: center; gap: 3px; flex: none;
+  font-size: 9.5px; font-weight: 700; letter-spacing: 0.12em;
+  color: var(--dim); border: 1px solid rgba(255,255,255,0.22);
+  border-radius: 3px; padding: 2px 5px 2px 3px;
+}
+.ad-badge svg { width: 11px; height: 11px; }
+.ad-text { font-size: 14px; }
+/* Says the reward is optional in words as well as in the fact that
+   Retry sits right under it at the same weight. */
+.ad-note { margin: 7px 0 0; font-size: 11.5px; color: var(--dim); text-align: center; }
+.ad-offer.busy button { opacity: 0.55; cursor: default; }
+
+/* --- two-player match card --- */
+/* Numbers in a column the eye can compare at a glance: tabular figures
+   so the digits line up, and only the row that decided the match
+   carries any weight. */
+.ladder {
+  width: 100%; max-width: 320px; margin: 4px auto 0;
+  border-collapse: collapse; font-variant-numeric: tabular-nums;
+}
+.ladder th, .ladder td { padding: 7px 10px; font-size: 14px; font-weight: 500; }
+.ladder th { text-align: left; color: var(--dim); font-weight: 500; }
+.ladder td { text-align: right; width: 68px; color: var(--muted); }
+.ladder th.side { text-align: right; color: var(--dim); font-size: 12px; letter-spacing: 0.04em; }
+.ladder th.side .pip { margin-right: 6px; }
+.ladder tr.decisive th, .ladder tr.decisive td { color: var(--fg); }
+.ladder tr.decisive {
+  background: rgba(255,255,255,0.045);
+  outline: 1px solid rgba(255,255,255,0.10);
+  border-radius: 8px;
+}
+.ladder tr.decisive td.lead { color: var(--accent); font-weight: 700; }
+.result-why { margin: 12px 0 0; font-size: 13.5px; line-height: 1.5; color: var(--dim); }
+
+/* --- settings --- */
+.setting {
+  display: flex; align-items: flex-start; gap: 16px;
+  width: 100%; max-width: 420px; padding: 4px 2px;
+}
+.setting-text { flex: 1; }
+.setting-name { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+.setting-note { margin: 0; font-size: 13px; color: var(--dim); line-height: 1.5; }
+/* A switch, not a checkbox: this is a thing that is on or off right
+   now, not a box you tick and submit. */
+.switch {
+  flex: none; width: 52px; height: 30px; padding: 0; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid rgba(255,255,255,0.12);
+  position: relative; margin-top: 2px;
+}
+.switch i {
+  position: absolute; top: 3px; left: 3px; width: 22px; height: 22px;
+  border-radius: 50%; background: var(--dim);
+  transition: transform 0.16s ease, background 0.16s ease;
+}
+.switch[aria-checked="true"] { background: var(--accent); border-color: transparent; }
+.switch[aria-checked="true"] i { transform: translateX(22px); background: var(--accent-ink); }
+
+.grid-difficulty { margin-bottom: 4px; }
+.stage-card.locked .no { opacity: 0.7; }
+
+/* The board box takes whatever is left and centers the canvas in both
+   axes; game/layout.js then sizes the board to the SHORTER side of that
+   box, so the wood square is as large as it can be without ever
+   clipping a stone that hangs over its edge. */
+.board-wrap {
+  flex: 1; min-height: 0; width: 100%;
+  position: relative; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+  /* A pull-back gutter, and the reason it is a MARGIN rather than
+     padding: the board is sized from this element's own box, so padding
+     would be reserved and then immediately filled by a board that grew
+     to match. Margin genuinely shrinks the box.
+
+     It exists because the control needs room BELOW the board. Your
+     stones sit on the bottom home row and shoot upward, so aiming means
+     dragging down past them; the pointer is captured and may leave the
+     canvas, but it cannot leave the window. On a landscape phone —
+     where the board is height-limited and there is nothing under it —
+     that left 55px of travel against the 62px full power needs, and a
+     player dragging to the very edge of the screen got 88% with no way
+     to see why. game/layout.js's MAX_DRAG carries the arithmetic;
+     test/screens.mjs measures it for real at every viewport. */
+  margin-bottom: var(--board-gutter);
+}
+/* The board is not centred in its box — it sits a third of the way
+   down, so the leftover height falls BELOW it. That space is the
+   pull-back gutter: aiming means dragging down past your own home row,
+   and on a tall phone the board-wrap has 200px of slack that is worth
+   nothing above the wood and everything under it. Two flexible spacers
+   rather than a margin, so the split stays proportional and collapses
+   to nothing on a short screen where there is no slack to divide. */
+.board-wrap::before { content: ""; flex: 1 1 0; }
+.board-wrap::after { content: ""; flex: 2 1 0; }
+/* A box that shrink-wraps the canvas, so the banners hang off the
+   BOARD rather than off the space around it. With the buttons gone from
+   under the board there is a lot of that space on a tall phone, and
+   "Your turn" was landing a hundred pixels above the wood with nothing
+   to belong to. game/layout.js still measures #board-wrap, so the board
+   keeps being sized by the whole box. */
+.board-hold { position: relative; display: block; }
+/* CENTRED IN ITS BOX, which it did not have to be until the board
+   gained a width cap. main.js's maxSideForSidePull() can now make the
+   canvas narrower than .board-wrap, and its arithmetic splits the
+   leftover evenly between the two sides — a left-aligned canvas would
+   put all of it on the right and leave a stone on the LEFT wall exactly
+   as stuck as before. */
+canvas { display: block; touch-action: none; margin-inline: auto; }
+
+.turn-banner {
+  position: absolute; left: 50%; top: 8px; transform: translateX(-50%);
+  background: rgba(20,16,12,0.82); border: 1px solid rgba(255,255,255,0.1);
+  padding: 6px 14px; border-radius: 999px; font-size: 13px; pointer-events: none;
+  opacity: 0; transition: opacity 0.2s ease;
+}
+.turn-banner.show { opacity: 1; }
+
+/* The first-run caption. Sits at the BOTTOM of the board, under the
+   player's own home row, so it never covers the stone the ghost hand is
+   demonstrating on. */
+/* The multi-hit callout. Centered ON the board rather than in the HUD,
+   because the player's eyes are on the stones when it fires — a message
+   in the chrome at that moment is a message nobody reads. */
+.combo-banner {
+  position: absolute; left: 50%; top: 42%; transform: translate(-50%, -50%) scale(0.6);
+  font-size: clamp(26px, 7vw, 46px); font-weight: 750; letter-spacing: -0.5px;
+  color: var(--accent); text-shadow: 0 2px 14px rgba(0,0,0,0.75);
+  pointer-events: none; opacity: 0;
+}
+.combo-banner.pop {
+  animation: combo-pop 1.15s cubic-bezier(0.18, 0.9, 0.3, 1) forwards;
+}
+@keyframes combo-pop {
+  0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.6); }
+  18%  { opacity: 1; transform: translate(-50%, -58%) scale(1.12); }
+  32%  { transform: translate(-50%, -56%) scale(1); }
+  75%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -70%) scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .combo-banner.pop { animation: none; opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+.hint-banner {
+  position: absolute; left: 50%; bottom: 6px; transform: translateX(-50%);
+  background: rgba(20,16,12,0.86); border: 1px solid rgba(224,178,106,0.35);
+  color: var(--accent); padding: 7px 15px; border-radius: 999px;
+  font-size: 13px; pointer-events: none; white-space: nowrap;
+}
+
+
+/* --- result overlay --- */
+.overlay {
+  position: fixed; inset: 0; background: rgba(10,8,6,0.72);
+  display: none; align-items: center; justify-content: center; padding: 20px;
+  backdrop-filter: blur(2px);
+  overflow-y: auto;
+}
+.overlay.show { display: flex; }
+.card {
+  background: var(--panel); border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px; padding: 22px; width: 100%; max-width: 340px; text-align: center;
+  /* `margin: auto` rather than relying on the overlay's align-items,
+     for the same reason .centered uses it on every screen: when the
+     card is taller than the viewport (the briefing card on a phone held
+     sideways) auto margins collapse to 0 and it scrolls from its top,
+     where centering would push the title off the top edge with no way
+     to reach it. */
+  margin: auto;
+}
+.card h2 { margin: 0 0 6px; font-size: 24px; }
+.card p { margin: 0 0 16px; color: var(--muted); font-size: 14px; }
+.card .row { display: flex; gap: 8px; }
+.card .row button { flex: 1; }
+/* `.card p` above is a class AND a type, so it outranked a bare
+   `.unlock-note` — which means the one line on the card that was
+   supposed to be gold, the line announcing a reward, has been rendering
+   in muted grey since it was written. Scoped to match. */
+.card p.unlock-note { margin: 0 0 14px; font-size: 13px; color: var(--accent); }
+/* A rule above it, because it summarises a different thing from the
+   line before it — one stage above, ten stages below. */
+.card p.chapter-note {
+  margin: 0 0 12px; padding-top: 12px; font-size: 13px; color: var(--muted);
+  border-top: 1px solid rgba(255,255,255,0.09);
+}
+.chapter-note b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* --- pro tips ---
+   A TIP IS NOT AN ANNOUNCEMENT. It rides on a card the player opened
+   for another reason, so it is set below the result rather than above
+   it, in the muted ink the chapter tally uses, with an eyebrow that
+   says what kind of sentence it is. Left-aligned where the rest of the
+   card is centred: it is the one thing here that is read as prose
+   rather than glanced at, and a centred two-line sentence is harder to
+   come back to after the first word.
+   The specificity is `.card p.tip-note` for the same reason
+   `.unlock-note` needed it — `.card p` is (0,1,1) and would otherwise
+   win the colour. */
+.card p.tip-note {
+  margin: 2px 0 14px; padding-top: 12px; font-size: 13px; line-height: 1.5;
+  color: var(--muted); text-align: left;
+  border-top: 1px solid rgba(255,255,255,0.09);
+}
+/* Not scoped to .tip-note: both surfaces use the same label, and the
+   first version of this scoped the `display: block` to the card, which
+   ran the eyebrow into the sentence on the toast — "TipTurn your phone
+   sideways". */
+.tip-eyebrow {
+  display: block; margin-bottom: 3px; font-size: 10.5px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--accent);
+}
+
+/* --- the orientation toast ---
+   The one tip that cannot wait for a result card, because it is about
+   how to hold the device and the player is holding it wrong RIGHT NOW.
+   So it is the only tip with its own surface — and it is a toast and
+   not a dialog, because a modal between "I pressed play" and the board
+   would be a worse first impression than the thing it is fixing.
+   Anchored to the bottom of the window rather than to the board: on a
+   portrait phone the board is in the middle of the screen and the
+   thumb is at the bottom, which is both where the toast is easiest to
+   dismiss and where it covers nothing. */
+.tip-toast {
+  position: fixed; z-index: 40;
+  left: 12px; right: 12px; bottom: calc(12px + env(safe-area-inset-bottom));
+  margin: 0 auto; max-width: 420px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 13px;
+  background: rgba(28, 23, 18, 0.94);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+  color: var(--ink); font-size: 13px; line-height: 1.45; text-align: left;
+  opacity: 0; transform: translateY(8px);
+  transition: opacity 220ms ease, transform 220ms ease;
+}
+/* The third time this has bitten in this file (see button.icon and
+   .gb-score): a class selector setting `display` is (0,1,0) and beats
+   the UA sheet's `[hidden]`, so a hidden toast would sit on screen
+   empty. Same weight, later in the sheet, so it wins. */
+.tip-toast[hidden] { display: none; }
+.tip-toast.show { opacity: 1; transform: translateY(0); }
+.tip-toast p { margin: 0; flex: 1; }
+/* A real button, not a bare glyph: this is the only control on the
+   toast and it has to be a comfortable target beside a sentence. */
+.tip-toast button {
+  flex: none; padding: 7px 11px; font-size: 12px;
+  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
+  border-radius: 8px; color: var(--ink);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tip-toast { transition: none; }
+}
+
+/* --- obstacle briefing ---
+   Shares .overlay and .card with the result screen on purpose: this is
+   the same kind of interruption and should sit in the same box, at the
+   same size, with its button in the same place. A second dialog style
+   would make the game feel like two games. */
+.brief-eyebrow {
+  margin: 0 0 4px; font-size: 11px; letter-spacing: 1.4px;
+  text-transform: uppercase; color: var(--accent);
+}
+.brief-card h2 { margin: 0 0 12px; }
+/* Square, and sized by the card rather than by a fixed pixel count, so
+   the demo is the same shape as the board it is describing at every
+   width the game runs at. */
+.brief-canvas {
+  display: block; width: 100%; max-width: 280px; aspect-ratio: 1 / 1;
+  margin: 0 auto 14px; border-radius: 10px;
+}
+.brief-card p.rule {
+  margin: 0 0 14px; min-height: 3em;
+  color: var(--ink); font-size: 14px; line-height: 1.45;
+}
+.brief-dots { display: flex; gap: 6px; justify-content: center; margin: 0 0 14px; }
+.brief-dots i {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #4a3d2c; transition: background 0.2s;
+}
+.brief-dots i.on { background: var(--accent); }
+/* One page needs no page indicator, and an empty flex row still eats
+   its margin. */
+.brief-dots:empty { display: none; margin: 0; }
+
+/* A phone held sideways is ~390px tall, and the card at its normal size
+   is taller than that. Everything gives a little rather than the demo
+   giving all of it: the picture is the part of this card that does the
+   teaching, so it shrinks last and stays square. */
+@media (max-height: 470px) {
+  .overlay { padding: 10px; }
+  .brief-card { padding: 14px 16px; }
+  .brief-card h2 { font-size: 20px; margin: 0 0 8px; }
+  .brief-canvas { max-width: 150px; margin-bottom: 10px; }
+  .brief-card p.rule { min-height: 0; margin-bottom: 10px; font-size: 13px; }
+  .brief-dots { margin-bottom: 10px; }
+}
+
+/* --- stars --- */
+.stars { display: flex; gap: 4px; justify-content: center; margin: 10px 0 12px; }
+.stars svg { width: 30px; height: 30px; }
+.stars .earned { color: var(--accent); }
+.stars .missed { color: #4a3d2c; }
+.stage-card .stars { justify-content: flex-start; margin: 6px 0 0; gap: 2px; }
+.stage-card .stars svg { width: 14px; height: 14px; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
+
+/* Narrow phones: every pixel of side padding is a pixel off the board,
+   which on a portrait phone is width-limited and is the whole screen. */
+@media (max-width: 480px) {
+  #app { padding-left: 7px; padding-right: 7px; }
+}
+
+/* Short viewports (landscape phones, above all). Stacked vertically,
+   the topbar, the HUD and the action row together eat about 140px of a
+   390px-tall screen and the board is left a 215px strip — while some
+   600px of width sits empty on either side of it. So in landscape the
+   game screen becomes a two-column grid instead: the board takes the
+   full height on the left, and the three chrome rows stack into a
+   narrow column on the right. That roughly doubles the board's size on
+   exactly the devices where it was smallest. Nothing about the game
+   changes — game/layout.js already sizes the board to the shorter side
+   of whatever box it is given.
+
+   `#screen-game.active` rather than `.screen.active`: an id plus a
+   class outranks two classes, which is what lets `display: grid` win
+   over the `display: flex` that makes a screen visible at all. */
+@media (orientation: landscape) and (max-height: 560px) {
+  :root { --topbar-h: 40px; }
+  /* The menu gained a fifth button (Settings) and overflowed a 390px
+     landscape viewport by 31px. Everything here gives back a few
+     pixels rather than one thing giving back all of them, so the menu
+     still reads as a menu instead of a compressed list. */
+  .brand .tag { display: none; }
+  .menu-note { margin-top: 6px; }
+  /* TWO COLUMNS on a short landscape screen. The menu has been shaved
+     twice now — once for Settings, once for Practice — and a third pass
+     of taking pixels off paddings would have made it a compressed list
+     rather than a menu. A grid stops the problem repeating: Online is
+     still to come, and seven entries fit here as easily as six.
+     Continue spans both columns because it is the one thing a returning
+     player is looking for. */
+  .menu-actions { gap: 8px; padding: 8px 0 6px; }
+  .hero { padding: 11px 14px 10px; gap: 6px; }
+  .hero-label { font-size: 16px; }
+  .mode { min-height: 0; padding: 9px 11px; }
+  .mode-name { font-size: 14px; }
+  .mode-sub { display: none; }
+
+  /* The 14px top floor is breathing room on a normal screen and an
+     overflow on a 390px-tall one — the menu stopped fitting the moment
+     it went in. A phone held sideways still gets its safe-area inset,
+     just not the extra air. */
+  :root {
+    --app-pad-t: max(6px, env(safe-area-inset-top));
+    --app-pad-b: max(4px, env(safe-area-inset-bottom));
+  }
+  /* Every screen body's own top/bottom air comes down with it. The
+     theme list is the tallest thing in the game and overflowed its box
+     by 4px once the app gained a top floor — 12px back from this
+     padding is more than that, and nothing on a tall screen changes. */
+  .centered { padding: 4px 0 8px; }
+  .brand .mark { font-size: 32px; }
+  .menu-actions > button { padding: 9px 10px; }
+
+}
+
+/* --- the board stands beside its bar, not under it ---------------------
+   The board is square. Every viewport wider than it is tall therefore
+   leaves a column of nothing on EACH side of it, and the wider the
+   viewport the more of the screen is that nothing.
+
+   This started as a short-landscape-phone rule (`max-height: 560px`
+   above), because that is where it hurt most: the topbar, the HUD and
+   the action row ate 140px of a 390px-tall screen and left the board a
+   215px strip with 600px of empty width beside it. But the same problem
+   wears a different size on the portal. CrazyGames' own game frame is
+   1160x610 — not "short" by any height rule, but 1.9:1 — and the game
+   shipped there with a ~530px board and ~300px of black on either side.
+   A rule keyed on HEIGHT could never have caught that; the thing that
+   is actually wrong is the SHAPE of the box.
+
+   So: two columns whenever the box is meaningfully wider than it is
+   tall and there is room for a real column beside the board.
+     - 13/10 rather than 3/2, so an iPad in landscape (4:3) is included.
+     - 820px minimum width, so a nearly-square desktop window is NOT:
+       below that the sidebar would come out of the board rather than
+       out of the waste, which is the opposite of the point.
+   The short-landscape query keeps its own entry in the list because a
+   667x375 phone is under 820px wide and still needs this most of all. */
+@media (orientation: landscape) and (max-height: 560px),
+       (min-width: 820px) and (min-aspect-ratio: 13/10) {
+  /* `#screen-game.active` rather than `.screen.active`: an id plus a
+     class outranks two classes, which is what lets `display: grid` win
+     over the `display: flex` that makes a screen visible at all. */
+  #screen-game.active {
+    /* The board is square and height-limited here, so the column it
+       lives in is sized from the HEIGHT it will get, not left to stretch
+       across the width. An `auto` track cannot do this on its own: the
+       wrapper's width would have to come from its own height through
+       aspect-ratio, and that transfer does not survive intrinsic track
+       sizing — the track ends up as wide as the box and the board goes
+       back to being an island in it, only now with the bar parked beyond
+       the waste instead of beside the board. Stating the arithmetic
+       outright is both shorter and the thing that actually works.
+       `100% - 226px` (the bar's cap plus the gap) is the fallback when
+       the box is wide-but-not-tall, so the sidebar never overflows. */
+    --board-track: min(
+      calc(100dvh - var(--app-pad-t) - var(--app-pad-b) - var(--board-gutter)),
+      calc(100% - 226px)
+    );
+    display: grid;
+    grid-template-columns: var(--board-track) minmax(146px, 210px);
+    grid-template-rows: 1fr;
+    grid-template-areas: "board bar";
+    column-gap: 16px;
+    /* Board and bar are one object, centred together. Without this the
+       leftover width lands entirely on the right and the pair sits
+       visibly off to the left of the frame. */
+    justify-content: center;
+  }
+  /* A SQUARE wrapper, not a stretched one. game/layout.js sizes the
+     canvas to min(w, h) of #board-wrap, so a wrapper wider than it is
+     tall just re-creates the empty margin one level down — the board
+     would still be a square island in a wide box, only now with the bar
+     parked to the right of the waste rather than beside the board.
+     Pinning the wrapper to the row height and letting aspect-ratio give
+     it its width makes the `auto` track shrink-wrap the real board, and
+     `justify-content: center` then centres board-and-bar together as one
+     object. `calc(100% - 16px)` pays for the pull-back gutter below,
+     which is a margin and would otherwise overflow the row. */
+  #screen-game .board-wrap { grid-area: board; min-width: 0; }
+  /* THE SIDEBAR, as two groups rather than six things.
+     Stacked as one run of six items at an even gap, "Stage 66" read at
+     the same level as "Restart" and the whole column sat at the top
+     with two thirds of it dead underneath — the emptiness looked like
+     what was left over rather than like a decision.
+     So: four rows, and the fourth is `1fr`. Status fills the top,
+     the controls are placed in that last row and pushed to its bottom
+     edge, and the space between them becomes the gap BETWEEN two
+     groups instead of the tail of one. Nothing new is drawn — the
+     board stays the only object on the screen. */
+  #screen-game .gamebar {
+    grid-area: bar;
+    align-self: stretch;
+    grid-template-columns: 1fr;
+    /* Five rows now: title, score, shots, the controls (1fr, filled from
+       its bottom edge), and Main Menu on the very last line. */
+    grid-template-rows: min-content min-content min-content 1fr min-content;
+    align-content: stretch;
+    justify-items: start;
+    gap: 20px;
+    /* ALIGNED TO THE WOOD, NOT TO THE CANVAS. game/layout.js reserves a
+       full stone radius outside the board square on every side so a
+       stone teetering half off the edge is not clipped, which makes the
+       canvas about 6% taller than the board painted in it. The column
+       used to start and end on the CANVAS, so its first and last rows
+       sat a visible ~18px above and below the wood. main.js measures
+       the real offset in alignSidebarToBoard(). */
+    padding: var(--wood-top, 0px) 0 var(--wood-bottom, 0px);
+    /* The same gutter the board carries, so the two columns end on one
+       line. */
+    margin-bottom: var(--board-gutter);
+    border-bottom: 0;
+  }
+  #screen-game .gb-score { justify-self: start; }
+  #screen-game .gb-progress:not(.off) { display: flex; }
+  /* Placed rather than flowed, so it stays on the bottom edge even when
+     the shots row is absent (two players and the decider are not
+     scored, and the row above it simply is not there). */
+  #screen-game .gb-tools { grid-row: 4; align-self: end; justify-self: start; }
+  /* Leaving the match is a different kind of act from restarting it, so
+     it is set apart and set quieter rather than becoming a fourth item
+     in the same stack. */
+  #screen-game [data-back] { color: var(--dim); }
+  #screen-game [data-back]:hover { color: var(--ink); }
+  /* A column, not a row: three controls side by side are 250px wide and
+     the sidebar is 210. */
+  #screen-game .gb-tools { flex-direction: column; align-items: flex-start; gap: 10px; }
+  #screen-game button.icon.labeled.sidebar-word {
+    width: auto; min-width: 42px; padding: 0 13px 0 10px; gap: 7px;
+  }
+  #screen-game button.icon.labeled.sidebar-word .btn-lbl { display: inline; font-size: 13.5px; }
+
+  /* Back is navigation, not status, and it is the way OUT — so it goes
+     where a way out goes: the last line of the column, under everything
+     it is leaving, with the word that says where it leads. `display:
+     contents` dissolves the .gb-left wrapper so the button and the
+     stage title can be placed in different rows of the same grid; they
+     only ever shared a box because the bar used to be horizontal. */
+  #screen-game .gb-left { display: contents; }
+  #screen-game .gb-id { grid-row: 1; }
+  #screen-game .gb-score { grid-row: 2; }
+  #screen-game .gb-progress { grid-row: 3; }
+  #screen-game [data-back] { grid-row: 5; justify-self: start; }
+
+  /* One line, not two. Stacked as a label over a value it read as a
+     third statistic; on one line it reads as the name of the thing you
+     are playing, which is what it is. */
+  #screen-game .gb-title { gap: 9px; margin-left: 0; }
+  #screen-game .gb-title .lbl { font-size: 11px; }
+  #screen-game .gb-id { flex-wrap: wrap; gap: 8px 0; }
+
+  /* THE HIERARCHY, INVERTED FROM WHAT IT WAS.
+     Stage 66 used to be the largest type on the screen. It is the one
+     number a player reads once on the way in. The two they read on
+     every single shot are how many stones are left and how many shots
+     they have spent, and both were smaller than it. So the stage number
+     comes down to the size of a reference, and the score goes up. */
+  #screen-game .gb-title .val { font-size: 23px; font-weight: 600; color: var(--ink); }
+  #screen-game .count b { font-size: 26px; }
+  #screen-game .pip { width: 15px; height: 15px; }
+  #screen-game .gb-div { height: 26px; }
+  #screen-game .gb-score { gap: 12px; }
+
+  /* One hairline, between the two things that both change during a
+     turn. Not a border on every row: a rule per item is a table, and
+     this is two facts. */
+  #screen-game .gb-progress {
+    align-self: stretch;
+    width: 100%;
+    padding-top: 18px;
+    border-top: 1px solid rgba(255,255,255,0.08);
+  }
+  #screen-game .par-track { display: flex; }
+}
+
+/* The sidebar on a SHORT screen. The layout above is written for a
+   column 500-1000px tall; on a landscape phone that column is 380px and
+   the same content wants 394 — it overflowed by fourteen pixels, which
+   is a scrollbar on the one screen that must never have one.
+   Everything here gives back a few pixels rather than one thing giving
+   back all of them, and the par track is the only thing removed
+   outright: it is a second way of saying what the numeral beside it
+   already says, so it is the cheapest thing in the column to lose. */
+@media (orientation: landscape) and (max-height: 560px) {
+  #screen-game .gamebar { gap: 12px; }
+  #screen-game .gb-left { gap: 10px; }
+  #screen-game .gb-title .val { font-size: 18px; }
+  #screen-game .count b { font-size: 21px; }
+  #screen-game .pip { width: 13px; height: 13px; }
+  #screen-game .gb-div { height: 20px; }
+  #screen-game .gb-progress { padding-top: 12px; }
+  #screen-game .gb-progress .val { font-size: 17px; }
+  #screen-game .par-track { display: none; }
+  #screen-game .gb-tools { gap: 6px; }
+}

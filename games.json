@@ -1,0 +1,79 @@
+{
+  "$comment": "The one list of games on the site. tools/sync-games.mjs writes the footer Games column on every page, the More Free Games cards on the front page, and the game entries in sitemap.xml from it — so adding a game is one entry here plus `npm run sync`, and tools/site-check.mjs then checks every page listed. Order here is display order.",
+  "site": "https://easymahjongsolitaire.com",
+  "games": [
+    {
+      "key": "mahjong",
+      "name": "Mahjong Solitaire",
+      "path": "/",
+      "ga": "mahjong",
+      "sitemap": { "changefreq": "monthly", "priority": "1.0" },
+      "check": { "play": null, "shell": "site" }
+    },
+    {
+      "key": "daily",
+      "name": "Daily Challenge",
+      "path": "/daily.html",
+      "ga": "mahjong",
+      "track": false,
+      "sitemap": { "changefreq": "daily", "priority": "0.9" },
+      "check": { "play": null, "shell": "site" }
+    },
+    {
+      "key": "five-in-a-row",
+      "name": "Five in a Row",
+      "path": "/five-in-a-row/",
+      "ga": "five_in_a_row",
+      "card": {
+        "thumb": "/five-in-a-row-thumb.png",
+        "size": 720,
+        "alt": "Five in a Row board with black and white stones",
+        "desc": "Line up five stones on a big, easy-to-see board."
+      },
+      "sitemap": { "changefreq": "monthly", "priority": "0.9" },
+      "check": { "play": null, "shell": "site" }
+    },
+    {
+      "key": "four-ball-billiards",
+      "name": "Four Ball Billiards",
+      "path": "/four-ball-billiards/",
+      "ga": "four_ball_billiards",
+      "card": {
+        "thumb": "/four-ball-billiards-thumb.jpg",
+        "size": 400,
+        "alt": "Four Ball Billiards table with a white cue ball and two red balls",
+        "desc": "Carom billiards on a table with no pockets — hit both reds to score."
+      },
+      "sitemap": { "changefreq": "monthly", "priority": "0.9" },
+      "check": { "play": "#btn-play", "shell": "standalone" }
+    },
+    {
+      "key": "stone-flick",
+      "name": "StoneFlick",
+      "path": "/stone-flick/",
+      "ga": "stone_flick",
+      "card": {
+        "thumb": "/stone-flick-thumb.jpg",
+        "size": 400,
+        "alt": "StoneFlick table with light and dark stones",
+        "desc": "Flick your stones across the table and knock the other side's off."
+      },
+      "sitemap": { "changefreq": "monthly", "priority": "0.9" },
+      "check": { "play": "#btn-continue", "shell": "standalone" }
+    },
+    {
+      "key": "shuffleboard",
+      "name": "Shuffleboard",
+      "path": "/shuffleboard/",
+      "ga": "shuffleboard",
+      "card": {
+        "thumb": "/shuffleboard-thumb.jpg",
+        "size": 400,
+        "alt": "Table shuffleboard with red and blue weights on a maple board",
+        "desc": "Slide your weights down a long maple board into the scoring zones."
+      },
+      "sitemap": { "changefreq": "monthly", "priority": "0.9" },
+      "check": { "play": null, "shell": "standalone" }
+    }
+  ]
+}

@@ -1,0 +1,228 @@
+:root {
+  color-scheme: dark;
+  --ink: #f0e9dd;
+  --dim: rgba(240, 233, 221, 0.62);
+  --card: #241d15;
+  --accent: #e0a33c;
+  --red: #c53a2e;
+  --blue: #2b5cb8;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #171310;
+  color: var(--ink);
+  font: 15px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, system-ui, sans-serif;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+#app {
+  display: grid;
+  height: 100%;
+  grid-template-rows: auto 1fr;
+  padding: calc(env(safe-area-inset-top, 0px) + 8px) env(safe-area-inset-right)
+    calc(env(safe-area-inset-bottom, 0px) + 4px) env(safe-area-inset-left);
+}
+/* --- header: the running score ------------------------------------ */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 2px 12px 8px;
+  min-height: 40px;
+}
+.side {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 96px;
+}
+.side.you { justify-content: flex-end; }
+.side .name { font-size: clamp(12px, 1.3vw, 16px); letter-spacing: 0.08em; text-transform: uppercase; color: var(--dim); }
+/* Whose turn it is, without a word: the active side's name lights up. */
+.side.turn .name { color: var(--ink); }
+.side.turn .dot { box-shadow: 0 0 6px 1px rgba(255,255,255,0.35); }
+.side .score { font-size: clamp(24px, 2.6vw, 34px); font-weight: 700; font-variant-numeric: tabular-nums; }
+.side .dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+/* Site build: the colour used to be an inline style attribute, which the
+   site's Content-Security-Policy (style-src 'self') does not allow. */
+.side .dot-red { background: var(--red); }
+.side .dot-blue { background: var(--blue); }
+.pips { display: inline-flex; gap: 3px; }
+.pips i { width: clamp(6px, 0.7vw, 9px); height: clamp(6px, 0.7vw, 9px); border-radius: 50%; background: rgba(240,233,221,0.9); }
+.pips i.spent { background: rgba(240,233,221,0.22); }
+.mid { display: flex; flex-direction: column; align-items: center; min-height: 34px; justify-content: center; }
+/* The goal line is read on EVERY stage — it is the one string the
+   player lives with, and at a fixed 11px on a desktop it read as
+   chrome, not as the assignment (hands-on feedback). It scales
+   with the window and sits at full ink, not dimmed. */
+#frame-no {
+  font-size: clamp(12px, 1.5vw, 19px);
+  color: rgba(240, 233, 221, 0.92);
+  letter-spacing: 0.06em;
+  font-weight: 600;
+  text-align: center;
+}
+/* "If the frame ended now" — the running stake under the frame
+   number. Empty most of the time; never reserves more than a line. */
+#frame-live { font-size: clamp(11px, 1.2vw, 15px); letter-spacing: 0.04em; color: var(--accent); min-height: 15px; }
+#menu-btn {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 6px);
+  right: calc(env(safe-area-inset-right, 0px) + 8px);
+  width: 44px; height: 44px;
+  border: 0; border-radius: 10px;
+  background: transparent;
+  color: var(--dim);
+  font-size: 22px;
+  cursor: pointer;
+}
+#menu-btn:active { background: rgba(255,255,255,0.08); }
+@media (max-width: 460px) {
+  header { gap: 8px; }
+  .side { min-width: 0; gap: 5px; }
+  .side .score { font-size: 20px; }
+  .side .name { font-size: 11px; letter-spacing: 0.05em; }
+  #frame-no { font-size: 11.5px; }
+}
+/* --- board ---------------------------------------------------------- */
+#stage { position: relative; min-height: 0; }
+canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; }
+/* --- overlay cards --------------------------------------------------- */
+.card {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  padding: 14px 18px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  max-width: min(340px, calc(100vw - 32px));
+  z-index: 3;
+}
+[hidden] { display: none !important; }
+/* The one-sentence opener sits over the SCORING end (top in
+   portrait): before the first touch the zones are empty, and the
+   bottom must stay clear — the gesture demo and the weight live
+   there, and a card on top of them hid both (first hands-on
+   test). */
+#first-card { top: 7%; font-size: clamp(14.5px, 1.6vw, 18px); color: var(--ink); }
+#first-card .sub { color: var(--dim); font-size: clamp(12.5px, 1.3vw, 15px); margin-top: 4px; }
+/* Over the shooting end (bottom), never the zones: notes fire at
+   foul/score moments, exactly when the player is looking at the
+   far end. */
+#note {
+  bottom: 8%;
+  font-size: clamp(14px, 1.5vw, 17px);
+  padding: 10px 16px;
+  transition: opacity 0.25s;
+}
+#stages-card {
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: min(360px, calc(100vw - 28px));
+  max-height: min(560px, 78%);
+  overflow-y: auto;
+  padding: 16px 16px 12px;
+  text-align: left;
+}
+#stages-card h3 {
+  margin: 10px 2px 8px;
+  font-size: 13px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+#stages-card h3:first-child { margin-top: 0; }
+.chip-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.chip {
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  padding: 8px 4px 6px;
+  min-height: 48px;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 600;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+}
+.chip .st { font-size: 10.5px; letter-spacing: 2px; color: var(--accent); font-weight: 400; }
+.chip:active { background: rgba(255, 255, 255, 0.15); }
+.chip.locked { opacity: 0.32; cursor: default; }
+.chip.boss { grid-column: span 2; background: rgba(224, 163, 60, 0.14); }
+.chip.boss.beaten { background: rgba(255, 255, 255, 0.05); color: var(--dim); }
+#result-card { top: 50%; transform: translate(-50%, -50%); padding: 22px 26px; min-width: 260px; }
+#result-card h2 { margin: 0 0 4px; font-size: 21px; }
+#result-card .line { color: var(--dim); font-size: 13.5px; margin: 2px 0 14px; }
+#result-card .final { font-size: 30px; font-weight: 700; font-variant-numeric: tabular-nums; margin-bottom: 10px; }
+#result-card .stars { font-size: 26px; letter-spacing: 6px; color: var(--accent); margin: 2px 0 6px; }
+button.primary {
+  display: block;
+  width: 100%;
+  border: 0;
+  border-radius: 11px;
+  padding: 13px 18px;
+  font-size: 16px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #221605;
+  cursor: pointer;
+}
+button.primary:active { filter: brightness(0.92); }
+button.ghost {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  border: 0;
+  border-radius: 11px;
+  padding: 11px 18px;
+  font-size: 14px;
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--ink);
+  cursor: pointer;
+}
+/* --- menu ------------------------------------------------------------ */
+#menu {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 52px);
+  right: 10px;
+  background: var(--card);
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+  padding: 6px;
+  z-index: 5;
+  min-width: 180px;
+}
+#menu button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-size: 14.5px;
+  padding: 11px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  min-height: 44px;
+}
+#menu button:active { background: rgba(255, 255, 255, 0.08); }
+#menu .who { color: var(--dim); font-size: 12px; padding: 8px 12px 4px; }
+/* Site build: the one way back to the rest of easymahjongsolitaire.com,
+   on the home screen only — never on a gameplay screen. */
+#menu .site-home-link {
+  display: block; padding: 10px 12px 8px; margin-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.09);
+  color: var(--dim); font-size: 13px; text-decoration: underline; text-underline-offset: 3px;
+}

@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Shuffleboard — Free Online Table Shuffleboard Game, No Download</title>
+    <meta name="description" content="Play table shuffleboard free online — no download, no sign-up, no time limit. Slide your weights down a long maple board and land them in the high-scoring zones. Stages and a computer opponent.">
+    <link rel="canonical" href="https://easymahjongsolitaire.com/shuffleboard/">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Shuffleboard — Free Online Table Shuffleboard Game, No Download">
+    <meta property="og:description" content="Play table shuffleboard free online — no download, no sign-up, no time limit. Slide your weights down the board into the high-scoring zones.">
+    <meta property="og:image" content="https://easymahjongsolitaire.com/shuffleboard-thumb.jpg">
+    <meta property="og:url" content="https://easymahjongsolitaire.com/shuffleboard/">
+    <meta name="twitter:card" content="summary_large_image">
+    <!-- Inline favicon: the far end of a maple board, one red weight in
+         the 3 — the same picture the cover tells, at 16px. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23492f1c'/%3E%3Crect x='5' y='2' width='22' height='28' fill='%23e8c98a'/%3E%3Cline x1='5' y1='9' x2='27' y2='9' stroke='%234c3320' stroke-width='1.4'/%3E%3Cline x1='5' y1='16' x2='27' y2='16' stroke='%234c3320' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='6' r='4' fill='%23c53a2e' stroke='%23f2f2f0' stroke-width='1.6'/%3E%3Ccircle cx='9' cy='22' r='4' fill='%232b5cb8' stroke='%23f2f2f0' stroke-width='1.6'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <!-- Site build notes. This page lives at /shuffleboard/ on easymahjongsolitaire.com.
+         It keeps its own stylesheet (./style.css, extracted from the portal
+         build's inline <style>) and does NOT load the site's /style.css: the
+         game is a full-viewport layout and the two would fight. No inline
+         <style> and no inline <script>: the site's Content-Security-Policy
+         is `script-src 'self'; style-src 'self'`, which admits neither. -->
+
+    <!-- Vercel Web Analytics — served from the deployed domain itself, same
+         as every other page on this site. -->
+    <script defer src="/_vercel/insights/script.js"></script>
+
+    <!-- Google Analytics 4 — the SAME measurement ID and the SAME /ga-init.js
+         the rest of the site uses. Events from this page carry
+         game_name: "shuffleboard" (see trackEvent in src/main.js). -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-CPBFW58QG6"></script>
+    <script src="/ga-init.js"></script>
+
+    <!-- JSON-LD: WebApplication, matching the other game pages. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Shuffleboard",
+      "alternateName": "Free Table Shuffleboard",
+      "url": "https://easymahjongsolitaire.com/shuffleboard/",
+      "description": "Free online table shuffleboard: slide weights down a long maple board into the scoring zones, through a set of stages or against a computer opponent. No time limit, no download, no account required.",
+      "applicationCategory": "GameApplication",
+      "genre": "Sports Game",
+      "operatingSystem": "Any (web browser)",
+      "browserRequirements": "Requires JavaScript",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <div class="side you">
+          <span class="pips" id="pips-you"></span>
+          <span class="name">You</span>
+          <span class="dot dot-red"></span>
+          <span class="score" id="score-you">0</span>
+        </div>
+        <div class="mid">
+          <span id="frame-no">FRAME 1</span>
+          <span id="frame-live"></span>
+        </div>
+        <div class="side them" id="side-them">
+          <span class="score" id="score-them">0</span>
+          <span class="dot dot-blue"></span>
+          <span class="name" id="them-name">Rookie</span>
+          <span class="pips" id="pips-them"></span>
+        </div>
+      </header>
+      <div id="stage">
+        <canvas id="board"></canvas>
+        <div class="card" id="first-card" hidden>
+          Slide your weight down the board — closest to the far edge wins.
+          <div class="sub">Off the edge is gone.</div>
+        </div>
+        <div class="card" id="note" hidden></div>
+        <!-- The campaign map: chapters, stage chips with stars, boss rows.
+             Built by main.js; a chip is a plain button (the accent
+             stays reserved for the result card's one primary). -->
+        <div class="card" id="stages-card" hidden>
+          <div id="stages-list"></div>
+        </div>
+        <!-- One card for every outcome — stage clear, stage fail, boss
+             intro, match end — so "exactly one accent button per screen"
+             stays a structural fact instead of a hope. -->
+        <div class="card" id="result-card" hidden>
+          <h2 id="result-title">Stage</h2>
+          <div class="stars" id="result-stars" hidden>★★★</div>
+          <div class="final" id="result-final" hidden>15 – 9</div>
+          <div class="line" id="result-line"></div>
+          <button class="primary" id="btn-primary">Next stage</button>
+          <button class="ghost" id="btn-secondary" hidden>Replay</button>
+          <button class="ghost" id="btn-tertiary" hidden>Practice match</button>
+        </div>
+      </div>
+      <button id="menu-btn" aria-label="Menu">⋯</button>
+      <div id="menu" hidden>
+        <div class="who" id="menu-who">Campaign</div>
+        <button id="btn-home">Home</button>
+        <button id="btn-sound">Sound: On</button>
+        <button id="btn-stage">Stages</button>
+        <button id="btn-practice">Practice match</button>
+        <button id="btn-two">Two players — pass and play</button>
+        <a class="site-home-link" href="/" id="link-crossgame-home">More free games →</a>
+      </div>
+    </div>
+    <script type="module" src="./src/main.js"></script>
+  </body>
+</html>

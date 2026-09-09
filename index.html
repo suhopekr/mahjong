@@ -162,8 +162,8 @@
        page, and someone who arrived from an ad should reach the board
        without passing anything that invites them elsewhere first.
 
-       Deliberately NOT a top nav bar. Two games do not justify one, and a
-       nav bar would put that invitation above the board on every page.
+       Deliberately NOT a top nav bar. A nav bar would put that invitation
+       above the board on every page.
        The Five in a Row page keeps its own header link back here — the
        asymmetry is intentional, since traffic arrives at Mahjong.
 
@@ -173,16 +173,48 @@
   <section class="game-cards" aria-labelledby="more-games-title">
     <h2 id="more-games-title">More Free Games</h2>
     <ul class="game-card-grid">
+      <!-- games:cards -->
       <li>
-        <a class="game-card" href="/five-in-a-row/" id="link-crossgame-card">
+        <a class="game-card" href="/five-in-a-row/" data-crossgame-to="five_in_a_row" data-placement="card_section">
           <img class="game-card-thumb" src="/five-in-a-row-thumb.png" width="720" height="720"
-               alt="Five in a Row board with black and white stones" decoding="async">
+               alt="Five in a Row board with black and white stones" decoding="async" loading="lazy">
           <span class="game-card-body">
             <span class="game-card-title">Five in a Row</span>
             <span class="game-card-desc">Line up five stones on a big, easy-to-see board.</span>
           </span>
         </a>
       </li>
+      <li>
+        <a class="game-card" href="/four-ball-billiards/" data-crossgame-to="four_ball_billiards" data-placement="card_section">
+          <img class="game-card-thumb" src="/four-ball-billiards-thumb.jpg" width="400" height="400"
+               alt="Four Ball Billiards table with a white cue ball and two red balls" decoding="async" loading="lazy">
+          <span class="game-card-body">
+            <span class="game-card-title">Four Ball Billiards</span>
+            <span class="game-card-desc">Carom billiards on a table with no pockets — hit both reds to score.</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a class="game-card" href="/stone-flick/" data-crossgame-to="stone_flick" data-placement="card_section">
+          <img class="game-card-thumb" src="/stone-flick-thumb.jpg" width="400" height="400"
+               alt="StoneFlick table with light and dark stones" decoding="async" loading="lazy">
+          <span class="game-card-body">
+            <span class="game-card-title">StoneFlick</span>
+            <span class="game-card-desc">Flick your stones across the table and knock the other side's off.</span>
+          </span>
+        </a>
+      </li>
+      <li>
+        <a class="game-card" href="/shuffleboard/" data-crossgame-to="shuffleboard" data-placement="card_section">
+          <img class="game-card-thumb" src="/shuffleboard-thumb.jpg" width="400" height="400"
+               alt="Table shuffleboard with red and blue weights on a maple board" decoding="async" loading="lazy">
+          <span class="game-card-body">
+            <span class="game-card-title">Shuffleboard</span>
+            <span class="game-card-desc">Slide your weights down a long maple board into the scoring zones.</span>
+          </span>
+        </a>
+      </li>
+      <!-- /games:cards -->
     </ul>
   </section>
 
@@ -277,7 +309,7 @@
          below the board. Nothing here is reachable by a stray tap during
          play. -->
     <p class="cross-game-cta">
-      <a class="cross-game-link" href="/five-in-a-row/" id="link-crossgame-content">Try our other free game — Five in a Row</a>
+      <a class="cross-game-link" href="/five-in-a-row/" data-crossgame-to="five_in_a_row" data-placement="content">Try our other free game — Five in a Row</a>
     </p>
   </section>
 </main>
@@ -288,9 +320,14 @@
     <div class="footer-nav-group">
       <span class="footer-nav-label" id="footer-games-label">Games</span>
       <div class="footer-nav-links" aria-labelledby="footer-games-label">
+        <!-- games:footer -->
         <a href="/" aria-current="page">Mahjong Solitaire</a>
         <a href="/daily.html">Daily Challenge</a>
-        <a href="/five-in-a-row/" id="link-crossgame-footer">Five in a Row</a>
+        <a href="/five-in-a-row/" data-crossgame-to="five_in_a_row" data-placement="footer">Five in a Row</a>
+        <a href="/four-ball-billiards/" data-crossgame-to="four_ball_billiards" data-placement="footer">Four Ball Billiards</a>
+        <a href="/stone-flick/" data-crossgame-to="stone_flick" data-placement="footer">StoneFlick</a>
+        <a href="/shuffleboard/" data-crossgame-to="shuffleboard" data-placement="footer">Shuffleboard</a>
+        <!-- /games:footer -->
       </div>
     </div>
     <div class="footer-nav-group">
@@ -465,7 +502,7 @@
          natural stopping point, the game is already over, and nothing
          they might tap by accident is nearby. -->
     <p class="cross-game-cta">
-      <a class="cross-game-link" href="/five-in-a-row/" id="link-crossgame-win">Try our other free game — Five in a Row</a>
+      <a class="cross-game-link" href="/five-in-a-row/" data-crossgame-to="five_in_a_row" data-placement="win_modal">Try our other free game — Five in a Row</a>
     </p>
   </div>
 </div>

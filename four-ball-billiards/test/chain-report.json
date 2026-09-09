@@ -1,0 +1,706 @@
+{
+ "note": "Which stages can be RUN: two points in a row (hard) and three (extreme). Produced by tools/chain-check.mjs; see that file for the search and for what an over-narrow one reports. Re-run in full under the corrected cushion physics (the rail freeze): 99 stages unchanged, s32 needed the WIDE grid.",
+ "floorDegrees": 2.5,
+ "stages": [
+  {
+   "id": "s1",
+   "covers": "cluster",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s2",
+   "covers": "tightCorner",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s3",
+   "covers": "cluster",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s4",
+   "covers": "tightCorner",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s5",
+   "covers": "cluster",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s6",
+   "covers": "tightCorner",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s7",
+   "covers": "cluster",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s8",
+   "covers": "tightCorner",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s9",
+   "covers": "tightCorner",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s10",
+   "covers": "stun",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s11",
+   "covers": "openTable",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s12",
+   "covers": "redsApart",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s13",
+   "covers": "frozenPair",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s14",
+   "covers": "openTable",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s15",
+   "covers": "stun",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s16",
+   "covers": "cueOnRail",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s17",
+   "covers": "openTable",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s18",
+   "covers": "stun",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s19",
+   "covers": "frozenPair",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s20",
+   "covers": "cueOnRail",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s21",
+   "covers": "stun",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s22",
+   "covers": "frozenPair",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s23",
+   "covers": "softTouch",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s24",
+   "covers": "cueInCorner",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s25",
+   "covers": "stun",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s26",
+   "covers": "frozenPair",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s27",
+   "covers": "cueInCorner",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s28",
+   "covers": "softTouch",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s29",
+   "covers": "cueOnRail",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s30",
+   "covers": "frozenPair",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s31",
+   "covers": "cueInCorner",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s32",
+   "covers": "cueOnRail",
+   "hard": true,
+   "extreme": true,
+   "proved": "wide"
+  },
+  {
+   "id": "s33",
+   "covers": "openTable",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s34",
+   "covers": "followOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s35",
+   "covers": "cueInCorner",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s36",
+   "covers": "softTouch",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s37",
+   "covers": "followOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s38",
+   "covers": "softTouch",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s39",
+   "covers": "followOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s40",
+   "covers": "openTable",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s41",
+   "covers": "followOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s42",
+   "covers": "englishOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s43",
+   "covers": "redsApart",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s44",
+   "covers": "followOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s45",
+   "covers": "englishOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s46",
+   "covers": "softTouch",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s47",
+   "covers": "yellowBetween",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s48",
+   "covers": "cushionBetween",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s49",
+   "covers": "redsApart",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s50",
+   "covers": "drawOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s51",
+   "covers": "yellowTrap",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s52",
+   "covers": "yellowBetween",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s53",
+   "covers": "englishOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s54",
+   "covers": "yellowTrap",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s55",
+   "covers": "yellowBetween",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s56",
+   "covers": "englishOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s57",
+   "covers": "drawOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s58",
+   "covers": "redsApart",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s59",
+   "covers": "yellowBetween",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s60",
+   "covers": "englishOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s61",
+   "covers": "drawOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s62",
+   "covers": "railFirst",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s63",
+   "covers": "redsApart",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s64",
+   "covers": "yellowTrap",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s65",
+   "covers": "cushionBetween",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s66",
+   "covers": "drawOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s67",
+   "covers": "cushionBetween",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s68",
+   "covers": "railFirst",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s69",
+   "covers": "cushionBetween",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s70",
+   "covers": "yellowTrap",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s71",
+   "covers": "drawOnly",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s72",
+   "covers": "thinBoth",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s73",
+   "covers": "railFirst",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s74",
+   "covers": "longRange",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s75",
+   "covers": "thinBoth",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s76",
+   "covers": "yellowTrap",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s77",
+   "covers": "railFirst",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s78",
+   "covers": "twoCushion",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s79",
+   "covers": "thinBoth",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s80",
+   "covers": "twoCushion",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s81",
+   "covers": "railFirst",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s82",
+   "covers": "thinBoth",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s83",
+   "covers": "longThin",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s84",
+   "covers": "sideRail",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s85",
+   "covers": "thinBoth",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s86",
+   "covers": "sideRail",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s87",
+   "covers": "spread",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s88",
+   "covers": "longThin",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s89",
+   "covers": "sideRail",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s90",
+   "covers": "longThin",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s91",
+   "covers": "twoCushion",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s92",
+   "covers": "sideRail",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s93",
+   "covers": "longRange",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s94",
+   "covers": "twoCushion",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s95",
+   "covers": "longThin",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s96",
+   "covers": "longRange",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  },
+  {
+   "id": "s97",
+   "covers": "spread",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s98",
+   "covers": "longRange",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s99",
+   "covers": "spread",
+   "hard": true,
+   "extreme": true,
+   "proved": "deep"
+  },
+  {
+   "id": "s100",
+   "covers": "spread",
+   "hard": true,
+   "extreme": true,
+   "proved": "cheap"
+  }
+ ]
+}

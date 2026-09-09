@@ -983,20 +983,17 @@
    * 셈이 되는데, 그건 이 사용자층에서 절대 하면 안 되는 거래다. 계측이
    * 유실되더라도 링크는 즉시 동작해야 한다. */
   function wireCrossGameLinks() {
-    var links = [
-      { id: 'link-crossgame-card', placement: 'card_section' },
-      { id: 'link-crossgame-win', placement: 'win_modal' },
-      { id: 'link-crossgame-footer', placement: 'footer' },
-      { id: 'link-crossgame-content', placement: 'content' }
-    ];
-    links.forEach(function (entry) {
-      var el = document.getElementById(entry.id);
-      if (!el) return;
+    // 링크마다 id를 두고 여기서 목록을 관리하지 않는다 — 어느 게임으로
+    // 가는지(data-crossgame-to)와 어디에 놓인 링크인지(data-placement)를
+    // 링크 자신이 들고 있다. 푸터/카드는 games.json에서
+    // tools/sync-games.mjs가 써 넣으므로 게임이 늘어도 이 코드는 그대로다.
+    var links = document.querySelectorAll('a[data-crossgame-to]');
+    Array.prototype.forEach.call(links, function (el) {
       el.addEventListener('click', function () {
         trackEvent('cross_game_click', {
           from: 'mahjong',
-          to: 'five_in_a_row',
-          placement: entry.placement
+          to: el.getAttribute('data-crossgame-to'),
+          placement: el.getAttribute('data-placement') || 'unknown'
         });
       });
     });

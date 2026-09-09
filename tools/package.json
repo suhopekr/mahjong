@@ -1,0 +1,17 @@
+{
+  "name": "easymahjongsolitaire-tools",
+  "private": true,
+  "type": "module",
+  "description": "Dev tooling for the site. Lives under tools/ (which .vercelignore keeps off the deploy) so the site itself stays a plain static folder with no package.json for Vercel to interpret. Run from the repo root: npm --prefix tools install, then npm --prefix tools test.",
+  "scripts": {
+    "test": "node test-all.mjs",
+    "test:site": "node test-all.mjs --browser",
+    "check": "node site-check.mjs",
+    "sync": "node sync-games.mjs",
+    "sync:check": "node sync-games.mjs --check",
+    "serve": "node serve.mjs"
+  },
+  "devDependencies": {
+    "playwright": "^1.56.0"
+  }
+}

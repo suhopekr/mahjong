@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>Four Ball Billiards — Free Online Billiards Game, No Download</title>
+    <meta name="description" content="Play Four Ball Billiards free online — no download, no sign-up, no time limit. Carom billiards on a table with no pockets: hit both red balls to score. Stages, practice, and a computer opponent.">
+    <link rel="canonical" href="https://easymahjongsolitaire.com/four-ball-billiards/">
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Four Ball Billiards — Free Online Billiards Game, No Download">
+    <meta property="og:description" content="Play Four Ball Billiards free online — no download, no sign-up, no time limit. Carom billiards on a table with no pockets.">
+    <meta property="og:image" content="https://easymahjongsolitaire.com/four-ball-billiards-thumb.jpg">
+    <meta property="og:url" content="https://easymahjongsolitaire.com/four-ball-billiards/">
+    <meta name="twitter:card" content="summary_large_image">
+    <!-- Inline, so the bundle stays at zero extra requests and a
+         standalone load stops 404ing on /favicon.ico. Four balls in their
+         real colours on the cloth: the same picture the cover tells, at
+         16 pixels. -->
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2326707d'/%3E%3Ccircle cx='10' cy='11' r='4.4' fill='%23f2ede0'/%3E%3Ccircle cx='21' cy='9' r='4.4' fill='%23cf2b2b'/%3E%3Ccircle cx='23' cy='21' r='4.4' fill='%23cf2b2b'/%3E%3Ccircle cx='11' cy='23' r='4.4' fill='%23e0b526'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <!-- Site build notes. This page lives at /four-ball-billiards/ on easymahjongsolitaire.com.
+         It keeps its own stylesheet (./style.css, extracted from the portal
+         build's inline <style>) and does NOT load the site's /style.css: the
+         game is a full-viewport layout and the two would fight. No inline
+         <style> and no inline <script>: the site's Content-Security-Policy
+         is `script-src 'self'; style-src 'self'`, which admits neither. -->
+
+    <!-- Vercel Web Analytics — served from the deployed domain itself, same
+         as every other page on this site. -->
+    <script defer src="/_vercel/insights/script.js"></script>
+
+    <!-- Google Analytics 4 — the SAME measurement ID and the SAME /ga-init.js
+         the rest of the site uses. Events from this page carry
+         game_name: "four_ball_billiards" (see trackEvent in src/main.js). -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-CPBFW58QG6"></script>
+    <script src="/ga-init.js"></script>
+
+    <!-- JSON-LD: WebApplication, matching the other game pages. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Four Ball Billiards",
+      "alternateName": "Free Four Ball Billiards",
+      "url": "https://easymahjongsolitaire.com/four-ball-billiards/",
+      "description": "Free online four ball (carom) billiards on a table with no pockets, with stages, practice, and a computer opponent. No time limit, no download, no account required.",
+      "applicationCategory": "GameApplication",
+      "genre": "Billiards",
+      "operatingSystem": "Any (web browser)",
+      "browserRequirements": "Requires JavaScript",
+      "isAccessibleForFree": true,
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+    </script>
+  </head>
+  <body>
+    <div id="app">
+      <header>
+        <span id="stage-name"></span>
+        <span id="shots"></span>
+        <span class="spacer"></span>
+        <button id="undo" hidden>Undo</button>
+        <button id="preview" hidden>Preview</button>
+        <!-- Restart sits in the row rather than in the menu, and only in
+             the campaign. It used to be a menu item because Restart /
+             Stage select / Home / Sound are utilities and the header is
+             what competes with the table for a phone's vertical pixels.
+             Hard and extreme changed which of those it is: a run of two
+             or three points is restarted often enough that it belongs in
+             the loop, not two taps away behind ⋯. It costs no height —
+             it is another button in the row that already holds ⋯. -->
+        <button id="restart-now" aria-label="Restart this stage" title="Restart this stage" hidden>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M20.5 12a8.5 8.5 0 1 1-2.8-6.3" />
+            <path d="M20.5 3.6v5.2h-5.2" />
+          </svg>
+        </button>
+        <button id="menu-open" aria-label="Menu">⋯</button>
+        <span id="hint"></span>
+        <span id="status"></span>
+      </header>
+      <div id="board">
+        <canvas id="table"></canvas>
+        <div id="banner"></div>
+
+        <!-- First run. The table is already there behind this; the card
+             says the one thing a player coming from a grid full of pocket
+             games does not know, and then gets out of the way on the
+             first touch. -->
+        <div id="firstrun">
+          <strong>Hit both reds with the white ball.</strong>
+          <span>No pockets — the table has none.</span>
+          <!-- Three lines for three controls, because the control is the
+               part nobody arrives knowing. The numbers are the point: they
+               say these are STEPS, in this order, which is the one thing a
+               sentence listing them cannot say. The status line goes on
+               repeating whichever step is next long after this card is
+               gone, so nothing here has to be remembered. -->
+          <ol id="howto">
+            <li>Turn the cue to aim</li>
+            <li>Tap the bar to set the power</li>
+            <li>Pull the bar and let go to shoot</li>
+          </ol>
+        </div>
+
+        <!-- One-time coaching, anchored under the button it is about.
+             Used exactly once so far, for the preview, whose trick is not
+             discoverable: that a TAP on the bar parks a speed, which is
+             what makes the route follow the cue while you aim. -->
+        <div id="tip" hidden></div>
+
+
+        <!-- The end of a run. A time is a record only if it is shown the
+             moment it is set; a number that appears on a menu three taps
+             later is a number nobody sees. -->
+        <div id="runover" hidden>
+          <strong id="runover-head"></strong>
+          <div id="runover-time"></div>
+          <span id="runover-detail"></span>
+          <button id="runover-again" class="primary">Play again</button>
+          <button id="runover-home" class="quiet">Home</button>
+        </div>
+
+        <!-- Cleared. One accent button, and it is the next stage: going
+             back to a menu is where a session ends. -->
+        <div id="cleared" hidden>
+          <div id="cleared-stars"></div>
+          <div id="cleared-kind"></div>
+          <button id="btn-next" class="primary">Next stage</button>
+          <button id="btn-again" class="quiet">Play it again</button>
+        </div>
+
+        <!-- Stuck. This is where the rewarded ad is REQUESTED, and it is
+             here because CrazyGames' advertisement requirements say a
+             rewarded ad's request button must not appear on an active
+             gameplay screen. It is also simply where a stuck player
+             already is. -->
+        <div id="stuck" hidden>
+          <div id="stuck-why"></div>
+          <strong>Want to see where the ball goes?</strong>
+          <span>Take a free preview and the next shot draws its own path — cushions and all.</span>
+          <button id="btn-watch" class="primary">Get a free preview</button>
+          <button id="btn-nothanks" class="quiet">No thanks, try again</button>
+        </div>
+
+        <div id="menu" hidden>
+          <button id="retry">Restart this stage</button>
+          <button id="to-stages">Stage select</button>
+          <button id="to-home">Home</button>
+          <button id="sound">Sound on</button>
+          <button id="menu-close" class="quiet">Close</button>
+        </div>
+
+        <!-- Home. Full-bleed over the live table, no panel — see the CSS
+             note. One accent button and it is the one that plays. -->
+        <div id="home" hidden>
+          <div class="top">
+            <h1><span>Four Ball</span><span>Billiards</span></h1>
+            <div class="sight">◆</div>
+            <p>Two reds, one white, and no pockets anywhere on the table.</p>
+          </div>
+          <div class="grow"></div>
+          <div id="home-actions">
+            <button id="btn-play" class="primary">Play</button>
+            <div class="row">
+              <button id="btn-stages">Stages</button>
+              <button id="btn-free">Practice</button>
+            </div>
+            <button id="btn-versus">Play with AI</button>
+          </div>
+          <div id="home-foot">
+            <span class="stars-total" id="home-stars"></span>
+            <button id="btn-tables" class="quiet">Tables</button>
+            <button id="home-sound" class="quiet">Sound on</button>
+          </div>
+          <a class="site-home-link" href="/" id="link-crossgame-home">More free games →</a>
+        </div>
+
+        <!-- Stage select. The grid answers "how much is there and how
+             much have I done" in one look; a list does not. -->
+        <div id="stagemap" hidden>
+          <header>
+            <button id="map-back" class="back" aria-label="Home"><i class="chev"></i></button>
+            <div class="htitle">
+              <h2>Stages</h2>
+              <span class="stars-total" id="map-stars"></span>
+            </div>
+          </header>
+          <!-- One row, three difficulties. The same hundred layouts:
+               normal wants one point, hard two, extreme three. A tab
+               rather than a per-tile choice because the question a player
+               opens this screen with is "how far am I", and that answer
+               is per difficulty. -->
+          <div id="map-tabs" role="tablist">
+            <button class="mtab on" data-level="0">Normal</button>
+            <button class="mtab" data-level="1">Hard</button>
+            <button class="mtab" data-level="2">Extreme</button>
+          </div>
+          <div id="stage-grid"></div>
+          <div id="map-done" hidden>Every stage cleared. Practice is on the home screen.</div>
+        </div>
+
+
+        <!-- The setup card, shared by both timed modes. It exists because
+             the opponent needs a difficulty and a run needs a length, and a
+             mode that asks for neither cannot be a record attempt. One card
+             for both, because the two settings are set in the same breath
+             and a second screen for the second of them would be a screen
+             nobody opens twice. -->
+        <div id="setup" hidden>
+          <header>
+            <button id="setup-back" class="back" aria-label="Home"><i class="chev"></i></button>
+            <div class="htitle"><h2 id="setup-title">Practice</h2></div>
+          </header>
+          <div id="setup-body">
+            <p id="setup-blurb"></p>
+            <div class="setup-field">
+              <span class="setup-label">Points to win</span>
+              <div class="seg" id="setup-target"></div>
+            </div>
+            <div class="setup-field" id="setup-level-field" hidden>
+              <span class="setup-label">Opponent</span>
+              <div class="seg" id="setup-level"></div>
+            </div>
+            <p id="setup-record"></p>
+            <button id="setup-start" class="primary">Start</button>
+          </div>
+        </div>
+
+        <!-- Tables. A cosmetic reward, so it lives off the home screen
+             and never interrupts anything: the cloth a player is looking
+             at is the one thing in this game they can change. -->
+        <div id="tables" hidden>
+          <header>
+            <button id="tables-back" class="back" aria-label="Home"><i class="chev"></i></button>
+            <div class="htitle">
+              <h2>Tables</h2>
+            </div>
+          </header>
+          <div id="table-grid"></div>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="src/main.js"></script>
+  </body>
+</html>

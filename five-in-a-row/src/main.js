@@ -1107,16 +1107,16 @@ toggleRenju.addEventListener("change", () => {
 //
 // Navigation is never delayed to wait on delivery — GA4 sends via
 // sendBeacon, and making someone wait on measurement is the wrong trade.
-for (const [id, placement] of [
-  ["fir-link-crossgame-win", "win_modal"],
-  ["fir-link-crossgame-footer", "footer"],
-]) {
-  const el = document.getElementById(id);
-  if (el) {
-    el.addEventListener("click", () => {
-      trackEvent("cross_game_click", { from: "five_in_a_row", to: "mahjong", placement });
+// Every cross-game link carries its destination and placement itself; the
+// footer ones are written from games.json by tools/sync-games.mjs.
+for (const el of document.querySelectorAll("a[data-crossgame-to]")) {
+  el.addEventListener("click", () => {
+    trackEvent("cross_game_click", {
+      from: "five_in_a_row",
+      to: el.dataset.crossgameTo,
+      placement: el.dataset.placement || "unknown",
     });
-  }
+  });
 }
 
 // --- boot -----------------------------------------------------------------

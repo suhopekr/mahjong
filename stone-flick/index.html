@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+<title>StoneFlick — Free Online Stone Flicking Game, No Download</title>
+<meta name="description" content="Play StoneFlick free online — no download, no sign-up, no time limit. Flick your stones across the table, knock the other side's off, and clear the stages. Easy to pick up, relaxing to play.">
+<link rel="canonical" href="https://easymahjongsolitaire.com/stone-flick/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="StoneFlick — Free Online Stone Flicking Game, No Download">
+<meta property="og:description" content="Play StoneFlick free online — no download, no sign-up, no time limit. Flick your stones across the table and knock the other side's off.">
+<meta property="og:image" content="https://easymahjongsolitaire.com/stone-flick-thumb.jpg">
+<meta property="og:url" content="https://easymahjongsolitaire.com/stone-flick/">
+<meta name="twitter:card" content="summary_large_image">
+<!-- Favicon: inline SVG data URI, same approach as the rest of the site. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f3b2e'/%3E%3Ccircle cx='11' cy='20' r='6' fill='%23d9d4c7' stroke='%23222' stroke-width='1.5'/%3E%3Ccircle cx='22' cy='10' r='6' fill='%23333' stroke='%23111' stroke-width='1.5'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="./style.css" />
+<!-- Site build notes. This page lives at /stone-flick/ on easymahjongsolitaire.com.
+     It keeps its own stylesheet (./style.css, extracted from the portal
+     build's inline <style>) and does NOT load the site's /style.css: the
+     game is a full-viewport layout and the two would fight. No inline
+     <style> and no inline <script>: the site's Content-Security-Policy
+     is `script-src 'self'; style-src 'self'`, which admits neither. -->
+
+<!-- Vercel Web Analytics — served from the deployed domain itself, same
+     as every other page on this site. -->
+<script defer src="/_vercel/insights/script.js"></script>
+
+<!-- Google Analytics 4 — the SAME measurement ID and the SAME /ga-init.js
+     the rest of the site uses. Events from this page carry
+     game_name: "stone_flick" (see trackEvent in src/main.js). -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPBFW58QG6"></script>
+<script src="/ga-init.js"></script>
+
+<!-- JSON-LD: WebApplication, matching the other game pages. -->
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "StoneFlick",
+  "alternateName": "Free StoneFlick",
+  "url": "https://easymahjongsolitaire.com/stone-flick/",
+  "description": "Free online stone-flicking game: pull back, let go, and knock the other side's stones off the table across a campaign of stages, with practice and a computer opponent. No time limit, no download, no account required.",
+  "applicationCategory": "GameApplication",
+  "genre": "Skill Game",
+  "operatingSystem": "Any (web browser)",
+  "browserRequirements": "Requires JavaScript",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+</head>
+<body>
+<div id="app">
+
+  <!-- MENU -->
+  <section class="screen active" id="screen-menu">
+    <div class="topbar">
+      <div class="spacer"></div>
+      <!-- Utilities live up here, not in the menu. Board Theme and
+           Settings are things you reach for deliberately once, and giving
+           them the same slab as Two Players made a returning player read
+           two labels that are never the reason they opened the game. -->
+      <button class="icon ghost" id="btn-themes" aria-label="Board theme"></button>
+      <button class="icon ghost" id="btn-settings" aria-label="Settings"></button>
+      <button class="icon ghost" id="sound-toggle" aria-label="Toggle sound"></button>
+    </div>
+    <div class="screen-body">
+      <div class="centered">
+        <div class="brand">
+          <p class="mark">StoneFlick</p>
+          <p class="tag">Flick your stones. Knock theirs off. Mind the pits.</p>
+        </div>
+        <div class="menu-actions">
+          <!-- The one thing a returning player is here to press, and it
+               carries the two facts they came back for: where they left
+               off, and how far along that is. The progress line used to
+               sit under the whole menu as the smallest, dimmest text on
+               the screen — which was backwards, because with a hundred
+               stages that number IS the reason to come back. -->
+          <button class="primary hero" id="btn-continue">
+            <span class="hero-label">Play</span>
+          </button>
+          <!-- Modes as tiles rather than as more rows. Four of them stack
+               into two rows instead of four, which is what makes room for
+               Online without the menu starting to scroll, and it groups
+               them as one KIND of thing. -->
+          <div class="mode-grid">
+            <button class="mode" id="btn-stages"><span class="mode-name">Stages</span><span class="mode-sub" id="mode-stages-sub"></span></button>
+            <button class="mode" id="btn-practice"><span class="mode-name">Practice</span><span class="mode-sub">vs AI</span></button>
+            <button class="mode" id="btn-versus"><span class="mode-name">Two Players</span><span class="mode-sub">Same screen</span></button>
+            <!-- Present, and honestly not ready. A disabled tile rather
+                 than a hidden one, because the promise is the point: it
+                 is the reason to still be here when it ships. No date is
+                 given, because we do not have one to keep. -->
+            <button class="mode soon" id="btn-online" disabled aria-disabled="true">
+              <span class="mode-name">Online Rank<span class="soon-chip">Soon</span></span>
+              <span class="mode-sub">Ranked matches</span>
+            </button>
+          </div>
+          <a class="site-home-link" href="/" id="link-crossgame-home">More free games →</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- STAGE SELECT -->
+  <section class="screen" id="screen-stages">
+    <div class="topbar">
+      <button class="icon" data-back aria-label="Back"></button>
+      <h1>Stages</h1>
+    </div>
+    <div class="screen-body">
+      <div class="centered">
+        <div class="segmented grid-difficulty" id="stage-difficulty" role="group" aria-label="Difficulty">
+          <button type="button" data-hard="0" aria-pressed="true">Normal</button>
+          <button type="button" data-hard="1" aria-pressed="false">Hard</button>
+        </div>
+        <p class="setup-note" id="difficulty-note"></p>
+        <div class="stage-grid" id="stage-grid"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-practice">
+    <div class="topbar">
+      <button class="icon" data-back aria-label="Back"></button>
+      <h1>Practice</h1>
+    </div>
+    <div class="screen-body">
+      <div class="centered">
+        <p class="setup-label">Opponent</p>
+        <div class="segmented" id="practice-level" role="group" aria-label="Opponent"></div>
+        <p class="setup-note" id="practice-note"></p>
+        <button class="primary" id="btn-practice-start">Start</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="screen" id="screen-settings">
+    <div class="topbar">
+      <button class="icon" data-back aria-label="Back"></button>
+      <h1>Settings</h1>
+    </div>
+    <div class="screen-body">
+      <div class="centered">
+        <div class="setting">
+          <div class="setting-text">
+            <p class="setting-name">Aim line in versus</p>
+            <p class="setting-note">
+              Shows where the stone will travel. Switch it off against a person
+              or the computer and judging the line becomes yours, which is where
+              the game gets good. Campaign stages always show it; Hard stages
+              never do.
+            </p>
+          </div>
+          <button class="switch" id="toggle-aim-guide" role="switch" aria-checked="false" aria-label="Aim line in versus"><i></i></button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TWO-PLAYER SETUP -->
+  <section class="screen" id="screen-versus">
+    <div class="topbar">
+      <button class="icon" data-back aria-label="Back"></button>
+      <h1>Two Players</h1>
+    </div>
+    <div class="screen-body">
+      <div class="centered">
+        <p class="setup-label">Stones per side</p>
+        <div class="segmented" id="stone-count" role="group" aria-label="Stones per side"></div>
+        <p class="setup-note" id="stone-note"></p>
+        <button class="primary" id="btn-versus-start">Start</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- THEMES -->
+  <section class="screen" id="screen-themes">
+    <div class="topbar">
+      <button class="icon" data-back aria-label="Back"></button>
+      <h1>Board Theme</h1>
+    </div>
+    <div class="screen-body">
+      <div class="centered">
+        <div class="theme-list" id="theme-list"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section class="screen" id="screen-game">
+    <header class="gamebar">
+      <div class="gb-left">
+        <button class="icon ghost labeled sidebar-word" data-back aria-label="Leave this match"><span class="btn-lbl">Main Menu</span></button>
+        <!-- What you are playing and what state it is in, wrapped as ONE
+             block so the two layouts can move it around as one thing:
+             beside the back button when the bar is a bar, and on its own
+             row when it is a column. -->
+        <div class="gb-id">
+          <div class="gb-title" id="hud-title">
+            <span class="lbl" id="hud-stage-label">Stage</span>
+            <span class="val" id="hud-stage">1</span>
+          </div>
+          <span class="hard-chip" id="hud-hard" hidden>Hard</span>
+        </div>
+      </div>
+      <div class="gb-score" id="gb-score">
+        <span class="count p0" id="count-p0"><i class="pip p0"></i><b>0</b></span>
+        <span class="gb-div"></span>
+        <span class="count p1" id="count-p1"><i class="pip p1"></i><b>0</b></span>
+      </div>
+      <!-- Shots against par, and it exists because of the two-column
+           layout rather than in spite of it: standing the bar beside the
+           board opened a column with room for the one number the player
+           is actually playing against, and which until now they only ever
+           saw on the result card — after it was too late to spend a shot
+           differently. Never shown in the stacked layout, where there is
+           no room for it and the top bar is already three things wide. -->
+      <div class="gb-progress" id="gb-progress">
+        <span class="lbl">Shots</span>
+        <span class="val"><b id="gb-shots">0</b><i id="gb-par"></i></span>
+        <!-- Par as a track rather than only as a word. A player reads
+             "three left before I lose a star" off a row of pips without
+             doing the subtraction, and it is the one thing in this column
+             that changes on every shot. -->
+        <span class="par-track" id="gb-par-track" aria-hidden="true"></span>
+      </div>
+      <div class="gb-tools">
+        <!-- SPENDS a preview you already own; it never requests an ad,
+             which is what lets it sit on a gameplay screen at all (the
+             request button may not — see the result card). Present only
+             while you are holding one, so it is never a disabled control
+             hinting at a purchase during play. -->
+        <button class="icon ghost labeled sidebar-word preview" id="btn-preview" aria-label="Use your shot preview" hidden><span class="btn-lbl">Preview</span></button>
+        <button class="icon ghost labeled" id="btn-retry" aria-label="Restart this stage" title="Restart"><span class="btn-lbl">Restart</span></button>
+        <button class="icon ghost labeled sidebar-word" id="sound-toggle-game" aria-label="Toggle sound"><span class="btn-lbl">Sound</span></button>
+      </div>
+    </header>
+    <div class="board-wrap" id="board-wrap">
+      <div class="board-hold">
+        <canvas id="board" aria-label="Game board"></canvas>
+        <div class="turn-banner" id="turn-banner"></div>
+        <div class="hint-banner" id="hint-banner" hidden>Drag back from a stone and let go</div>
+        <div class="combo-banner" id="combo-banner" hidden></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="visually-hidden" id="live" role="status" aria-live="polite"></p>
+</div>
+
+<div class="tip-toast" id="tip-toast" hidden>
+  <p id="tip-toast-text"></p>
+  <button id="btn-tip-dismiss">Got it</button>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="card">
+    <h2 id="result-title"></h2>
+    <div class="stars" id="result-stars" aria-hidden="true"></div>
+    <p id="result-body"></p>
+    <!-- The chapter's own tally, on the card that closes it. Its own
+         line rather than more text in the body, because it is about ten
+         stages and the body is about one. -->
+    <p class="chapter-note" id="result-chapter" hidden></p>
+    <p class="unlock-note" id="result-unlock" hidden></p>
+    <!-- One pro tip, chosen in game/tips.js from what just happened and
+         shown at most once per player. Below the result and above the ad
+         offer: it is the least urgent thing on the card and must not
+         stand between the player and Retry. -->
+    <p class="tip-note" id="result-tip" hidden></p>
+    <!-- The rewarded ad is REQUESTED here and nowhere else. CrazyGames'
+         advertisement requirements: "The request button should not appear
+         on an active gameplay screen." The result card is not one, and it
+         is also where a stuck player already is — they lost, and what
+         they want is another go at the shot they got wrong.
+         A plain button, identical in size, font and colour to Retry
+         directly below it: the same rules require that continuing without
+         the ad is not the quieter option. The loud button on this card is
+         Menu, which has nothing to do with the ad. -->
+    <div class="ad-offer" id="preview-offer" hidden>
+      <button id="btn-buy-preview">
+        <span class="ad-badge" aria-hidden="true">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg>FREE
+        </span>
+        <span class="ad-text">Free preview · see the shot's path</span>
+      </button>
+      <p class="ad-note">Optional — Retry works the same without it.</p>
+    </div>
+    <div class="row">
+      <button id="btn-again">Retry</button>
+      <button class="primary" id="btn-next">Next</button>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="brief-overlay">
+  <div class="card brief-card" role="dialog" aria-modal="true" aria-labelledby="brief-title">
+    <p class="brief-eyebrow" id="brief-eyebrow">New on this stage</p>
+    <h2 id="brief-title"></h2>
+    <canvas class="brief-canvas" id="brief-canvas" aria-hidden="true"></canvas>
+    <p class="rule" id="brief-rule"></p>
+    <div class="brief-dots" id="brief-dots" aria-hidden="true"></div>
+    <div class="row">
+      <button class="primary" id="btn-brief-next">Got it</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
