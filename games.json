@@ -104,6 +104,20 @@
       "check": { "play": "#btn-play", "shell": "standalone" }
     },
     {
+      "key": "eight-ball-pool",
+      "name": "8 Ball Pool",
+      "path": "/eight-ball-pool/",
+      "ga": "eight_ball_pool",
+      "card": {
+        "thumb": "/eight-ball-pool-thumb.jpg",
+        "size": 400,
+        "alt": "Pool table with the balls racked and the cue ball ready",
+        "desc": "Line up your shot on a big green table — solids, stripes, then the black."
+      },
+      "sitemap": { "changefreq": "monthly", "priority": "0.9" },
+      "check": { "play": null, "shell": "site" }
+    },
+    {
       "key": "stone-flick",
       "name": "StoneFlick",
       "path": "/stone-flick/",
