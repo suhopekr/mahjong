@@ -32,13 +32,43 @@ lists games either.
 
 Two shapes of page:
 
-- **site shell** (Mahjong, Daily, Five in a Row): loads `/style.css`, has
-  the site header, footer, FAQ content.
+- **site shell** (Mahjong, Daily, Solitaire, Five in a Row): loads
+  `/style.css`, has the site header, footer, FAQ content.
 - **standalone** (Four Ball Billiards, StoneFlick, Shuffleboard): the
   portal build as-is, full-viewport, its own `./style.css`, no site
   footer — one `<a href="/" id="link-crossgame-home">More free games →</a>`
   on the home screen (Shuffleboard: in the ⋯ menu). 65+ adaptations for
   these are still to come.
+
+### Adding a game (site shell, built for the site) — reference: `/solitaire/`
+
+Solitaire is the template for simple classic games built directly for the
+site. Copy its shape:
+
+1. `/<slug>/index.html` — the `five-in-a-row/index.html` skeleton: head
+   block (canonical/OG/favicon data-URI/insights/gtag + `/ga-init.js`,
+   WebApplication + FAQPage JSON-LD), `.site-header`, `<main id="<slug>">`
+   with a permanent one-line goal, an `aria-live` status line with reserved
+   height, the board, a toolbar of site `.btn`s (Hint / Undo / New game /
+   Settings, min-height 56px), the two ad-slot divs, `.content` intro + How
+   to Play + FAQ (`.faq-item` h3/p pairs matching the JSON-LD one for one),
+   the footer with the games fence, a `.settings-panel`, `.modal-overlay`
+   modals, a toast container.
+2. `/<slug>/style.css` — loaded after `/style.css`; every selector `.xx-`
+   prefixed or scoped under `#<slug>`; never redefines a site selector; no
+   bare element selectors; colours from the site `:root` custom properties.
+3. `src/game/*.js` pure rules with no DOM (testable under node);
+   `src/main.js` rendering/input/undo/save/settings/GA;
+   `src/core/storage.js` the only file touching localStorage, keys
+   `<camelSlug>.v1.save|settings|stats`; `src/core/audio.js` procedural
+   Web Audio (copy the tone()/unlock code).
+4. `test/` — `harness.js` + `run.js` (copy from any game), a rules suite,
+   and a `page.test.js` checking the CSP rules, JSON-LD ↔ FAQ, the footer
+   fence and the stylesheet scoping.
+5. `/<slug>/og-image.png` (1200×630) and `/<slug>-thumb.jpg` (400×400).
+6. `games.json` entry (`check.play: null`, `shell: "site"`), then
+   `npm --prefix tools run sync`, `npm --prefix tools test`,
+   `npm --prefix tools run test:site`.
 
 ### Adding a game (standalone, from a CrazyGames build)
 

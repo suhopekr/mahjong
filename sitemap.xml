@@ -12,6 +12,11 @@
     <priority>0.9</priority>
   </url>
   <url>
+    <loc>https://easymahjongsolitaire.com/solitaire/</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
     <loc>https://easymahjongsolitaire.com/five-in-a-row/</loc>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>

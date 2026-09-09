@@ -20,6 +20,20 @@
       "check": { "play": null, "shell": "site" }
     },
     {
+      "key": "solitaire",
+      "name": "Solitaire",
+      "path": "/solitaire/",
+      "ga": "solitaire",
+      "card": {
+        "thumb": "/solitaire-thumb.jpg",
+        "size": 400,
+        "alt": "Solitaire table with big, easy-to-read cards",
+        "desc": "The classic card game with big cards — tap a card and it moves by itself."
+      },
+      "sitemap": { "changefreq": "monthly", "priority": "0.9" },
+      "check": { "play": null, "shell": "site" }
+    },
+    {
       "key": "five-in-a-row",
       "name": "Five in a Row",
       "path": "/five-in-a-row/",

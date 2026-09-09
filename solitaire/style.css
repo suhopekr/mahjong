@@ -1,0 +1,551 @@
+/* solitaire/style.css
+ *
+ * Loaded after the site stylesheet (/style.css) and subordinate to it, on
+ * the same three rules as five-in-a-row/style.css:
+ *
+ *   1. never redefines a selector the site defines (.btn, the modal and
+ *      settings components, .site-header/.site-footer, .achievement-toast);
+ *   2. no bare element selectors;
+ *   3. every selector is a .sol- class or scoped under #solitaire.
+ *
+ * Palette: the site's :root custom properties, plus the four values a
+ * deck of cards needs that the site has no name for — the two suit
+ * colours and the card back. They are declared once, on #solitaire.
+ *
+ * Sizing: every card dimension derives from --card-w, which main.js sets
+ * on .sol-table from the measured table width (seven columns + six gaps
+ * must fit). Fonts on the cards scale with it, so a 45px-wide card on a
+ * phone and a 96px one on a desktop are the same design at two sizes.
+ */
+
+#solitaire {
+  --suit-red: #c1121f;
+  --suit-black: #1c1c1c;
+  --card-back: #9b3140;
+  --card-back-deep: #6e1f2b;
+  --card-face: var(--tile-face);
+  --card-edge: #d6cdb4;
+
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 8px 8px calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ============================ goal + status ============================ */
+
+.sol-goal {
+  margin: 2px 0 8px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--ink);
+}
+.sol-goal strong { font-weight: 700; }
+
+/* Two lines reserved so the table never moves when the text changes. */
+.sol-status {
+  margin: 0 0 10px;
+  min-height: calc(2.7em + 16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--paper-dim);
+  width: 100%;
+  max-width: 560px;
+}
+
+/* ================================ table ================================ */
+
+.sol-table {
+  position: relative;
+  width: 100%;
+  /* Set by main.js. The variables have fallbacks only so the layout is
+   * sane for the instant before the first measurement. */
+  --card-w: 46px;
+  --card-h: 64px;
+  --gap: 6px;
+  --pad: 10px;
+  --radius-card: calc(var(--card-w) * 0.09);
+  height: 420px;
+  border-radius: var(--radius-lg);
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.10), rgba(0, 0, 0, 0) 60%),
+    linear-gradient(180deg, var(--felt-light), var(--felt) 45%, var(--felt-dark));
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.18),
+    inset 0 2px 18px rgba(0, 0, 0, 0.25),
+    var(--shadow-sm);
+  /* A finger dragging a card must not scroll the page; a finger on the
+   * felt between cards still can (pan-y) — 65+ readers scroll by
+   * touching wherever their thumb lands. */
+  touch-action: pan-y;
+  /* Its own stacking context: card z-indexes (up to the win cascade's
+   * 2000s) stay inside the table and can never rise above the site's
+   * fixed modals and toasts. */
+  isolation: isolate;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: height 0.25s ease;
+}
+.sol-table.is-cascading { overflow: hidden; }
+
+/* Pile outlines: where a card may go when the pile is empty. */
+.sol-slot {
+  position: absolute;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--radius-card);
+  border: 2px solid rgba(255, 255, 255, 0.32);
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.55);
+  pointer-events: none;
+}
+.sol-slot-foundation .sol-slot-ace {
+  font-size: calc(var(--card-w) * 0.5);
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.35);
+}
+/* The stock slot is a real control (turn the waste back over) and only
+ * shows its words once the deck is empty; while cards sit on it they
+ * cover it anyway. */
+.sol-slot-stock {
+  pointer-events: auto;
+  cursor: pointer;
+  border-style: solid;
+}
+.sol-slot-stock .sol-slot-recycle {
+  font-size: calc(var(--card-w) * 0.5);
+  line-height: 1;
+  opacity: 0;
+}
+.sol-slot-stock .sol-slot-text {
+  margin-top: 2px;
+  font-size: clamp(9px, calc(var(--card-w) * 0.2), 14px);
+  font-weight: 600;
+  line-height: 1.1;
+  opacity: 0;
+}
+.sol-slot-stock.is-empty .sol-slot-recycle,
+.sol-slot-stock.is-empty .sol-slot-text { opacity: 1; }
+.sol-slot-stock.is-empty { border-color: rgba(255, 255, 255, 0.55); }
+.sol-slot-stock.is-done { border-style: dashed; cursor: default; }
+.sol-slot-stock.is-done .sol-slot-recycle,
+.sol-slot-stock.is-done .sol-slot-text { opacity: 0; }
+.sol-slot-stock:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 2px; }
+
+/* A pile that will take the card being dragged or the card picked up. */
+.sol-slot.is-target,
+.sol-card.is-target {
+  box-shadow: 0 0 0 3px var(--accent), 0 0 14px 2px rgba(242, 183, 5, 0.55);
+  border-color: var(--accent);
+}
+
+.sol-cards {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ================================ cards ================================ */
+
+.sol-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--radius-card);
+  pointer-events: auto;
+  cursor: pointer;
+  /* Position is a transform so a move is one compositor animation. */
+  transition: transform 0.24s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+  perspective: 600px;
+  touch-action: none;
+}
+.sol-card.is-face-down { cursor: default; }
+.sol-card.is-face-down.is-stock { cursor: pointer; }
+.sol-card.no-transition { transition: none; }
+.sol-card.is-dragging {
+  transition: none;
+  z-index: 1000 !important;
+  cursor: grabbing;
+}
+.sol-card.is-dragging .sol-card-inner {
+  transform: scale(1.04);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
+}
+
+.sol-card-inner {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  transform-style: preserve-3d;
+  transition: transform 0.32s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+.sol-card.is-face-down .sol-card-inner { transform: rotateY(180deg); }
+
+.sol-card-face,
+.sol-card-back {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+
+/* ---- face: ivory card, big index top-left, one big pip in the middle ---- */
+.sol-card-face {
+  background: var(--card-face);
+  border: 1px solid var(--card-edge);
+  box-sizing: border-box;
+  color: var(--suit-black);
+}
+.sol-card.is-red .sol-card-face { color: var(--suit-red); }
+
+.sol-card-index {
+  position: absolute;
+  top: calc(var(--card-w) * 0.04);
+  left: calc(var(--card-w) * 0.07);
+  right: calc(var(--card-w) * 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: calc(var(--card-w) * 0.42);
+  font-size: calc(var(--card-w) * 0.38);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.sol-card-rank { display: block; }
+.sol-card-rank.is-ten { letter-spacing: -0.06em; }
+.sol-card-index .sol-sym {
+  width: calc(var(--card-w) * 0.32);
+  height: calc(var(--card-w) * 0.32);
+}
+
+/* Bottom-right index, upside down like a real card. Hidden on narrow
+ * cards where it would crowd the pip. */
+.sol-card-index-bottom {
+  top: auto;
+  bottom: calc(var(--card-w) * 0.04);
+  transform: rotate(180deg);
+  display: none;
+}
+.sol-table.is-wide .sol-card-index-bottom { display: flex; }
+
+.sol-card-pip {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  transform: translate(-50%, -50%);
+  width: calc(var(--card-w) * 0.55);
+  height: calc(var(--card-w) * 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sol-table.is-wide .sol-card-pip { top: 52%; }
+.sol-card-pip .sol-sym { width: 100%; height: 100%; }
+
+/* Court cards: a big letter in a thin double frame, the classic cue that
+ * this is a picture card, without a picture that would blur at 45px. */
+.sol-card-court {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  transform: translate(-50%, -50%);
+  width: calc(var(--card-w) * 0.58);
+  height: calc(var(--card-w) * 0.62);
+  box-sizing: border-box;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: calc(var(--card-w) * 0.42);
+  font-weight: 700;
+  line-height: 1;
+  background:
+    linear-gradient(135deg, rgba(242, 183, 5, 0.22), rgba(242, 183, 5, 0) 55%);
+}
+.sol-table.is-wide .sol-card-court {
+  top: 52%;
+  /* Room for the classic double frame once the card is big enough. */
+  outline: 1px solid currentColor;
+  outline-offset: 2px;
+}
+
+.sol-sym {
+  display: block;
+  fill: currentColor;
+}
+.sol-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* ---- back: a deep two-tone ground, a fine lattice, a double ivory
+ * frame and a small medallion — the same design in four colourways, set
+ * by data-back on #solitaire (see the theme block at the end). ---- */
+.sol-card-back {
+  transform: rotateY(180deg);
+  background-color: var(--bk-b);
+  background-image:
+    var(--bk-pattern),
+    radial-gradient(ellipse at 50% 40%, var(--bk-a), var(--bk-b) 75%);
+  background-size: calc(var(--card-w) * 0.24) calc(var(--card-w) * 0.24), 100% 100%;
+  background-position: center;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sol-card-back::before,
+.sol-card-back::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: calc(var(--radius-card) * 0.55);
+}
+.sol-card-back::before {
+  inset: calc(var(--card-w) * 0.07);
+  border: 1.5px solid var(--bk-frame);
+}
+.sol-card-back::after {
+  inset: calc(var(--card-w) * 0.115);
+  border: 1px solid var(--bk-line);
+  opacity: 0.75;
+}
+.sol-card-back-emblem {
+  position: relative;
+  width: calc(var(--card-w) * 0.34);
+  height: calc(var(--card-w) * 0.34);
+  border-radius: 50%;
+  background: var(--bk-b);
+  box-shadow: 0 0 0 1.5px var(--bk-line), 0 0 0 calc(var(--card-w) * 0.035) var(--bk-b), 0 0 0 calc(var(--card-w) * 0.045) var(--bk-line);
+  color: var(--bk-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.sol-card-back-emblem .sol-sym {
+  width: 58%;
+  height: 58%;
+}
+
+/* Settings: one swatch per colourway, the real back at thumbnail size. */
+.sol-backs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 8px 0 0;
+}
+.sol-backs label {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--felt-dark);
+  text-align: center;
+}
+.sol-backs input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.sol-back-swatch {
+  --card-w: 44px;
+  --radius-card: 4px;
+  position: relative;
+  width: 44px;
+  height: 62px;
+  border-radius: 4px;
+  background-color: var(--bk-b);
+  background-image: var(--bk-pattern), radial-gradient(ellipse at 50% 40%, var(--bk-a), var(--bk-b) 75%);
+  background-size: 11px 11px, 100% 100%;
+  background-position: center;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.sol-back-swatch::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1.5px solid var(--bk-frame);
+  border-radius: 2px;
+}
+.sol-back-swatch .sol-card-back-emblem {
+  width: 15px;
+  height: 15px;
+  box-shadow: 0 0 0 1px var(--bk-line), 0 0 0 2px var(--bk-b), 0 0 0 3px var(--bk-line);
+}
+.sol-backs input:checked + .sol-back-swatch {
+  box-shadow: 0 0 0 3px var(--accent), var(--shadow-md);
+  transform: translateY(-2px);
+}
+.sol-backs input:focus-visible + .sol-back-swatch {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* ---- states ---- */
+.sol-card.is-selected .sol-card-inner {
+  box-shadow: 0 0 0 3px var(--accent), 0 6px 16px rgba(0, 0, 0, 0.35);
+  transform: translateY(-4px);
+}
+.sol-card.is-hint .sol-card-inner {
+  animation: sol-hint-pulse 1.1s ease-in-out 3;
+}
+@keyframes sol-hint-pulse {
+  0%, 100% { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.18); }
+  50% { box-shadow: 0 0 0 4px var(--accent), 0 0 18px 4px rgba(242, 183, 5, 0.6); }
+}
+.sol-card.is-shake { animation: sol-shake 0.36s ease; }
+@keyframes sol-shake {
+  0%, 100% { margin-left: 0; }
+  25% { margin-left: -5px; }
+  50% { margin-left: 5px; }
+  75% { margin-left: -3px; }
+}
+
+/* ============================== controls ============================== */
+
+.sol-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 640px;
+  margin-top: 16px;
+}
+.sol-controls .btn {
+  flex: 1 1 calc(50% - 16px);
+  min-height: 56px;
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+@media (min-width: 560px) {
+  .sol-controls .btn { flex: 1 1 0; white-space: nowrap; }
+}
+/* Same fix as Five in a Row: the site's 0.5-opacity disabled button is
+ * unreadable for this audience. Present, plainly not ready. */
+.sol-controls .btn:disabled {
+  opacity: 1;
+  background: var(--paper-dim);
+  border-style: dashed;
+  cursor: default;
+}
+.sol-controls .btn:disabled:hover { background: var(--paper-dim); }
+
+/* ============================== settings ============================== */
+
+.sol-row-note {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--felt-dark);
+}
+
+/* =============================== toasts =============================== */
+
+#sol-toasts {
+  position: fixed;
+  top: max(88px, calc(env(safe-area-inset-top) + 74px));
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 300;
+  pointer-events: none;
+}
+#sol-toasts .achievement-toast {
+  position: static;
+  transform: none;
+}
+
+/* ============================ reduced motion ========================== */
+
+@media (prefers-reduced-motion: reduce) {
+  #solitaire *,
+  #sol-toasts * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- card back themes: the base colours, the ornament colour and the
+ * lattice pattern (an SVG data URI — img-src allows data:) for each. The
+ * same block styles the swatches in Settings, so a swatch is the real
+ * back at 32px. ---- */
+#solitaire[data-back="burgundy"],
+.sol-back-swatch[data-back="burgundy"] {
+  --bk-a: #96303f;
+  --bk-b: #561322;
+  --bk-line: #e6c67a;
+  --bk-frame: rgba(255,241,214,0.9);
+  --bk-pattern: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2740%27%20viewBox=%270%200%2040%2040%27%3E%3Cpath%20d=%27M20%200L40%2020L20%2040L0%2020Z%27%20fill=%27none%27%20stroke=%27%23e6c67a%27%20stroke-opacity=%27.42%27%20stroke-width=%271.3%27/%3E%3Cpath%20d=%27M20%209L31%2020L20%2031L9%2020Z%27%20fill=%27none%27%20stroke=%27%23e6c67a%27%20stroke-opacity=%27.28%27%20stroke-width=%271%27/%3E%3Ccircle%20cx=%2720%27%20cy=%2720%27%20r=%272.4%27%20fill=%27%23e6c67a%27%20fill-opacity=%27.55%27/%3E%3Ccircle%20cx=%270%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23e6c67a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23e6c67a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%270%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23e6c67a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23e6c67a%27%20fill-opacity=%27.5%27/%3E%3C/svg%3E");
+}
+#solitaire[data-back="navy"],
+.sol-back-swatch[data-back="navy"] {
+  --bk-a: #254a86;
+  --bk-b: #0f2247;
+  --bk-line: #cfdcf3;
+  --bk-frame: rgba(236,243,255,0.9);
+  --bk-pattern: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2740%27%20viewBox=%270%200%2040%2040%27%3E%3Cpath%20d=%27M20%200L40%2020L20%2040L0%2020Z%27%20fill=%27none%27%20stroke=%27%23cfdcf3%27%20stroke-opacity=%27.42%27%20stroke-width=%271.3%27/%3E%3Cpath%20d=%27M20%209L31%2020L20%2031L9%2020Z%27%20fill=%27none%27%20stroke=%27%23cfdcf3%27%20stroke-opacity=%27.28%27%20stroke-width=%271%27/%3E%3Ccircle%20cx=%2720%27%20cy=%2720%27%20r=%272.4%27%20fill=%27%23cfdcf3%27%20fill-opacity=%27.55%27/%3E%3Ccircle%20cx=%270%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23cfdcf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23cfdcf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%270%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23cfdcf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23cfdcf3%27%20fill-opacity=%27.5%27/%3E%3C/svg%3E");
+}
+#solitaire[data-back="onyx"],
+.sol-back-swatch[data-back="onyx"] {
+  --bk-a: #3a3a40;
+  --bk-b: #141416;
+  --bk-line: #d8b66a;
+  --bk-frame: rgba(216,182,106,0.95);
+  --bk-pattern: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2740%27%20viewBox=%270%200%2040%2040%27%3E%3Cpath%20d=%27M20%200L40%2020L20%2040L0%2020Z%27%20fill=%27none%27%20stroke=%27%23d8b66a%27%20stroke-opacity=%27.42%27%20stroke-width=%271.3%27/%3E%3Cpath%20d=%27M20%209L31%2020L20%2031L9%2020Z%27%20fill=%27none%27%20stroke=%27%23d8b66a%27%20stroke-opacity=%27.28%27%20stroke-width=%271%27/%3E%3Ccircle%20cx=%2720%27%20cy=%2720%27%20r=%272.4%27%20fill=%27%23d8b66a%27%20fill-opacity=%27.55%27/%3E%3Ccircle%20cx=%270%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23d8b66a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23d8b66a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%270%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23d8b66a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23d8b66a%27%20fill-opacity=%27.5%27/%3E%3C/svg%3E");
+}
+#solitaire[data-back="plum"],
+.sol-back-swatch[data-back="plum"] {
+  --bk-a: #5f2a78;
+  --bk-b: #321244;
+  --bk-line: #e7cdf3;
+  --bk-frame: rgba(245,236,255,0.9);
+  --bk-pattern: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2740%27%20viewBox=%270%200%2040%2040%27%3E%3Cpath%20d=%27M20%200L40%2020L20%2040L0%2020Z%27%20fill=%27none%27%20stroke=%27%23e7cdf3%27%20stroke-opacity=%27.42%27%20stroke-width=%271.3%27/%3E%3Cpath%20d=%27M20%209L31%2020L20%2031L9%2020Z%27%20fill=%27none%27%20stroke=%27%23e7cdf3%27%20stroke-opacity=%27.28%27%20stroke-width=%271%27/%3E%3Ccircle%20cx=%2720%27%20cy=%2720%27%20r=%272.4%27%20fill=%27%23e7cdf3%27%20fill-opacity=%27.55%27/%3E%3Ccircle%20cx=%270%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23e7cdf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23e7cdf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%270%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23e7cdf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23e7cdf3%27%20fill-opacity=%27.5%27/%3E%3C/svg%3E");
+}
