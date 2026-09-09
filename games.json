@@ -48,6 +48,20 @@
       "check": { "play": null, "shell": "site" }
     },
     {
+      "key": "word-search",
+      "name": "Word Search",
+      "path": "/word-search/",
+      "ga": "word_search",
+      "card": {
+        "thumb": "/word-search-thumb.jpg",
+        "size": 400,
+        "alt": "Word search grid with large letters and highlighted words",
+        "desc": "Find the hidden words on a big, clear grid — a new puzzle every day."
+      },
+      "sitemap": { "changefreq": "daily", "priority": "0.9" },
+      "check": { "play": null, "shell": "site" }
+    },
+    {
       "key": "five-in-a-row",
       "name": "Five in a Row",
       "path": "/five-in-a-row/",
