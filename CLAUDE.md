@@ -32,8 +32,9 @@ lists games either.
 
 Two shapes of page:
 
-- **site shell** (Mahjong, Daily, Solitaire, Five in a Row): loads
-  `/style.css`, has the site header, footer, FAQ content.
+- **site shell** (Mahjong, Daily, Solitaire, FreeCell, Word Search,
+  Five in a Row, Backgammon, 8 Ball Pool): loads `/style.css`, has the site
+  header, footer, FAQ content.
 - **standalone** (Four Ball Billiards, StoneFlick, Shuffleboard): the
   portal build as-is, full-viewport, its own `./style.css`, no site
   footer — one `<a href="/" id="link-crossgame-home">More free games →</a>`
@@ -96,6 +97,38 @@ site. Copy its shape:
    starts a game, or `null` if the page boots onto a board), then
    `npm --prefix tools run sync`.
 8. `npm --prefix tools test`, then `npm --prefix tools run test:site`.
+
+## Languages
+
+Every site-shell game ships in 14 languages (English, Español, Português,
+Français, Italiano, Deutsch, Русский, Türkçe, Indonesia, 한국어, 日本語,
+简体中文, 繁體中文, العربية). The runtime is `/i18n/i18n.js`; shared words
+live in `/i18n/common.js`, a game's own in `<slug>/src/i18n/strings.js`
+(lookup: game[lang] → common[lang] → game.en → common.en → the key).
+
+- One choice for the whole site, stored under `site.v1.lang`; first visit
+  follows the browser language.
+- Static markup carries `data-i18n="key"` (`data-i18n-html` where our own
+  `<strong>` is in the string, `data-i18n-attr="aria-label:key"` for
+  attributes); `i18n.applyStatic()` swaps them and re-runs on change.
+- Nothing a player reads is written in main.js — it is all `i18n.t(key)`.
+  The status line keeps its key so it can re-speak itself in the new
+  language. `i18n.onChange()` re-renders anything the game draws itself.
+- Settings' first row is the language grid (`i18n.renderPicker`).
+- Arabic sets `<html dir="rtl">`; boards carry `dir="ltr"` because their
+  layout is in px. The `.content` article and the JSON-LD stay English —
+  that is the SEO text.
+- Each game's `test/strings.test.js` enforces key parity across languages.
+
+## Ads (not live yet)
+
+Every new game has `src/core/ads.js`, a no-op shim with the shape Google's
+H5 Games Ads (AdSense Ad Placement API) will need: `preloadInterstitial()`,
+`showInterstitial(reason)`, `requestRewardedHint()`. Games already call
+`showInterstitial("game_over")` before the win modal and route hints
+through `requestRewardedHint()`, so turning ads on later is one file per
+game plus the CSP. The two fixed-size `.ad-slot` divs sit after the
+controls and before `.content`, hidden by `body.ads-off`.
 
 ## Commands
 

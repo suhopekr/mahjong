@@ -60,7 +60,9 @@ test("stylesheet: every selector is .sol-/#sol-/#solitaire scoped, no bare eleme
     if (sel.startsWith("@") || /^\d+%|^from$|^to$/.test(sel)) continue;
     for (const part of sel.split(",")) {
       const p = part.trim();
-      assertTrue(/^(\.sol-|#sol-|#solitaire)/.test(p), `scoped selector: "${p}"`);
+      // A `[dir="rtl"]` prefix is allowed: the Arabic fixes must key off
+      // <html dir>, and what follows is still a #sol-/.sol- selector.
+      assertTrue(/^(\[dir="rtl"\] )?(\.sol-|#sol-|#solitaire)/.test(p), `scoped selector: "${p}"`);
     }
   }
 });
@@ -71,4 +73,62 @@ test("card back themes: every theme in storage.js has a CSS block and a swatch",
     assertTrue(css.includes(`#solitaire[data-back="${back}"]`), `css for ${back}`);
     assertTrue(body.includes(`name="sol-back" value="${back}"`), `swatch for ${back}`);
   }
+});
+
+// ---- languages (BRIEF.md "Languages") ---------------------------------
+
+test("i18n: every data-i18n / data-i18n-attr key on the page exists in strings.en or common.en", async () => {
+  const { strings } = await import("../src/i18n/strings.js");
+  const { common } = await import("../../i18n/common.js");
+  const known = (k) => k in strings.en || k in common.en;
+  const keys = [...body.matchAll(/data-i18n="([^"]+)"/g)].map((m) => m[1]);
+  assertTrue(keys.length >= 40, `enough data-i18n on the page (${keys.length})`);
+  for (const k of keys) assertTrue(known(k), `data-i18n key "${k}" is defined`);
+  for (const m of body.matchAll(/data-i18n-attr="([^"]+)"/g)) {
+    for (const pair of m[1].split(";")) {
+      const [attr, k] = pair.split(":").map((s) => s.trim());
+      assertTrue(attr && k && known(k), `data-i18n-attr "${pair}" names a defined key`);
+    }
+  }
+  // data-i18n-html only where our string carries markup — and vice versa.
+  for (const m of body.matchAll(/<[^>]*data-i18n="([^"]+)"[^>]*>/g)) {
+    const isHtml = /data-i18n-html/.test(m[0]);
+    const v = strings.en[m[1]] ?? common.en[m[1]];
+    assertEqual(isHtml, typeof v === "string" && /<[a-z]/.test(v), `data-i18n-html on "${m[1]}" matches the string`);
+  }
+});
+
+test("i18n: the page's static English matches strings.en (what a search engine reads is what English players see)", async () => {
+  const { strings } = await import("../src/i18n/strings.js");
+  const { common } = await import("../../i18n/common.js");
+  for (const m of body.matchAll(/<([a-z0-9]+)[^>]*data-i18n="([^"]+)"[^>]*>([\s\S]*?)<\/\1>/g)) {
+    const [, , key, inner] = m;
+    if (/<[a-z]/.test(inner) && !/data-i18n-html/.test(m[0])) continue; // nested elements — not this one's text
+    const v = strings.en[key] ?? common.en[key];
+    if (typeof v !== "string") continue;
+    assertEqual(inner.replace(/\s+/g, " ").trim(), v.replace(/\s+/g, " ").trim(), `text under data-i18n="${key}"`);
+  }
+});
+
+test("i18n: the shell wires the runtime — imports, applyStatic at boot, picker, onChange, no English TEXT table", () => {
+  const js = readFileSync(path.join(root, "src/main.js"), "utf8");
+  assertTrue(js.includes('from "/i18n/i18n.js"'), "imports createI18n from /i18n/i18n.js");
+  assertTrue(js.includes('from "/i18n/common.js"'), "imports common");
+  assertTrue(js.includes('from "./i18n/strings.js"'), "imports strings");
+  assertTrue(/createI18n\(\{\s*common,\s*game:\s*strings\s*\}\)/.test(js), "createI18n({ common, game: strings })");
+  assertTrue(js.includes("i18n.applyStatic()"), "applyStatic at boot");
+  assertTrue(js.includes('i18n.renderPicker($("sol-lang-grid"))'), "renderPicker into #sol-lang-grid");
+  assertTrue(js.includes("i18n.onChange("), "onChange re-render");
+  assertTrue(!/const TEXT\s*=/.test(js), "no TEXT table");
+  // No English sentence literals left: a quoted string with two or more
+  // words and sentence punctuation is a phrase that belongs in strings.js.
+  const code = js.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|[^:])\/\/.*$/gm, "$1");
+  const phrases = [...code.matchAll(/["'`]([A-Z][a-z]+ [a-z][^"'`]*[.!?])["'`]/g)].map((m) => m[1]);
+  assertEqual(phrases, [], "English sentences in main.js");
+  assertTrue(body.includes('id="sol-table" dir="ltr"'), "the board is dir=ltr");
+  assertTrue(body.includes('<section class="content" lang="en" dir="ltr">'), "the SEO text stays English and ltr");
+  assertTrue(/<fieldset class="settings-row">\s*<legend class="settings-label" data-i18n="language">/.test(body.replace(/<!--[\s\S]*?-->/g, "")), "Language row present");
+  const sheet = body.slice(body.indexOf('id="sol-settings-title"'));
+  assertTrue(sheet.indexOf('id="sol-lang-grid"') < sheet.indexOf('id="sol-draw-group"'), "Language is the first settings row");
+  assertTrue(css.includes("#solitaire .lang-grid") && css.includes('#solitaire .lang-btn[aria-pressed="true"]'), "lang-grid styled and scoped");
 });

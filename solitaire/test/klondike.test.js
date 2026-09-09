@@ -5,8 +5,23 @@ import {
   drawFromStock, destinationsFor, autoMoveTarget, findHint, describeHint,
   isWon, canAutoComplete, autoCompleteStep, cardsAt, foundationIndexFor, makeRng, shuffle,
 } from "../src/game/klondike.js";
+import { strings } from "../src/i18n/strings.js";
+import { common } from "../../i18n/common.js";
 
 const card = (suit, rank, faceUp = true) => ({ id: suit + rank, suit, rank, faceUp });
+
+// describeHint() returns { key, args } so the page can say it in any
+// language; these tests say it in English exactly as main.js does, so the
+// sentences below are what a player reads.
+const en = { ...common.en, ...strings.en };
+const nameOf = (c) => en.cardName({ rank: en["rank" + c.rank], suit: en["suit" + c.suit] });
+function sayHint(state, hint) {
+  const d = describeHint(state, hint);
+  const v = en[d.key];
+  if (v === undefined) throw new Error("describeHint used an unknown key: " + d.key);
+  if (typeof v !== "function") return v;
+  return v({ name: nameOf(d.args.card), target: d.args.target && nameOf(d.args.target) });
+}
 
 function emptyState(draw = 1) {
   return { seed: 0, draw, stock: [], waste: [], foundations: [[], [], [], []], tableau: [[], [], [], [], [], [], []], moves: 0, redeals: 0 };
@@ -182,7 +197,7 @@ test("hint: foundation move first", () => {
   s.tableau[1] = [card("H", 8)];
   const h = findHint(s);
   assertEqual(h, { from: { pile: "tableau", index: 0, card: 0 }, to: { pile: "foundation", index: 0 } });
-  assertEqual(describeHint(s, h), "Move the A of clubs up to its pile.");
+  assertEqual(sayHint(s, h), "Move the A of clubs up to its pile.");
 });
 
 test("hint: uncovering a face-down card beats playing from the waste", () => {
@@ -194,7 +209,7 @@ test("hint: uncovering a face-down card beats playing from the waste", () => {
   const h = findHint(s);
   assertEqual(h.from, { pile: "tableau", index: 0, card: 1 });
   assertEqual(h.to, { pile: "tableau", index: 1 });
-  assertEqual(describeHint(s, h), "Move the 6 of hearts onto the 7 of spades.");
+  assertEqual(sayHint(s, h), "Move the 6 of hearts onto the 7 of spades.");
 });
 
 test("hint: falls back to the waste card, then to drawing, then to nothing", () => {
@@ -205,12 +220,12 @@ test("hint: falls back to the waste card, then to drawing, then to nothing", () 
   s.waste = [card("S", 2)];
   s.stock = [card("C", 9, false)];
   assertEqual(findHint(s), { draw: true });
-  assertEqual(describeHint(s, { draw: true }), "Turn over the next card from the deck.");
+  assertEqual(sayHint(s, { draw: true }), "Turn over the next card from the deck.");
   s.stock = [];
-  assertEqual(describeHint(s, { draw: true }), "Turn the deck over and go through it again.");
+  assertEqual(sayHint(s, { draw: true }), "Turn the deck over and go through it again.");
   s.waste = [];
   assertEqual(findHint(s), null);
-  assertEqual(describeHint(s, null), "No moves left — try a new game.");
+  assertEqual(sayHint(s, null), "No moves left — try a new game.");
 });
 
 test("hint never suggests a pointless King shuffle", () => {

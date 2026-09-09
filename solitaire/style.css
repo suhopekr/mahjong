@@ -483,6 +483,50 @@
   color: var(--felt-dark);
 }
 
+/* Language picker (DESIGN.md "Language picker"): one site .btn per
+ * language in its own script, two across on a phone, three from 480px,
+ * 56px tall. Names never wrap or shrink — the longest (Português,
+ * Indonesia, العربية) fit two-across at 375px at 17px. The chosen one
+ * wears the gold selection ring, the same ring a picked card wears. */
+#solitaire .lang-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 480px) {
+  #solitaire .lang-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+#solitaire .lang-btn {
+  min-height: 56px;
+  min-width: 0;
+  padding: 10px 8px;
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+#solitaire .lang-btn[aria-pressed="true"] {
+  box-shadow: 0 0 0 3px var(--accent);
+  border-color: var(--felt);
+  background: #e4f2ea;
+}
+
+/* ============================ right-to-left =========================== */
+/* Arabic: /i18n/i18n.js sets <html dir="rtl"> and the text blocks, the
+ * settings sheet and the modals mirror on their own. The table is
+ * dir="ltr" in the markup and its cards are placed in px, so it never
+ * mirrors. The one thing that breaks is the site's skip link, parked at
+ * left: -9999px — in a right-to-left page the space to the LEFT is
+ * scrollable, so the page grew 10,000px wide and a phone zoomed out to
+ * show it. Park it on the right instead, the side that is clipped in rtl. */
+[dir="rtl"] #sol-skip-link {
+  left: auto;
+  right: -9999px;
+  border-radius: 0 0 0 8px;
+}
+[dir="rtl"] #sol-skip-link:focus {
+  right: 0;
+}
+
 /* =============================== toasts =============================== */
 
 #sol-toasts {

@@ -5,15 +5,26 @@
 // Nothing about the rules lives here — canMove/applyMove/autoMoveTarget/
 // findHint are all the engine's. This file owns: measuring the table and
 // placing cards, the tap and drag gestures, undo history, saving, the
-// settings sheet, the win, and analytics.
+// settings sheet, the win, languages, and analytics.
+//
+// Words: nothing the player reads is written here. Every phrase is a key
+// into src/i18n/strings.js (this game) or /i18n/common.js (site-wide),
+// looked up through i18n.t() in the language chosen in Settings; static
+// markup carries data-i18n and is swapped by i18n.applyStatic().
 
 import {
   newGame, applyMove, drawFromStock, canMove, cardsAt, autoMoveTarget, destinationsFor,
-  findHint, describeHint, isWon, canAutoComplete, autoCompleteStep, cardName,
-  makeDeck, RANK_LABEL, RED, SUIT_NAME,
+  findHint, describeHint, isWon, canAutoComplete, autoCompleteStep,
+  makeDeck, RANK_LABEL, RED,
 } from "./game/klondike.js";
 import * as store from "./core/storage.js";
 import * as audio from "./core/audio.js";
+import { createI18n } from "/i18n/i18n.js";
+import { common } from "/i18n/common.js";
+import { strings } from "./i18n/strings.js";
+
+const i18n = createI18n({ common, game: strings });
+i18n.applyStatic();
 
 const $ = (id) => document.getElementById(id);
 const table = $("sol-table");
@@ -37,21 +48,25 @@ const toasts = $("sol-toasts");
 
 const reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const TEXT = {
-  start: "Tap a card to move it. Tap the deck to turn over a card.",
-  chooseStart: "Tap a card to pick it up, then tap where it should go.",
-  restored: "Your game is back where you left it.",
-  pickedUp: (name) => `Picked up the ${name}. Tap where it should go.`,
-  cannotGo: (name, where) => `The ${name} can't go ${where}.`,
-  nowhere: (name) => `The ${name} has nowhere to go right now.`,
-  foundationBack: "Drag a card off the pile if you need it back on the table.",
-  deckAgain: "The deck is used up — tap it to go through it again.",
-  deckDone: "The deck is used up and empty.",
-  finishing: "Every card is showing — finishing the piles for you.",
-  won: (moves) => `All four piles are complete in ${moves} moves.`,
-  undone: "Move taken back.",
-  newDeal: "New game dealt. Good luck!",
-};
+// ----------------------------------------------------------------------
+// words — a card's spoken name, and a status message that can be said
+// again in another language
+// ----------------------------------------------------------------------
+/** "7 of hearts" in the current language (strings.js cardName/rankN/suitX). */
+function cardLabel(card) {
+  return i18n.t("cardName", { rank: i18n.t("rank" + card.rank), suit: i18n.t("suit" + card.suit) });
+}
+/** Say a message key. `args.card` / `args.target` are card objects and
+ *  become `name` / `target` names — the shape describeHint() returns. */
+function say(key, args) {
+  if (!args) return i18n.t(key);
+  const a = { ...args };
+  if (a.card) a.name = cardLabel(a.card);
+  if (a.target) a.target = cardLabel(a.target);
+  return i18n.t(key, a);
+}
+/** The key for "what to do next" in the current tap mode. */
+const idleKey = () => (settings.tap === "choose" ? "chooseStart" : "start");
 
 // ----------------------------------------------------------------------
 // analytics — same shape as every other page: check gtag exists, never throw
@@ -133,10 +148,14 @@ function buildCards() {
         `</div>` +
         `<div class="sol-card-back"><span class="sol-card-back-emblem">${symbolSvg("S")}</span></div>` +
       `</div>`;
-    el.setAttribute("aria-label", cardName(c));
     cardLayer.appendChild(el);
     cardEls.set(c.id, el);
   }
+  labelCards();
+}
+/** Every card's aria-label in the current language. */
+function labelCards() {
+  for (const c of makeDeck()) cardEls.get(c.id).setAttribute("aria-label", cardLabel(c));
 }
 
 // ----------------------------------------------------------------------
@@ -270,7 +289,7 @@ function render() {
 
   stockSlot.classList.toggle("is-empty", state.stock.length === 0 && state.waste.length > 0);
   stockSlot.classList.toggle("is-done", state.stock.length === 0 && state.waste.length === 0);
-  stockSlot.setAttribute("aria-label", state.stock.length ? "Deck: turn over a card" : state.waste.length ? "Deck is empty: turn it over and start again" : "Deck is empty");
+  labelStock();
   undoBtn.disabled = history.length === 0 || busy;
   hintBtn.disabled = busy;
   clearHighlights();
@@ -284,7 +303,19 @@ function clearHighlights() {
   }
 }
 
-function setStatus(text) { statusEl.textContent = text; }
+function labelStock() {
+  if (!state) return;
+  stockSlot.setAttribute("aria-label", i18n.t(state.stock.length ? "deckTurn" : state.waste.length ? "deckEmptyAgain" : "deckEmpty"));
+}
+
+// The last message is kept as { key, args } so a language change can say
+// it again rather than leave the old language on screen.
+let lastStatus = null;
+function setStatus(key, args) {
+  lastStatus = { key, args };
+  statusEl.textContent = say(key, args);
+}
+function refreshStatus() { if (lastStatus) setStatus(lastStatus.key, lastStatus.args); }
 function toast(text) {
   const el = document.createElement("div");
   el.className = "achievement-toast is-visible";
@@ -325,11 +356,11 @@ function moveCards(from, to) {
 function draw() {
   if (busy) return;
   const next = drawFromStock(state);
-  if (!next) { setStatus(TEXT.deckDone); return; }
+  if (!next) { setStatus("deckDone"); return; }
   commit(next);
   audio.playDraw();
-  if (state.stock.length === 0 && state.waste.length) setStatus(TEXT.deckAgain);
-  else setStatus(settings.tap === "choose" ? TEXT.chooseStart : TEXT.start);
+  if (state.stock.length === 0 && state.waste.length) setStatus("deckAgain");
+  else setStatus(idleKey());
 }
 
 function undo() {
@@ -339,7 +370,7 @@ function undo() {
   render();
   store.saveGame(state, history);
   audio.playUndo();
-  setStatus(TEXT.undone);
+  setStatus("undone");
 }
 
 // ----------------------------------------------------------------------
@@ -377,27 +408,26 @@ function tapCard(el) {
   }
   if (loc.pile === "foundation") {
     if (selected) return tryPlaceSelected({ pile: "foundation", index: loc.index });
-    setStatus(TEXT.foundationBack);
+    setStatus("foundationBack");
     return;
   }
   if (settings.tap === "choose") return tapChoose(loc, el);
 
   const to = autoMoveTarget(state, loc);
-  const name = cardName(cardsAt(state, loc)[0]);
   if (!to) {
     shake(el);
     audio.playNope();
-    setStatus(TEXT.nowhere(name));
+    setStatus("nowhere", { card: cardsAt(state, loc)[0] });
     return;
   }
   moveCards(loc, to);
-  if (!isWon(state) && !busy) setStatus(TEXT.start);
+  if (!isWon(state) && !busy) setStatus("start");
 }
 
 function tapChoose(loc, el) {
   if (selected) {
     const same = selected.pile === loc.pile && selected.index === loc.index && selected.card === loc.card;
-    if (same) { selected = null; clearHighlights(); setStatus(TEXT.chooseStart); return; }
+    if (same) { selected = null; clearHighlights(); setStatus("chooseStart"); return; }
     if (tryPlaceSelected({ pile: loc.pile, index: loc.index })) return;
   }
   selectRun(loc);
@@ -407,7 +437,7 @@ function selectRun(loc) {
   clearHighlights();
   for (const c of cardsAt(state, loc)) cardEls.get(c.id).classList.add("is-selected");
   for (const d of destinationsFor(state, loc)) highlightPile(d);
-  setStatus(TEXT.pickedUp(cardName(cardsAt(state, loc)[0])));
+  setStatus("pickedUp", { card: cardsAt(state, loc)[0] });
 }
 function highlightPile(d) {
   const pile = d.pile === "foundation" ? state.foundations[d.index] : state.tableau[d.index];
@@ -419,14 +449,17 @@ function tryPlaceSelected(to) {
   const from = selected;
   if (canMove(state, from, to)) {
     moveCards(from, to);
-    if (!isWon(state) && !busy) setStatus(TEXT.chooseStart);
+    if (!isWon(state) && !busy) setStatus("chooseStart");
     return true;
   }
-  const name = cardName(cardsAt(state, from)[0]);
-  const where = to.pile === "foundation" ? "on that pile" : "on that column";
-  setStatus(TEXT.cannotGo(name, where));
-  audio.playNope();
+  sayCannotGo(from, to);
   return false;
+}
+
+/** "The 7 of hearts can't go on that pile / column." */
+function sayCannotGo(from, to) {
+  setStatus(to.pile === "foundation" ? "cannotGoPile" : "cannotGoColumn", { card: cardsAt(state, from)[0] });
+  audio.playNope();
 }
 
 function tapSlot(slot) {
@@ -497,10 +530,10 @@ function endDrag(e) {
   clearHighlights();
   if (to && canMove(state, d.loc, to)) {
     moveCards(d.loc, to);
-    if (!isWon(state) && !busy) setStatus(settings.tap === "choose" ? TEXT.chooseStart : TEXT.start);
+    if (!isWon(state) && !busy) setStatus(idleKey());
   } else {
     render(); // snap back
-    if (to) { setStatus(TEXT.cannotGo(cardName(cardsAt(state, d.loc)[0]), to.pile === "foundation" ? "on that pile" : "on that column")); audio.playNope(); }
+    if (to) sayCannotGo(d.loc, to);
   }
 }
 table.addEventListener("pointerup", endDrag);
@@ -553,7 +586,8 @@ hintBtn.addEventListener("click", () => {
   const h = findHint(state);
   clearHighlights();
   selected = null;
-  setStatus(describeHint(state, h));
+  const d = describeHint(state, h);
+  setStatus(d.key, d.args);
   if (!h) return;
   if (h.draw) { stockSlot.classList.add("is-target"); if (state.stock.length) cardEls.get(state.stock[state.stock.length - 1].id).classList.add("is-hint"); return; }
   for (const c of cardsAt(state, h.from)) cardEls.get(c.id).classList.add("is-hint");
@@ -588,7 +622,7 @@ function deal({ abandoned = false, seed } = {}) {
   store.saveGame(state, history);
   trackEvent("game_start", { draw: state.draw });
   animateDeal();
-  setStatus(settings.tap === "choose" ? TEXT.chooseStart : TEXT.start);
+  setStatus(idleKey());
 }
 
 /** Every card starts on the deck and flies to its place, one after another. */
@@ -616,7 +650,7 @@ function animateDeal() {
 function startAutoComplete() {
   busy = true;
   render();
-  setStatus(TEXT.finishing);
+  setStatus("finishing");
   const tick = () => {
     const step = autoCompleteStep(state);
     if (!step) { busy = false; render(); if (isWon(state)) onWin(); return; }
@@ -637,12 +671,19 @@ function onWin() {
   store.clearGame();
   trackEvent("game_win", { draw: state.draw, moves: state.moves });
   audio.playWin();
-  setStatus(TEXT.won(state.moves));
+  setStatus("won", { moves: state.moves });
   undoBtn.disabled = true;
   hintBtn.disabled = true;
-  winNote.textContent = TEXT.won(state.moves) + (stats.streak > 1 ? ` That's ${stats.streak} wins in a row.` : "");
+  fillWinNote();
   if (!reduceMotion) startCascade();
   setTimeout(() => { winModal.dataset.open = "true"; winAgain.focus(); }, reduceMotion ? 200 : 1400);
+}
+
+/** "All four piles are complete in 88 moves. That's 3 wins in a row." —
+ *  written from the state so a language change can write it again. */
+function fillWinNote() {
+  if (!state || !isWon(state)) return;
+  winNote.textContent = i18n.t("won", { moves: state.moves }) + (stats.streak > 1 ? " " + i18n.t("winsInARow", { n: stats.streak }) : "");
 }
 
 /** The classic bouncing cascade: each card leaps off its pile and bounces
@@ -697,6 +738,7 @@ function fillStats() {
 }
 function openSettings() {
   fillStats();
+  i18n.renderPicker($("sol-lang-grid"));
   settingsPanel.dataset.open = "true";
   settingsClose.focus({ preventScroll: true });
 }
@@ -741,7 +783,7 @@ tapRadios.forEach((r) => r.addEventListener("change", () => {
   store.saveSettings(settings);
   selected = null;
   clearHighlights();
-  setStatus(settings.tap === "choose" ? TEXT.chooseStart : TEXT.start);
+  setStatus(idleKey());
 }));
 soundToggle.addEventListener("change", () => {
   settings.sound = soundToggle.checked;
@@ -755,7 +797,17 @@ document.addEventListener("keydown", (e) => {
   if (winModal.dataset.open === "true") { winModal.dataset.open = "false"; return; }
   if (confirmModal.dataset.open === "true") { confirmModal.dataset.open = "false"; return; }
   if (settingsPanel.dataset.open === "true") closeSettings();
-  else if (selected) { selected = null; clearHighlights(); setStatus(TEXT.chooseStart); }
+  else if (selected) { selected = null; clearHighlights(); setStatus("chooseStart"); }
+});
+
+// A new language: applyStatic() has already swapped the data-i18n text;
+// this re-says everything the page wrote itself.
+i18n.onChange(() => {
+  labelCards();
+  labelStock();
+  refreshStatus();
+  fillStats();
+  fillWinNote();
 });
 
 // ----------------------------------------------------------------------
@@ -783,8 +835,8 @@ if (saved && !isWon(saved.state)) {
   render();
   void table.offsetWidth;
   for (const el of cardEls.values()) el.classList.remove("no-transition");
-  setStatus(settings.tap === "choose" ? TEXT.chooseStart : TEXT.start);
-  toast(TEXT.restored);
+  setStatus(idleKey());
+  toast(i18n.t("restored"));
   if (canAutoComplete(state)) startAutoComplete();
 } else {
   deal();

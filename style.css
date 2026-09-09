@@ -132,6 +132,21 @@ a:visited { color: #5c3d99; }
   opacity: 0.9;
 }
 
+/* 헤더 안의 링크(다른 게임으로 가는 안내)는 페이지 본문 링크 색
+ * (#0a5c8a)을 그대로 물려받고 있었다. 헤더는 딥그린 그라디언트라
+ * 그 파란색은 대비 1.2:1 — 사실상 안 보인다. 헤더 위에서는 본문 색을
+ * 그대로 쓰고 밑줄로 링크임을 알린다(대비 약 9:1). */
+.site-header .tagline a,
+.site-header .tagline a:visited {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 600;
+}
+.site-header .tagline a:hover {
+  text-decoration-thickness: 2px;
+}
+
 /* ---- 게임 영역 레이아웃 -------------------------------------------------
  * 데스크톱: 보드 + 우측 광고 슬롯을 나란히. 모바일: 세로로 쌓임.
  * ------------------------------------------------------------------------- */
@@ -237,11 +252,19 @@ a:visited { color: #5c3d99; }
   color: var(--btn-active-text);
   transform: translateY(1px);
 }
+/* 비활성 버튼: opacity 0.5는 이 배경에서 2.7:1로 계산돼 3:1 기준을
+ * 밑돌고, 65세 이상 사용자에게는 사실상 안 읽힌다. Undo는 매 판 시작마다
+ * 비활성이라 새 사용자가 가장 먼저 보는 버튼 중 하나다 — 읽히지 않는
+ * 버튼은 있는 줄도 모르게 된다. 투명도 대신 표면을 낮추고 테두리를
+ * 점선으로: 분명히 거기 있고, 분명히 아직 누를 때가 아니다.
+ * (게임별 stylesheet들이 이미 같은 처리를 각자 하고 있었다.) */
 .btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+  opacity: 1;
+  background: var(--paper-dim);
+  border-style: dashed;
+  cursor: default;
 }
-.btn:disabled:hover { background: var(--btn-bg); }
+.btn:disabled:hover { background: var(--paper-dim); }
 .btn-accent,
 .btn-ghost {
   background: var(--btn-bg);

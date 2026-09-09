@@ -112,20 +112,26 @@
 </head>
 <body class="ads-off">
 
-<a class="skip-link" href="#sol-table">Skip to the cards</a>
+<a class="skip-link" id="sol-skip-link" href="#sol-table" data-i18n="skipToCards">Skip to the cards</a>
 
 <header class="site-header">
   <h1>Solitaire</h1>
-  <p class="tagline">Classic Klondike with big, easy-to-read cards. No download, no sign-up, no timer.
-    <a href="/">Play Mahjong Solitaire →</a></p>
+  <p class="tagline"><span data-i18n="tagline">Classic Klondike with big, easy-to-read cards. No download, no sign-up, no timer.</span>
+    <a href="/" data-i18n="playMahjong">Play Mahjong Solitaire →</a></p>
 </header>
 
 <main id="solitaire" data-back="burgundy">
 
   <!-- The one rule of the game, always on screen above the table — same
        reasoning as the Five in a Row page: a rules modal is dismissed once
-       and forgotten; this is there every time you glance up. -->
-  <p class="sol-goal" id="sol-goal">Build each suit from <strong>Ace up to King</strong> on the four piles at the top.</p>
+       and forgotten; this is there every time you glance up.
+
+       Every static text on the page carries data-i18n="key" (keys in
+       src/i18n/strings.js and /i18n/common.js); /i18n/i18n.js swaps the
+       text when the player picks a language in Settings. The English here
+       is what the page shows before main.js runs and what search engines
+       read. data-i18n-html only where the string carries our own <strong>. -->
+  <p class="sol-goal" id="sol-goal" data-i18n="goal" data-i18n-html>Build each suit from <strong>Ace up to King</strong> on the four piles at the top.</p>
 
   <!-- What to do next / what just happened. aria-live so it is read out
        without hunting for it. Its height is reserved (two lines) so the
@@ -135,11 +141,13 @@
   <!-- The table. Every card is one .sol-card element, created once by
        main.js and moved with transforms; the pile outlines below are the
        only static children. Sizes are set as custom properties on this
-       element by main.js from its measured width. -->
-  <div class="sol-table" id="sol-table" aria-label="Solitaire table">
-    <div class="sol-slot sol-slot-stock" id="sol-slot-stock" role="button" tabindex="0" aria-label="Deck: turn over a card">
+       element by main.js from its measured width. dir="ltr" because the
+       cards are placed in px from the left — the table never mirrors when
+       the rest of the page turns right-to-left for Arabic. -->
+  <div class="sol-table" id="sol-table" dir="ltr" aria-label="Solitaire table" data-i18n-attr="aria-label:tableLabel">
+    <div class="sol-slot sol-slot-stock" id="sol-slot-stock" role="button" tabindex="0" aria-label="Deck: turn over a card" data-i18n-attr="aria-label:deckTurn">
       <span class="sol-slot-recycle" aria-hidden="true">↻</span>
-      <span class="sol-slot-text" aria-hidden="true">Turn over</span>
+      <span class="sol-slot-text" aria-hidden="true" data-i18n="turnOver">Turn over</span>
     </div>
     <div class="sol-slot sol-slot-waste" id="sol-slot-waste" aria-hidden="true"></div>
     <div class="sol-slot sol-slot-foundation" id="sol-slot-foundation-0" data-foundation="0" aria-hidden="true"><span class="sol-slot-ace">A</span></div>
@@ -157,19 +165,22 @@
   </div>
 
   <!-- Always on screen, never behind a menu; a word on every button. -->
-  <div class="sol-controls" role="toolbar" aria-label="Game controls">
-    <button type="button" class="btn" id="sol-hint-btn">Hint</button>
-    <button type="button" class="btn" id="sol-undo-btn" disabled>Undo</button>
-    <button type="button" class="btn" id="sol-new-btn">New game</button>
-    <button type="button" class="btn" id="sol-settings-btn" aria-haspopup="dialog">Settings</button>
+  <div class="sol-controls" role="toolbar" aria-label="Game controls" data-i18n-attr="aria-label:controlsLabel">
+    <button type="button" class="btn" id="sol-hint-btn" data-i18n="hint">Hint</button>
+    <button type="button" class="btn" id="sol-undo-btn" disabled data-i18n="undo">Undo</button>
+    <button type="button" class="btn" id="sol-new-btn" data-i18n="newGame">New game</button>
+    <button type="button" class="btn" id="sol-settings-btn" aria-haspopup="dialog" data-i18n="settings">Settings</button>
   </div>
 
   <!-- AD SLOT: adsense (mobile inline 320x100) -->
   <!-- AD SLOT: adsense (desktop 728x90) -->
-  <div class="ad-slot ad-slot--320x100 ad-slot-mobile-only" aria-hidden="true">Advertisement</div>
-  <div class="ad-slot ad-slot--728x90 ad-slot-desktop-only" aria-hidden="true">Advertisement</div>
+  <div class="ad-slot ad-slot--320x100 ad-slot-mobile-only" aria-hidden="true" data-i18n="advertisement">Advertisement</div>
+  <div class="ad-slot ad-slot--728x90 ad-slot-desktop-only" aria-hidden="true" data-i18n="advertisement">Advertisement</div>
 
-<section class="content">
+<!-- The long-form text stays English whatever language is chosen (it is
+     the SEO text — BRIEF.md "Languages"), so it declares its own lang and
+     direction rather than following <html dir> into right-to-left. -->
+<section class="content" lang="en" dir="ltr">
   <h2>Play Solitaire Free Online</h2>
   <p>
     This is the classic Solitaire everyone knows — the one that came with every computer for
@@ -292,68 +303,76 @@
 <!-- ===================== settings ===================== -->
 <div class="settings-panel" id="sol-settings-panel" data-open="false">
   <div class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="sol-settings-title">
-    <h2 id="sol-settings-title">Settings</h2>
+    <h2 id="sol-settings-title" data-i18n="settings">Settings</h2>
+
+    <!-- Language first, so a visitor who cannot read the English labels
+         finds it at the top. main.js fills the grid (i18n.renderPicker)
+         with one button per language, each in its own script. -->
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="language">Language</legend>
+      <div class="lang-grid" id="sol-lang-grid"></div>
+    </fieldset>
 
     <fieldset class="settings-row">
-      <legend class="settings-label">Cards from the deck</legend>
+      <legend class="settings-label" data-i18n="drawLegend">Cards from the deck</legend>
       <div class="segmented" id="sol-draw-group">
-        <label><input type="radio" name="sol-draw" value="1" checked><span>One at a time</span></label>
-        <label><input type="radio" name="sol-draw" value="3"><span>Three at a time</span></label>
+        <label><input type="radio" name="sol-draw" value="1" checked><span data-i18n="drawOne">One at a time</span></label>
+        <label><input type="radio" name="sol-draw" value="3"><span data-i18n="drawThree">Three at a time</span></label>
       </div>
-      <p class="sol-row-note">One at a time is the easier, more relaxed game. Takes effect on your next game.</p>
+      <p class="sol-row-note" data-i18n="drawNote">One at a time is the easier, more relaxed game. Takes effect on your next game.</p>
     </fieldset>
 
     <fieldset class="settings-row">
-      <legend class="settings-label">When I tap a card</legend>
+      <legend class="settings-label" data-i18n="tapLegend">When I tap a card</legend>
       <div class="segmented" id="sol-tap-group">
-        <label><input type="radio" name="sol-tap" value="auto" checked><span>Move it for me</span></label>
-        <label><input type="radio" name="sol-tap" value="choose"><span>Let me choose</span></label>
+        <label><input type="radio" name="sol-tap" value="auto" checked><span data-i18n="tapAuto">Move it for me</span></label>
+        <label><input type="radio" name="sol-tap" value="choose"><span data-i18n="tapChoose">Let me choose</span></label>
       </div>
-      <p class="sol-row-note">"Let me choose" picks the card up on the first tap; tap where it should go. Dragging always works.</p>
+      <p class="sol-row-note" data-i18n="tapNote">"Let me choose" picks the card up on the first tap; tap where it should go. Dragging always works.</p>
     </fieldset>
 
     <fieldset class="settings-row">
-      <legend class="settings-label">Card back</legend>
+      <legend class="settings-label" data-i18n="backLegend">Card back</legend>
       <div class="sol-backs" id="sol-back-group">
-        <label><input type="radio" name="sol-back" value="burgundy" checked><span class="sol-back-swatch" data-back="burgundy"><span class="sol-card-back-emblem"></span></span><span>Burgundy</span></label>
-        <label><input type="radio" name="sol-back" value="navy"><span class="sol-back-swatch" data-back="navy"><span class="sol-card-back-emblem"></span></span><span>Navy</span></label>
-        <label><input type="radio" name="sol-back" value="onyx"><span class="sol-back-swatch" data-back="onyx"><span class="sol-card-back-emblem"></span></span><span>Onyx</span></label>
-        <label><input type="radio" name="sol-back" value="plum"><span class="sol-back-swatch" data-back="plum"><span class="sol-card-back-emblem"></span></span><span>Plum</span></label>
+        <label><input type="radio" name="sol-back" value="burgundy" checked><span class="sol-back-swatch" data-back="burgundy"><span class="sol-card-back-emblem"></span></span><span data-i18n="backBurgundy">Burgundy</span></label>
+        <label><input type="radio" name="sol-back" value="navy"><span class="sol-back-swatch" data-back="navy"><span class="sol-card-back-emblem"></span></span><span data-i18n="backNavy">Navy</span></label>
+        <label><input type="radio" name="sol-back" value="onyx"><span class="sol-back-swatch" data-back="onyx"><span class="sol-card-back-emblem"></span></span><span data-i18n="backOnyx">Onyx</span></label>
+        <label><input type="radio" name="sol-back" value="plum"><span class="sol-back-swatch" data-back="plum"><span class="sol-card-back-emblem"></span></span><span data-i18n="backPlum">Plum</span></label>
       </div>
     </fieldset>
 
     <div class="settings-row toggle-row">
-      <label for="sol-toggle-sound">Sound</label>
+      <label for="sol-toggle-sound" data-i18n="sound">Sound</label>
       <input type="checkbox" id="sol-toggle-sound" checked>
     </div>
 
     <div class="settings-row">
-      <span class="settings-label">Your games</span>
+      <span class="settings-label" data-i18n="yourGames">Your games</span>
       <dl class="settings-stats">
-        <dt>Games won</dt>
+        <dt data-i18n="gamesWon">Games won</dt>
         <dd id="sol-stat-wins">0</dd>
-        <dt>Games played</dt>
+        <dt data-i18n="gamesPlayed">Games played</dt>
         <dd id="sol-stat-played">0</dd>
-        <dt>Best run of wins</dt>
+        <dt data-i18n="bestRun">Best run of wins</dt>
         <dd id="sol-stat-best">0</dd>
       </dl>
     </div>
 
-    <button type="button" class="btn btn-accent settings-close" id="sol-settings-close">Close</button>
+    <button type="button" class="btn btn-accent settings-close" id="sol-settings-close" data-i18n="close">Close</button>
   </div>
 </div>
 
 <!-- ===================== win ===================== -->
 <div class="modal-overlay" id="sol-win-modal" data-open="false">
   <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="sol-win-title">
-    <h2 id="sol-win-title">You won!</h2>
+    <h2 id="sol-win-title" data-i18n="youWon">You won!</h2>
     <p id="sol-win-note"></p>
     <div class="modal-actions">
-      <button type="button" class="btn btn-accent" id="sol-win-again">Deal a new game</button>
-      <button type="button" class="btn" id="sol-win-close">Look at the table</button>
+      <button type="button" class="btn btn-accent" id="sol-win-again" data-i18n="dealNew">Deal a new game</button>
+      <button type="button" class="btn" id="sol-win-close" data-i18n="lookAtTable">Look at the table</button>
     </div>
     <p class="cross-game-cta">
-      <a class="cross-game-link" href="/" data-crossgame-to="mahjong" data-placement="win_modal">Try our other free game — Mahjong Solitaire</a>
+      <a class="cross-game-link" href="/" data-crossgame-to="mahjong" data-placement="win_modal" data-i18n="tryOther">Try our other free game — Mahjong Solitaire</a>
     </p>
   </div>
 </div>
@@ -361,11 +380,11 @@
 <!-- ===================== new game while one is going ===================== -->
 <div class="modal-overlay" id="sol-confirm-modal" data-open="false">
   <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="sol-confirm-title">
-    <h2 id="sol-confirm-title">Start a new game?</h2>
-    <p>The game on the table will be put away.</p>
+    <h2 id="sol-confirm-title" data-i18n="startNewQ">Start a new game?</h2>
+    <p data-i18n="putAway">The game on the table will be put away.</p>
     <div class="modal-actions">
-      <button type="button" class="btn btn-accent" id="sol-confirm-yes">Deal a new game</button>
-      <button type="button" class="btn" id="sol-confirm-no">Keep playing</button>
+      <button type="button" class="btn btn-accent" id="sol-confirm-yes" data-i18n="dealNew">Deal a new game</button>
+      <button type="button" class="btn" id="sol-confirm-no" data-i18n="keepPlaying">Keep playing</button>
     </div>
   </div>
 </div>

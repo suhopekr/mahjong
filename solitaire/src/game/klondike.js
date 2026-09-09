@@ -60,6 +60,8 @@ export function shuffle(deck, rng) {
   return cards;
 }
 
+/** The card's English name ("7 of hearts") — for tests and debugging. The
+ *  page names cards through i18n (strings.js cardName/rankN/suitX). */
 export function cardName(card) {
   return `${RANK_LABEL[card.rank]} of ${SUIT_NAME[card.suit]}`;
 }
@@ -349,14 +351,24 @@ export function findHint(state) {
   return null;
 }
 
-/** Plain-English description of a hint, for the status line. */
+/**
+ * What a hint means, for the status line — as a message `{ key, args }`
+ * rather than a sentence, so the page can say it in whichever language
+ * the player chose (the keys are in src/i18n/strings.js and /i18n/common.js;
+ * `args.card` / `args.target` are card objects the page turns into names):
+ *
+ *   { key: "noMoves" }
+ *   { key: "hintDrawNext" } | { key: "hintDrawAgain" }
+ *   { key: "hintToFoundation", args: { card } }
+ *   { key: "hintToEmpty",      args: { card } }
+ *   { key: "hintOnto",         args: { card, target } }
+ */
 export function describeHint(state, hint) {
-  if (!hint) return "No moves left — try a new game.";
-  if (hint.draw) return state.stock.length ? "Turn over the next card from the deck." : "Turn the deck over and go through it again.";
+  if (!hint) return { key: "noMoves" };
+  if (hint.draw) return { key: state.stock.length ? "hintDrawNext" : "hintDrawAgain" };
   const card = cardsAt(state, hint.from)[0];
-  const name = cardName(card);
-  if (hint.to.pile === "foundation") return `Move the ${name} up to its pile.`;
+  if (hint.to.pile === "foundation") return { key: "hintToFoundation", args: { card } };
   const dest = state.tableau[hint.to.index];
-  if (!dest.length) return `Move the ${name} to the empty column.`;
-  return `Move the ${name} onto the ${cardName(dest[dest.length - 1])}.`;
+  if (!dest.length) return { key: "hintToEmpty", args: { card } };
+  return { key: "hintOnto", args: { card, target: dest[dest.length - 1] } };
 }
