@@ -1,0 +1,499 @@
+/* word-search/style.css
+ *
+ * Loaded after the site stylesheet (/style.css) and subordinate to it, on
+ * the same three rules as solitaire/style.css:
+ *
+ *   1. never redefines a selector the site defines (.btn, the modal and
+ *      settings components, .site-header/.site-footer, .achievement-toast);
+ *   2. no bare element selectors;
+ *   3. every selector is a .ws- class or scoped under #word-search.
+ *
+ * Palette: the site's :root custom properties, plus what a paper sheet on
+ * a felt table needs and the site has no name for — the paper tones, the
+ * hairline rule, the two textures, and the eight pastel capsule colours.
+ * They are declared once, on #word-search.
+ *
+ * Sizing: every grid dimension derives from --cell, which main.js sets on
+ * .ws-board from the measured width (n cells must fit the sheet), together
+ * with --n, --letter and the panel paddings. Nothing here is sized from a
+ * media query alone.
+ */
+
+#word-search {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --ws-paper: #f3ead6;
+  --ws-paper-deep: #e8dcc0;
+  --ws-rule: rgba(90, 70, 40, 0.16);
+  --tex-felt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+  --tex-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.36  0 0 0 0 0.27  0 0 0 0 0.14  0 0 0 0.11 0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23f)'/%3E%3C/svg%3E");
+
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 8px 8px calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* Phones: the sheet uses the full width the game-shell leaves. */
+#word-search.is-phone { padding-left: 0; padding-right: 0; }
+/* Wide screens: the word list stands beside the sheet and needs the room. */
+@media (min-width: 980px) {
+  #word-search { max-width: 900px; }
+}
+
+/* The site hides its skip link at left: -9999px. In a right-to-left page
+ * that is 9999px of leftward overflow, and a phone browser scrolls the
+ * whole page off to reach it — so here it is hidden the clipped way
+ * instead (no overflow), and shows at the site's place when focused. */
+.ws-skip:not(:focus) {
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The header's cross-game link in the header's own ivory, not the
+ * browser's blue (2.6:1 on the green). */
+.ws-tagline-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration-color: rgba(253, 251, 244, 0.6);
+  text-underline-offset: 3px;
+  /* keeps the arrow with its words: at 820px "→" used to wrap alone */
+  white-space: nowrap;
+}
+.ws-tagline-link:hover { text-decoration-color: currentColor; }
+
+/* ============================ goal + status ============================ */
+
+.ws-goal {
+  margin: 2px 0 8px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--ink);
+}
+.ws-goal strong { font-weight: 700; }
+
+/* Two lines reserved so the sheet never moves when the text changes. */
+.ws-status {
+  margin: 0 0 10px;
+  min-height: calc(2.7em + 16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--paper-dim);
+  width: 100%;
+  max-width: 560px;
+  box-sizing: border-box;
+}
+
+/* ============================ title row ============================ */
+
+.ws-head {
+  display: flex;
+  gap: 8px 12px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+.ws-title {
+  font: 700 clamp(24px, 6vw, 30px)/1.2 Georgia, "Times New Roman", serif;
+  color: var(--ink);
+  margin: 0;
+}
+.ws-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 4px 14px;
+  border-radius: 999px;
+  background: var(--felt-dark);
+  color: #fdfbf4;
+  font: 700 15px/1 var(--font-sans);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.ws-date {
+  font: 600 16px/1.3 var(--font-sans);
+  color: var(--felt-dark);
+}
+.ws-date:empty { display: none; }
+/* Design review: on a phone held upright the title row was 71px and the
+ * word list fell entirely below the fold. The badge already says "Today's
+ * puzzle"; the date underneath it is a nicety, so it is the first thing to
+ * go when the screen is short. */
+@media (max-height: 719px) {
+  .ws-date { display: none; }
+}
+
+/* ============================ board ============================ */
+
+.ws-board {
+  /* Set by main.js. The fallbacks only keep the layout sane for the
+   * instant before the first measurement. */
+  --n: 8;
+  --cell: 40px;
+  --letter: 24px;
+  --table-pad: 12px;
+  --sheet-pad: 12px;
+  --list-w: 280px;
+  --list-cols: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+/* From 720px the list stands beside the sheet, one chip per line. */
+.ws-board.is-beside {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--list-w);
+  gap: 24px;
+  align-items: start;
+}
+
+/* The felt table the sheet lies on: solitaire's recipe plus a nap.
+ *
+ * Design review: this was `width: 100%`, so the felt border around the
+ * paper was whatever was left over after the sheet — a 6px hairline at
+ * 375px (where the sheet fills the column) and an 80px apron at 820px
+ * (where the cells cap at 56 and the sheet is much narrower than the
+ * column). One game, two materials. Shrink-wrapping the table to the
+ * sheet gives the same --table-pad frame of felt at every size, which is
+ * what DESIGN.md §1.3 asks for ("wrap it in a .ws-table … with 12px
+ * padding, so the paper reads as a sheet laid on the table"). */
+.ws-table {
+  width: max-content;
+  max-width: 100%;
+  margin-inline: auto;
+  box-sizing: border-box;
+  padding: var(--table-pad);
+  border-radius: var(--radius-lg);
+  background:
+    var(--tex-felt),
+    radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.10), rgba(0, 0, 0, 0) 60%),
+    linear-gradient(180deg, var(--felt-light), var(--felt) 45%, var(--felt-dark));
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.18),
+    inset 0 2px 18px rgba(0, 0, 0, 0.25),
+    var(--shadow-sm);
+  isolation: isolate;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  justify-content: center;
+}
+
+/* Warm paper, fibre noise, a faint linen weave, a soft bottom edge. */
+.ws-sheet {
+  box-sizing: border-box;
+  width: calc(var(--n) * var(--cell) + 2 * var(--sheet-pad));
+  max-width: 100%;
+  padding: var(--sheet-pad);
+  border-radius: var(--radius-lg);
+  background:
+    var(--tex-fibre),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.025) 0 1px, rgba(0, 0, 0, 0) 1px 4px),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, 0.025) 0 1px, rgba(0, 0, 0, 0) 1px 4px),
+    radial-gradient(ellipse at 50% 20%, #faf4e6, var(--ws-paper) 55%, var(--ws-paper-deep));
+  box-shadow:
+    inset 0 0 0 1px rgba(90, 70, 40, 0.22),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 2px 0 #cfc2a4,
+    0 6px 16px rgba(0, 0, 0, 0.18);
+}
+.ws-board.is-phone .ws-sheet { border-radius: var(--radius-md); }
+
+/* Cells butt together (no gap) so every pixel is a target; the hairline
+ * rules are a background lattice on the grid, not borders. */
+.ws-grid {
+  display: grid;
+  grid-template-columns: repeat(var(--n), var(--cell));
+  grid-auto-rows: var(--cell);
+  position: relative;
+  width: calc(var(--n) * var(--cell));
+  background-image:
+    linear-gradient(var(--ws-rule) 1px, transparent 1px),
+    linear-gradient(90deg, var(--ws-rule) 1px, transparent 1px);
+  background-size: var(--cell) var(--cell);
+  box-shadow: inset -1px -1px 0 var(--ws-rule), 1px 1px 0 var(--ws-rule);
+  /* A finger drawing across the letters must not scroll the page. The
+   * felt around the sheet still scrolls. */
+  touch-action: none;
+  cursor: pointer;
+  outline: none;
+}
+.ws-grid:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 4px;
+}
+.ws-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-sans);
+  font-size: var(--letter);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--ink);
+  position: relative;
+  z-index: 2;
+  user-select: none;
+  -webkit-user-select: none;
+  box-sizing: border-box;
+}
+.ws-sheet.is-lower .ws-cell { text-transform: lowercase; }
+/* The keyboard cursor: only drawn while the grid has keyboard focus, so
+ * a finger or mouse never sees a stray box on a letter. */
+.ws-grid:focus-visible .ws-cell.is-cursor { box-shadow: inset 0 0 0 3px var(--focus-ring); border-radius: 6px; z-index: 3; }
+/* The first letter of a two-tap selection: a gold ring on the cell (the
+ * gold capsule sits under it too), so "picked" reads even on a 33px cell. */
+.ws-cell.is-anchor,
+.ws-grid:focus-visible .ws-cell.is-anchor {
+  z-index: 3;
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px var(--accent), 0 0 12px 2px rgba(242, 183, 5, 0.45);
+}
+.ws-cell.is-hint {
+  z-index: 3;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 3px var(--accent);
+  animation: ws-hint 1.1s ease-in-out 3;
+}
+@keyframes ws-hint {
+  0%, 100% { box-shadow: inset 0 0 0 3px var(--accent); }
+  50% { box-shadow: inset 0 0 0 4px var(--accent), 0 0 18px 4px rgba(242, 183, 5, 0.6); }
+}
+
+/* ---- capsules: found words and the live selection ---- */
+.ws-caps {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  overflow: visible;
+}
+.ws-cap {
+  position: absolute;
+  z-index: 1;
+  height: calc(var(--cell) * 0.82);
+  border-radius: 999px;
+  background: var(--cap);
+  box-shadow: inset 0 0 0 1.5px var(--cap-edge);
+  opacity: 0.78;
+  pointer-events: none;
+  transform-origin: left center;
+  transition: opacity 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), background-color 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), box-shadow 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+/* The live selection is gold and only gold. */
+.ws-cap.is-live {
+  background: rgba(242, 183, 5, 0.55);
+  box-shadow: inset 0 0 0 2px #d99f00;
+  opacity: 1;
+}
+/* A selection that spelled nothing: a brief muted red, then it fades. */
+.ws-cap.is-wrong {
+  background: rgba(179, 38, 30, 0.22);
+  box-shadow: inset 0 0 0 2px rgba(179, 38, 30, 0.55);
+  opacity: 1;
+}
+.ws-cap.is-gone { opacity: 0; }
+
+/* Eight pastels, assigned in order to found words; the chip in the list
+ * takes the same one so list and grid agree. --ink on any of them stays
+ * above 9:1. */
+.ws-tone-1 { --cap: #f4b8c1; --cap-edge: #d98a97; }
+.ws-tone-2 { --cap: #b9d9f0; --cap-edge: #86b3d6; }
+.ws-tone-3 { --cap: #f3e39a; --cap-edge: #cdb951; }
+.ws-tone-4 { --cap: #bfe3c4; --cap-edge: #83bb8c; }
+.ws-tone-5 { --cap: #d3c4ee; --cap-edge: #a48ecf; }
+.ws-tone-6 { --cap: #f6c9a0; --cap-edge: #d99b60; }
+.ws-tone-7 { --cap: #cdd9b6; --cap-edge: #98a97b; }
+.ws-tone-8 { --cap: #f5d3b5; --cap-edge: #d6a17b; }
+
+/* ============================ word list ============================ */
+
+.ws-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  justify-content: center;
+  width: 100%;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+.ws-board.is-beside .ws-words {
+  display: grid;
+  grid-template-columns: repeat(var(--list-cols, 1), minmax(0, 1fr));
+  align-content: start;
+  padding: 0;
+  gap: 10px 12px;
+}
+.ws-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 18px;
+  border-radius: 999px;
+  font: 600 18px/1.2 var(--font-sans);
+  color: var(--btn-text);
+  background: var(--btn-bg);
+  border: 1.5px solid var(--btn-border);
+  box-shadow: var(--shadow-sm);
+  box-sizing: border-box;
+  letter-spacing: 0.02em;
+  transition: background-color 0.25s cubic-bezier(0.2, 0.7, 0.2, 1), border-color 0.25s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.ws-board.is-beside .ws-chip { width: 100%; min-width: 0; padding: 8px 10px; }
+.ws-words.is-lower .ws-chip { text-transform: lowercase; }
+.ws-chip.is-found {
+  background: var(--cap);
+  border-color: var(--cap-edge);
+  color: var(--ink);
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+}
+/* The tick is an inline-block so the strike-through stops at the word
+ * and does not run through the tick itself. */
+.ws-chip.is-found::before {
+  content: "✓";
+  display: inline-block;
+  font-weight: 800;
+}
+.ws-chip.is-hint { animation: ws-chip-hint 1.1s ease-in-out 3; }
+@keyframes ws-chip-hint {
+  0%, 100% { box-shadow: var(--shadow-sm); }
+  50% { box-shadow: 0 0 0 4px var(--accent), 0 0 18px 4px rgba(242, 183, 5, 0.6); }
+}
+
+/* ============================== controls ============================== */
+
+.ws-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 640px;
+  margin-top: 24px;
+  padding: 0 8px;
+  box-sizing: border-box;
+}
+.ws-controls .btn {
+  flex: 1 1 calc(50% - 16px);
+  min-height: 56px;
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.2;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+/* One row from 560px. A long label (German/Russian run ~1.6× English:
+ * "Сегодняшняя головоломка") wraps to a second line inside its button
+ * rather than clipping — the text never shrinks below 18px. */
+@media (min-width: 560px) {
+  .ws-controls .btn { flex: 1 1 0; }
+}
+/* Same fix as Solitaire: the site's 0.5-opacity disabled button is
+ * unreadable for this audience. Present, plainly not ready. */
+.ws-controls .btn:disabled {
+  opacity: 1;
+  background: var(--paper-dim);
+  border-style: dashed;
+  cursor: default;
+}
+.ws-controls .btn:disabled:hover { background: var(--paper-dim); }
+
+/* Once today's puzzle is solved the win modal drops its "Today's puzzle"
+ * button. The site's .btn display beats the UA [hidden] rule, so: */
+#ws-win-today[hidden] { display: none; }
+
+/* ============================== settings ============================== */
+
+.ws-row-note {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--felt-dark);
+}
+/* Large 12×12 needs a wide screen; on a phone the choice is there but
+ * plainly not available, never hidden. */
+#ws-size-large-label.is-unavailable {
+  border-style: dashed;
+  background: var(--paper-dim);
+  cursor: default;
+}
+
+/* The language picker: one site .btn per language in its own script,
+ * two columns on phones, three from 480px, the current one ringed gold.
+ * The settings sheet sits outside <main>, so the rule is scoped to it. */
+#ws-settings-panel .lang-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 480px) {
+  #ws-settings-panel .lang-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+#ws-settings-panel .lang-btn {
+  min-height: 56px;
+  padding: 8px 10px;
+  font-size: 17px;
+  white-space: nowrap;
+}
+#ws-settings-panel .lang-btn[aria-pressed="true"] {
+  box-shadow: 0 0 0 3px var(--accent);
+  border-color: var(--felt-dark);
+  background: #e4f2ea;
+}
+
+/* =============================== toasts =============================== */
+
+#ws-toasts {
+  position: fixed;
+  top: max(88px, calc(env(safe-area-inset-top) + 74px));
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 300;
+  pointer-events: none;
+}
+#ws-toasts .achievement-toast {
+  position: static;
+  transform: none;
+}
+
+/* ============================ reduced motion ========================== */
+
+@media (prefers-reduced-motion: reduce) {
+  #word-search *,
+  #ws-toasts * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>8 Ball Pool — Free Online, Big Table, No Download</title>
+<meta name="description" content="Play 8 Ball Pool free online — no download, no sign-up, no timer. A big, easy-to-see table, drag to aim with a long guide line, a power bar in words, unlimited undo and hints, and a friendly computer opponent.">
+<link rel="canonical" href="https://easymahjongsolitaire.com/eight-ball-pool/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="8 Ball Pool — Free Online, Big Table, No Download">
+<meta property="og:description" content="Play 8 Ball Pool free online — no download, no sign-up, no timer. A big table, an aim guide, unlimited undo and a friendly computer opponent.">
+<meta property="og:image" content="https://easymahjongsolitaire.com/eight-ball-pool/og-image.png">
+<meta property="og:url" content="https://easymahjongsolitaire.com/eight-ball-pool/">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- Favicon: inline SVG data URI like the rest of the site — the black 8
+     on a disc of green cloth. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23146b4c'/%3E%3Ccircle cx='50' cy='50' r='33' fill='%23141414'/%3E%3Ccircle cx='50' cy='50' r='16' fill='%23fbf7ec'/%3E%3Ctext x='50' y='60' font-family='Arial,Helvetica,sans-serif' font-size='26' font-weight='700' text-anchor='middle' fill='%23141414'%3E8%3C/text%3E%3Ccircle cx='39' cy='36' r='7' fill='%23ffffff' fill-opacity='.22'/%3E%3C/svg%3E">
+<!--
+  Two stylesheets, in this order only, exactly as solitaire/index.html:
+
+    1. /style.css  — the site's own. This page reuses .btn, the modal and
+       settings components, .site-header/.site-footer, .content/.faq-item
+       and the :root palette verbatim.
+    2. ./style.css — this game's rules, every one scoped to a .pool- class
+       or to #eight-ball-pool. It never redefines a site selector.
+
+  No inline <style>, no inline <script>: the site's Content-Security-Policy
+  is `script-src 'self'; style-src 'self'`.
+-->
+<link rel="stylesheet" href="/style.css" />
+<link rel="stylesheet" href="./style.css" />
+
+<script defer src="/_vercel/insights/script.js"></script>
+
+<!-- Google Analytics 4 — the same measurement ID and the same /ga-init.js
+     as every other page. Events from this page carry game_name:
+     "eight_ball_pool" (src/main.js trackEvent). -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPBFW58QG6"></script>
+<script src="/ga-init.js"></script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "8 Ball Pool",
+  "alternateName": "Free Online 8 Ball Pool",
+  "url": "https://easymahjongsolitaire.com/eight-ball-pool/",
+  "description": "Free online 8 ball pool with a big, easy-to-see table, drag-to-aim with a long guide line, a power bar labelled in words, unlimited undo and hints, and a computer opponent with three paces. No time limit, no download, no account required.",
+  "applicationCategory": "GameApplication",
+  "genre": "Sports Game",
+  "operatingSystem": "Any (web browser)",
+  "browserRequirements": "Requires JavaScript",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is this 8 Ball Pool game free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. It is completely free to play, with no purchases, subscriptions, or hidden fees." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need to download anything?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. It runs directly in your web browser on a computer, tablet, or phone. There is no app to install and no account to create." }
+    },
+    {
+      "@type": "Question",
+      "name": "How do you play 8 ball pool?",
+      "acceptedAnswer": { "@type": "Answer", "text": "The first ball you pot after the break decides your group: the solid colours numbered 1 to 7, or the striped ones numbered 9 to 15. From then on you must hit one of your own balls first. Pot one of yours and you shoot again. When all seven of your balls are gone you play the black 8, and potting it wins the game." }
+    },
+    {
+      "@type": "Question",
+      "name": "How do I aim and take a shot?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Drag anywhere on the table and the white ball aims at your finger, with a long guide line showing where it will go and which way the ball it hits will travel. You can also simply tap one of your balls and the aim is set at its easiest pocket. Then slide the power bar to Soft, Medium or Firm and press Take the shot." }
+    },
+    {
+      "@type": "Question",
+      "name": "What happens if I foul?",
+      "acceptedAnswer": { "@type": "Answer", "text": "A foul is potting the white ball, missing every ball, or hitting the other player's group or the black 8 first. Your turn passes to the other player, who places the white ball again. With the friendly rules this game uses by default they place it behind the line at the near end of the table; switch to the standard rules in Settings and they may place it anywhere." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I take a shot back?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Undo takes back your last shot, and the computer's reply with it, as many times as you like all the way to the break." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a time limit or a score?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. There is no clock, no countdown, and no score to protect. Take as long as you like over every shot." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it save my game?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The table is saved automatically in your browser, so you can close the tab and come back to exactly the same position." }
+    }
+  ]
+}
+</script>
+</head>
+<body class="ads-off">
+
+<a class="skip-link" id="pool-skip-link" href="#pool-board" data-i18n="skipToBoard">Skip to the board</a>
+
+<header class="site-header">
+  <!-- dir="ltr" so the leading digit does not get re-ordered to the end
+       ("Ball Pool 8") when the runtime turns the page right-to-left. -->
+  <h1 dir="ltr">8 Ball Pool</h1>
+  <p class="tagline"><span data-i18n="tagline">A big, easy-to-see pool table. Drag to aim, press one button to shoot.</span>
+    <a class="pool-header-link" href="/" data-i18n="playMahjong">Play Mahjong Solitaire →</a></p>
+</header>
+
+<main id="eight-ball-pool">
+
+  <!-- The one rule of the game, always on screen above the table. -->
+  <p class="pool-goal" id="pool-goal" data-i18n="goal" data-i18n-html>Pot <strong>all seven of your balls</strong>, then the black <strong>8</strong>.</p>
+
+  <!-- One line of facts: who is on which group and how many are left. It
+       sits ABOVE the status line rather than below it, because the status
+       line pins to the top of the window and anything under it would
+       slide beneath it and show as a half-cut sliver. -->
+  <p class="pool-plate" id="pool-plate">
+    <span class="pool-chip" id="pool-chip-0"></span>
+    <span class="pool-chip" id="pool-chip-1"></span>
+  </p>
+
+  <!-- Board and shot controls travel together: on a tall table (a portrait
+       phone) the shot row is sticky to the bottom of THIS block, so the
+       power bar and the Take the shot button are on screen whatever the
+       page is scrolled to, and stop being sticky the moment the block
+       ends. -->
+  <div class="pool-play" id="pool-play">
+
+    <!-- What just happened / what to do next. aria-live so a screen reader
+         says it without hunting; two lines of height reserved so the table
+         never moves when the message changes. It lives inside the play
+         block and pins to the top of the window while the table is on
+         screen, so a player who scrolls the header away to see the whole
+         cloth still has the sentence that tells them what to do. -->
+    <p class="pool-status" id="pool-status" aria-live="polite"></p>
+
+    <!-- The table. Sizes are set by main.js from the measured width and
+         the height left on screen. dir="ltr" because everything on it is
+         drawn in px from the left — the table never mirrors when the rest
+         of the page turns right-to-left for Arabic. -->
+    <div class="pool-board" id="pool-board" dir="ltr" tabindex="-1" aria-label="Pool table" data-i18n-attr="aria-label:tableLabel">
+      <canvas class="pool-canvas" id="pool-canvas" tabindex="0" aria-label="Pool table: drag to aim" data-i18n-attr="aria-label:canvasLabel"></canvas>
+    </div>
+
+    <div class="pool-shot" id="pool-shot">
+      <span class="pool-power-word" id="pool-power-word">Medium</span>
+      <input class="pool-power" id="pool-power" type="range" min="0" max="100" step="1" value="50"
+             aria-label="How hard to hit" data-i18n-attr="aria-label:powerLabel">
+      <button type="button" class="btn btn-accent pool-shoot" id="pool-shoot" data-i18n="takeShot">Take the shot</button>
+      <!-- Side spin, hidden unless Settings turns it on. -->
+      <fieldset class="pool-spin" id="pool-spin" hidden>
+        <legend class="pool-spin-legend" data-i18n="spinLegend">Side spin</legend>
+        <div class="segmented" id="pool-spin-group">
+          <label><input type="radio" name="pool-spin" value="-1"><span data-i18n="spinLeft">Left</span></label>
+          <label><input type="radio" name="pool-spin" value="0" checked><span data-i18n="spinNone">Middle</span></label>
+          <label><input type="radio" name="pool-spin" value="1"><span data-i18n="spinRight">Right</span></label>
+        </div>
+      </fieldset>
+    </div>
+  </div>
+
+  <!-- Always on screen, never behind a menu; a word on every button. -->
+  <div class="pool-controls" role="toolbar" aria-label="Game controls" data-i18n-attr="aria-label:controlsLabel">
+    <button type="button" class="btn" id="pool-hint-btn" data-i18n="hint">Hint</button>
+    <button type="button" class="btn" id="pool-undo-btn" disabled data-i18n="undo">Undo</button>
+    <button type="button" class="btn" id="pool-new-btn" data-i18n="newGame">New game</button>
+    <button type="button" class="btn" id="pool-settings-btn" aria-haspopup="dialog" data-i18n="settings">Settings</button>
+  </div>
+
+  <!-- AD SLOT: adsense (mobile inline 320x100) -->
+  <!-- AD SLOT: adsense (desktop 728x90) -->
+  <div class="ad-slot ad-slot--320x100 ad-slot-mobile-only" aria-hidden="true" data-i18n="advertisement">Advertisement</div>
+  <div class="ad-slot ad-slot--728x90 ad-slot-desktop-only" aria-hidden="true" data-i18n="advertisement">Advertisement</div>
+
+<!-- The long-form text stays English whatever language is chosen (it is
+     the SEO text — BRIEF.md "Languages"), so it declares its own lang and
+     direction rather than following <html dir> into right-to-left. -->
+<section class="content" lang="en" dir="ltr">
+  <h2>Play 8 Ball Pool Free Online</h2>
+  <p>
+    This is pool the way it is played in every bar and club in the world — fifteen numbered balls,
+    a white cue ball, and the black 8 saved for last — made easy to see and easy to play. It runs
+    straight in your browser with no download, no installer, and no account. Open the page and the
+    balls are already racked.
+  </p>
+  <p>
+    The table is drawn as large as your screen allows, and it stands upright on a phone so the
+    balls stay big enough to pick out at a glance. You do not need a steady hand: drag anywhere on
+    the cloth and the white ball aims at your finger, with a long guide line, a ghost ball where it
+    will strike, and a second line showing which way the ball you hit will travel. If dragging is
+    fiddly, tap one of your own balls instead and the aim is set at its easiest pocket for you.
+  </p>
+  <p>
+    The power bar says Soft, Medium or Firm in words rather than showing a number, and one big
+    button takes the shot. There is no clock and no score to protect. Undo is unlimited — it takes
+    back your shot and the computer's answer together — and Hint will show you the shot the
+    computer would play. If you close the tab, the table is saved exactly as you left it.
+  </p>
+
+  <h2>How to Play 8 Ball Pool</h2>
+  <p>
+    The aim is to pot all seven balls of your group and then the black 8. The first ball you pot
+    after the break decides which group is yours.
+  </p>
+  <ul>
+    <li><strong>The break:</strong> the white ball starts behind the line at the near end of the
+      table. Aim into the front of the triangle, choose Firm, and take the shot.</li>
+    <li><strong>Your group:</strong> pot a solid colour (1 to 7) and the solids are yours; pot a
+      stripe (9 to 15) and the stripes are. Everything above the table says which is which, so you
+      never have to keep it in your head.</li>
+    <li><strong>Keep shooting:</strong> every time you pot one of your own balls you shoot again.
+      Miss, and it is the other player's turn.</li>
+    <li><strong>Fouls:</strong> potting the white ball, missing everything, or hitting the other
+      group or the black 8 first is a foul. The other player then places the white ball and shoots.
+      Nothing else is taken away from you.</li>
+    <li><strong>The 8:</strong> once your seven are gone, the black 8 is your ball. Pot it and you
+      have won. Pot it early, or pot the white ball along with it, and the game goes the other
+      way — so leave it alone until the end.</li>
+    <li><strong>Any pocket counts.</strong> You never have to call a pocket in this game, and the
+      8 may go down anywhere.</li>
+  </ul>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq-item">
+    <h3>Is this 8 Ball Pool game free?</h3>
+    <p>Yes. It is completely free to play, with no purchases, subscriptions, or hidden fees.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Do I need to download anything?</h3>
+    <p>No. It runs directly in your web browser on a computer, tablet, or phone. There is no app
+      to install and no account to create.</p>
+  </div>
+  <div class="faq-item">
+    <h3>How do you play 8 ball pool?</h3>
+    <p>The first ball you pot after the break decides your group: the solid colours numbered 1 to
+      7, or the striped ones numbered 9 to 15. From then on you must hit one of your own balls
+      first. Pot one of yours and you shoot again. When all seven of your balls are gone you play
+      the black 8, and potting it wins the game.</p>
+  </div>
+  <div class="faq-item">
+    <h3>How do I aim and take a shot?</h3>
+    <p>Drag anywhere on the table and the white ball aims at your finger, with a long guide line
+      showing where it will go and which way the ball it hits will travel. You can also simply tap
+      one of your balls and the aim is set at its easiest pocket. Then slide the power bar to Soft,
+      Medium or Firm and press Take the shot.</p>
+  </div>
+  <div class="faq-item">
+    <h3>What happens if I foul?</h3>
+    <p>A foul is potting the white ball, missing every ball, or hitting the other player's group or
+      the black 8 first. Your turn passes to the other player, who places the white ball again.
+      With the friendly rules this game uses by default they place it behind the line at the near
+      end of the table; switch to the standard rules in Settings and they may place it anywhere.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Can I take a shot back?</h3>
+    <p>Yes. Undo takes back your last shot, and the computer's reply with it, as many times as you
+      like all the way to the break.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Is there a time limit or a score?</h3>
+    <p>No. There is no clock, no countdown, and no score to protect. Take as long as you like over
+      every shot.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Does it save my game?</h3>
+    <p>Yes. The table is saved automatically in your browser, so you can close the tab and come
+      back to exactly the same position.</p>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <p>Free, easy online games — no download, no sign-up, no time limit.</p>
+    <nav class="footer-nav" aria-label="Site pages">
+    <div class="footer-nav-group">
+      <span class="footer-nav-label" id="footer-games-label">Games</span>
+      <div class="footer-nav-links" aria-labelledby="footer-games-label">
+        <!-- games:footer -->
+        <a href="/" data-crossgame-to="mahjong" data-placement="footer">Mahjong Solitaire</a>
+        <a href="/daily.html">Daily Challenge</a>
+        <a href="/solitaire/" data-crossgame-to="solitaire" data-placement="footer">Solitaire</a>
+        <a href="/freecell/" data-crossgame-to="freecell" data-placement="footer">FreeCell</a>
+        <a href="/five-in-a-row/" data-crossgame-to="five_in_a_row" data-placement="footer">Five in a Row</a>
+        <a href="/four-ball-billiards/" data-crossgame-to="four_ball_billiards" data-placement="footer">Four Ball Billiards</a>
+        <a href="/stone-flick/" data-crossgame-to="stone_flick" data-placement="footer">StoneFlick</a>
+        <a href="/shuffleboard/" data-crossgame-to="shuffleboard" data-placement="footer">Shuffleboard</a>
+        <!-- /games:footer -->
+      </div>
+    </div>
+    <div class="footer-nav-group">
+      <span class="footer-nav-label" id="footer-site-label">Site</span>
+      <div class="footer-nav-links" aria-labelledby="footer-site-label">
+        <a href="/about.html">About</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/terms.html">Terms</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
+  </nav>
+</footer>
+
+<!-- ===================== settings ===================== -->
+<div class="settings-panel" id="pool-settings-panel" data-open="false">
+  <div class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="pool-settings-title">
+    <h2 id="pool-settings-title" data-i18n="settings">Settings</h2>
+
+    <!-- Language first, so a visitor who cannot read the English labels
+         finds it at the top. main.js fills the grid (i18n.renderPicker). -->
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="language">Language</legend>
+      <div class="lang-grid" id="pool-lang-grid"></div>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="paceLegend">The computer's game</legend>
+      <div class="segmented" id="pool-pace-group">
+        <label><input type="radio" name="pool-pace" value="relaxed"><span data-i18n="paceRelaxed">Relaxed</span></label>
+        <label><input type="radio" name="pool-pace" value="standard" checked><span data-i18n="paceStandard">Standard</span></label>
+        <label><input type="radio" name="pool-pace" value="challenging"><span data-i18n="paceChallenging">Challenging</span></label>
+      </div>
+      <p class="pool-row-note" data-i18n="paceNote">Relaxed misses often, so the games stay close. Takes effect on the computer's next shot.</p>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="rulesLegend">Rules</legend>
+      <div class="segmented" id="pool-rules-group">
+        <label><input type="radio" name="pool-rules" value="friendly" checked><span data-i18n="rulesFriendly">Friendly</span></label>
+        <label><input type="radio" name="pool-rules" value="standard"><span data-i18n="rulesStandard">Standard</span></label>
+      </div>
+      <p class="pool-row-note" data-i18n="rulesNote">Friendly: a foul just passes the turn, and the white ball goes behind the line. Standard: the other player may place it anywhere, and a shot that reaches no cushion is a foul.</p>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="clothLegend">Cloth colour</legend>
+      <div class="segmented" id="pool-cloth-group">
+        <label><input type="radio" name="pool-cloth" value="green" checked><span class="pool-swatch" data-cloth="green"></span><span data-i18n="clothGreen">Green</span></label>
+        <label><input type="radio" name="pool-cloth" value="blue"><span class="pool-swatch" data-cloth="blue"></span><span data-i18n="clothBlue">Blue</span></label>
+        <label><input type="radio" name="pool-cloth" value="burgundy"><span class="pool-swatch" data-cloth="burgundy"></span><span data-i18n="clothBurgundy">Burgundy</span></label>
+      </div>
+    </fieldset>
+
+    <div class="settings-row toggle-row">
+      <label for="pool-toggle-guide" data-i18n="guideLabel">Aim guide</label>
+      <input type="checkbox" id="pool-toggle-guide" checked>
+    </div>
+    <p class="pool-row-note" data-i18n="guideNote">The long line, the ghost ball, and which way the ball you hit will go.</p>
+
+    <div class="settings-row toggle-row">
+      <label for="pool-toggle-spin" data-i18n="spinLabel">Side spin</label>
+      <input type="checkbox" id="pool-toggle-spin">
+    </div>
+    <p class="pool-row-note" data-i18n="spinNote">Adds Left / Middle / Right buttons under the power bar. Off is the simpler game.</p>
+
+    <div class="settings-row toggle-row">
+      <label for="pool-toggle-sound" data-i18n="sound">Sound</label>
+      <input type="checkbox" id="pool-toggle-sound" checked>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label" data-i18n="yourGames">Your games</span>
+      <dl class="settings-stats">
+        <dt data-i18n="gamesWon">Games won</dt>
+        <dd id="pool-stat-wins">0</dd>
+        <dt data-i18n="gamesPlayed">Games played</dt>
+        <dd id="pool-stat-played">0</dd>
+        <dt data-i18n="bestRun">Best run of wins</dt>
+        <dd id="pool-stat-best">0</dd>
+      </dl>
+    </div>
+
+    <button type="button" class="btn btn-accent settings-close" id="pool-settings-close" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<!-- ===================== the game is over ===================== -->
+<div class="modal-overlay" id="pool-win-modal" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="pool-win-title">
+    <h2 id="pool-win-title" data-i18n="youWon">You won!</h2>
+    <p id="pool-win-note"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="pool-win-again" data-i18n="rackAgain">Rack them up again</button>
+      <button type="button" class="btn" id="pool-win-close" data-i18n="lookAtBoard">Look at the board</button>
+    </div>
+    <p class="cross-game-cta">
+      <a class="cross-game-link" href="/four-ball-billiards/" data-crossgame-to="four_ball_billiards" data-placement="win_modal" data-i18n="tryFourBall">Try our other table game — Four Ball Billiards</a>
+    </p>
+  </div>
+</div>
+
+<!-- ===================== new game while one is going ===================== -->
+<div class="modal-overlay" id="pool-confirm-modal" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="pool-confirm-title">
+    <h2 id="pool-confirm-title" data-i18n="startNewQ">Start a new game?</h2>
+    <p data-i18n="putAway">The game on the table will be put away.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="pool-confirm-yes" data-i18n="rackAgain">Rack them up again</button>
+      <button type="button" class="btn" id="pool-confirm-no" data-i18n="keepPlaying">Keep playing</button>
+    </div>
+  </div>
+</div>
+
+<div id="pool-toasts" aria-live="polite"></div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

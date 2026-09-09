@@ -1,0 +1,703 @@
+/* freecell/style.css
+ *
+ * Loaded after the site stylesheet (/style.css) and subordinate to it, on
+ * the same three rules as solitaire/style.css:
+ *
+ *   1. never redefines a selector the site defines (.btn, the modal and
+ *      settings components, .site-header/.site-footer, .achievement-toast);
+ *   2. no bare element selectors;
+ *   3. every selector is a .fc- class or scoped under #freecell.
+ *
+ * The cards — faces, indices, court cards, the four backs and the Settings
+ * swatches — are solitaire's byte for byte (prefix renamed), so the two
+ * card games on the site read as one deck. Only the table differs: 8
+ * columns, four recessed free-cell trays top-left, four raised Home
+ * outlines top-right, and an engraved plate along the bottom edge.
+ *
+ * Sizing: every card dimension derives from --card-w, which main.js sets
+ * on .fc-table from the measured table width (eight columns + seven gaps
+ * must fit) and, on short screens, from the height.
+ */
+
+#freecell {
+  --suit-red: #c1121f;
+  --suit-black: #1c1c1c;
+  --card-back: #9b3140;
+  --card-back-deep: #6e1f2b;
+  --card-face: var(--tile-face);
+  --card-edge: #d6cdb4;
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  /* The felt's nap: fine monochrome noise, tiled, 7% white. */
+  --tex-felt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 0.07 0'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 8px 8px calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+/* Phones: the table takes the full shell width. */
+#freecell.is-narrow { padding-left: 0; padding-right: 0; }
+
+/* The site parks its skip link at left:-9999px. Under dir="rtl" (Arabic)
+ * that left-hand overflow becomes scrollable and the whole page slides
+ * 1000px sideways; parking it on the inline-start side is unreachable in
+ * both directions. */
+#fc-skip { left: auto; inset-inline-start: -9999px; }
+#fc-skip:focus { inset-inline-start: 0; }
+
+/* Design review: the site stylesheet gives every link the page's deep blue
+ * (#0a5c8a), which on the header's dark green is ~1.2:1 — the cross-game
+ * link was effectively invisible. The site has no name for a link inside
+ * the tagline, so this carries a class of its own rather than redefining a
+ * selector that is not ours. Word Search and 8 Ball Pool do the same. */
+.fc-tagline-link {
+  color: inherit;
+  font-weight: 600;
+  text-decoration-color: rgba(253, 251, 244, 0.6);
+  text-underline-offset: 3px;
+  white-space: nowrap;
+}
+.fc-tagline-link:hover { text-decoration-color: currentColor; }
+
+/* ============================ goal + status ============================ */
+
+.fc-goal {
+  margin: 2px 0 8px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--ink);
+}
+.fc-goal strong { font-weight: 700; }
+
+/* Two lines reserved so the table never moves when the text changes. */
+.fc-status {
+  margin: 0 0 10px;
+  min-height: calc(2.7em + 16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--paper-dim);
+  width: 100%;
+  max-width: 560px;
+}
+
+/* ================================ table ================================ */
+
+.fc-table {
+  position: relative;
+  width: 100%;
+  /* Set by main.js. The variables have fallbacks only so the layout is
+   * sane for the instant before the first measurement. */
+  --card-w: 42px;
+  --card-h: 60px;
+  --gap: 4px;
+  --pad: 4px;
+  --plate-h: 34px;
+  --radius-card: calc(var(--card-w) * 0.09);
+  height: 420px;
+  border-radius: var(--radius-lg);
+  background:
+    var(--tex-felt),
+    radial-gradient(ellipse at 50% 30%, rgba(255, 255, 255, 0.10), rgba(0, 0, 0, 0) 60%),
+    linear-gradient(180deg, var(--felt-light), var(--felt) 45%, var(--felt-dark));
+  box-shadow:
+    inset 0 0 0 2px rgba(0, 0, 0, 0.18),
+    inset 0 2px 18px rgba(0, 0, 0, 0.25),
+    var(--shadow-sm);
+  /* A finger dragging a card must not scroll the page; a finger on the
+   * felt between cards still can (pan-y) — 65+ readers scroll by
+   * touching wherever their thumb lands. */
+  touch-action: pan-y;
+  /* Its own stacking context: card z-indexes (up to the win cascade's
+   * 2000s) stay inside the table and can never rise above the site's
+   * fixed modals and toasts. */
+  isolation: isolate;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: height 0.25s ease;
+}
+.fc-table.is-cascading { overflow: hidden; }
+
+/* ---- placeholders ---- */
+.fc-slot {
+  position: absolute;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--radius-card);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Real targets in "Let me choose" mode: tap an empty cell, an empty
+   * column or a Home pile to put the picked-up card there. */
+  pointer-events: auto;
+  cursor: pointer;
+}
+.fc-slot:focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+/* Free cells: recessed trays cut into the felt. */
+.fc-slot-cell {
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.26), rgba(0, 0, 0, 0.14));
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.45), inset 0 -1px 0 rgba(255, 255, 255, 0.14), 0 1px 0 rgba(255, 255, 255, 0.10);
+  border: none;
+}
+/* Home piles: solitaire's raised outline with a faint A. */
+.fc-slot-home {
+  border: 2px solid rgba(255, 255, 255, 0.32);
+}
+.fc-slot-home .fc-slot-ace {
+  font-size: calc(var(--card-w) * 0.5);
+  font-weight: 700;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.35);
+}
+/* Empty columns: a quieter outline than Home, so the eye goes up. */
+.fc-slot-cascade {
+  border: 2px solid rgba(255, 255, 255, 0.2);
+}
+/* Engraved captions between the two rows. */
+.fc-caption {
+  position: absolute;
+  font: 700 15px/1 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(251, 247, 236, 0.78);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+  white-space: nowrap;
+  text-align: center;
+}
+.fc-table.no-captions .fc-caption { display: none; }
+
+/* A slot or a card that will take the card being dragged or picked up. */
+.fc-slot.is-target,
+.fc-card.is-target {
+  box-shadow: 0 0 0 3px var(--accent), 0 0 14px 2px rgba(242, 183, 5, 0.55);
+  border-color: var(--accent);
+}
+.fc-slot.is-target.is-empty {
+  outline: 2px dashed rgba(242, 183, 5, 0.9);
+  outline-offset: -2px;
+  /* The outline sits where the Home / empty-column border is; a solid
+   * gold border there would swallow the dashes, and dashed is what says
+   * "an empty place that will take it". */
+  border-color: transparent;
+}
+.fc-slot.is-hint {
+  animation: fc-slot-hint 1.1s ease-in-out 3;
+}
+@keyframes fc-slot-hint {
+  0%, 100% { box-shadow: none; }
+  50% { box-shadow: 0 0 0 4px var(--accent), 0 0 18px 4px rgba(242, 183, 5, 0.6); }
+}
+
+.fc-cards {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ---- the plate: deal number left, how many cards may move right ---- */
+.fc-plate {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  min-height: 34px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 12px;
+  padding: 4px 14px;
+  box-sizing: border-box;
+  font: 600 16px/1.2 var(--font-sans);
+  color: #fdfbf4;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.32));
+  border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+  pointer-events: none;
+}
+.fc-plate-deal {
+  font-family: Georgia, "Times New Roman", serif;
+  letter-spacing: 0.04em;
+  font-variant-numeric: tabular-nums;
+}
+.fc-plate-move { font-variant-numeric: tabular-nums; }
+/* Phones: tighter side padding, but never smaller type — 16px is the
+ * floor for a line read at a glance (DESIGN §1.2 / §3.3). */
+.fc-table.is-narrow .fc-plate { padding: 4px 10px; }
+.fc-plate.is-stacked { justify-content: center; text-align: center; }
+
+/* ================================ cards ================================ */
+
+.fc-card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--card-w);
+  height: var(--card-h);
+  border-radius: var(--radius-card);
+  pointer-events: auto;
+  cursor: pointer;
+  /* Position is a transform so a move is one compositor animation. */
+  transition: transform 0.24s cubic-bezier(0.2, 0.7, 0.2, 1);
+  will-change: transform;
+  perspective: 600px;
+  touch-action: none;
+}
+.fc-card.is-face-down { cursor: default; }
+.fc-card.no-transition { transition: none; }
+.fc-card.is-dragging {
+  transition: none;
+  z-index: 1000 !important;
+  cursor: grabbing;
+}
+.fc-card.is-dragging .fc-card-inner {
+  transform: scale(1.04);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.42);
+}
+
+.fc-card-inner {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  transform-style: preserve-3d;
+  transition: transform 0.32s ease, box-shadow 0.15s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.18);
+}
+.fc-card.is-face-down .fc-card-inner { transform: rotateY(180deg); }
+
+.fc-card-face,
+.fc-card-back {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+
+/* ---- face: ivory card, big index top-left, one big pip in the middle ---- */
+.fc-card-face {
+  background: var(--card-face);
+  border: 1px solid var(--card-edge);
+  box-sizing: border-box;
+  color: var(--suit-black);
+}
+.fc-card.is-red .fc-card-face { color: var(--suit-red); }
+
+.fc-card-index {
+  position: absolute;
+  top: calc(var(--card-w) * 0.04);
+  left: calc(var(--card-w) * 0.07);
+  right: calc(var(--card-w) * 0.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: calc(var(--card-w) * 0.42);
+  font-size: calc(var(--card-w) * 0.38);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.fc-card-rank { display: block; }
+.fc-card-rank.is-ten { letter-spacing: -0.06em; }
+.fc-card-index .fc-sym {
+  width: calc(var(--card-w) * 0.32);
+  height: calc(var(--card-w) * 0.32);
+}
+
+/* Bottom-right index, upside down like a real card. Hidden on narrow
+ * cards where it would crowd the pip. */
+.fc-card-index-bottom {
+  top: auto;
+  bottom: calc(var(--card-w) * 0.04);
+  transform: rotate(180deg);
+  display: none;
+}
+.fc-table.is-wide .fc-card-index-bottom { display: flex; }
+
+.fc-card-pip {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  transform: translate(-50%, -50%);
+  width: calc(var(--card-w) * 0.55);
+  height: calc(var(--card-w) * 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fc-table.is-wide .fc-card-pip { top: 52%; }
+.fc-card-pip .fc-sym { width: 100%; height: 100%; }
+
+/* Court cards: a big letter in a thin double frame, the classic cue that
+ * this is a picture card, without a picture that would blur at 45px. */
+.fc-card-court {
+  position: absolute;
+  left: 50%;
+  top: 56%;
+  transform: translate(-50%, -50%);
+  width: calc(var(--card-w) * 0.58);
+  height: calc(var(--card-w) * 0.62);
+  box-sizing: border-box;
+  border: 1.5px solid currentColor;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: calc(var(--card-w) * 0.42);
+  font-weight: 700;
+  line-height: 1;
+  background:
+    linear-gradient(135deg, rgba(242, 183, 5, 0.22), rgba(242, 183, 5, 0) 55%);
+}
+.fc-table.is-wide .fc-card-court {
+  top: 52%;
+  /* Room for the classic double frame once the card is big enough. */
+  outline: 1px solid currentColor;
+  outline-offset: 2px;
+}
+
+.fc-sym {
+  display: block;
+  fill: currentColor;
+}
+.fc-defs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* ---- back: a deep two-tone ground, a fine lattice, a double ivory
+ * frame and a small medallion — the same design in four colourways, set
+ * by data-back on #freecell (see the theme block at the end). ---- */
+.fc-card-back {
+  transform: rotateY(180deg);
+  background-color: var(--bk-b);
+  background-image:
+    var(--bk-pattern),
+    radial-gradient(ellipse at 50% 40%, var(--bk-a), var(--bk-b) 75%);
+  background-size: calc(var(--card-w) * 0.24) calc(var(--card-w) * 0.24), 100% 100%;
+  background-position: center;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fc-card-back::before,
+.fc-card-back::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  border-radius: calc(var(--radius-card) * 0.55);
+}
+.fc-card-back::before {
+  inset: calc(var(--card-w) * 0.07);
+  border: 1.5px solid var(--bk-frame);
+}
+.fc-card-back::after {
+  inset: calc(var(--card-w) * 0.115);
+  border: 1px solid var(--bk-line);
+  opacity: 0.75;
+}
+.fc-card-back-emblem {
+  position: relative;
+  width: calc(var(--card-w) * 0.34);
+  height: calc(var(--card-w) * 0.34);
+  border-radius: 50%;
+  background: var(--bk-b);
+  box-shadow: 0 0 0 1.5px var(--bk-line), 0 0 0 calc(var(--card-w) * 0.035) var(--bk-b), 0 0 0 calc(var(--card-w) * 0.045) var(--bk-line);
+  color: var(--bk-line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.fc-card-back-emblem .fc-sym {
+  width: 58%;
+  height: 58%;
+}
+
+/* Settings: one swatch per colourway, the real back at thumbnail size. */
+.fc-backs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 8px 0 0;
+}
+.fc-backs label {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--felt-dark);
+  text-align: center;
+}
+.fc-backs input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+}
+.fc-back-swatch {
+  --card-w: 44px;
+  --radius-card: 4px;
+  position: relative;
+  width: 44px;
+  height: 62px;
+  border-radius: 4px;
+  background-color: var(--bk-b);
+  background-image: var(--bk-pattern), radial-gradient(ellipse at 50% 40%, var(--bk-a), var(--bk-b) 75%);
+  background-size: 11px 11px, 100% 100%;
+  background-position: center;
+  border: 1px solid rgba(0, 0, 0, 0.45);
+  box-shadow: var(--shadow-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.fc-back-swatch::before {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border: 1.5px solid var(--bk-frame);
+  border-radius: 2px;
+}
+.fc-back-swatch .fc-card-back-emblem {
+  width: 15px;
+  height: 15px;
+  box-shadow: 0 0 0 1px var(--bk-line), 0 0 0 2px var(--bk-b), 0 0 0 3px var(--bk-line);
+}
+.fc-backs input:checked + .fc-back-swatch {
+  box-shadow: 0 0 0 3px var(--accent), var(--shadow-md);
+  transform: translateY(-2px);
+}
+.fc-backs input:focus-visible + .fc-back-swatch {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* ---- states ---- */
+.fc-card.is-selected .fc-card-inner {
+  box-shadow: 0 0 0 3px var(--accent), 0 6px 16px rgba(0, 0, 0, 0.35);
+  transform: translateY(-4px);
+}
+.fc-card.is-hint .fc-card-inner {
+  animation: fc-hint-pulse 1.1s ease-in-out 3;
+}
+@keyframes fc-hint-pulse {
+  0%, 100% { box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 2px 6px rgba(0, 0, 0, 0.18); }
+  50% { box-shadow: 0 0 0 4px var(--accent), 0 0 18px 4px rgba(242, 183, 5, 0.6); }
+}
+.fc-card.is-shake .fc-card-inner { animation: fc-shake 0.36s ease; }
+@keyframes fc-shake {
+  25% { transform: translateX(-5px); }
+  50% { transform: translateX(5px); }
+  75% { transform: translateX(-3px); }
+}
+
+/* ============================== controls ============================== */
+
+.fc-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 640px;
+  margin-top: 16px;
+}
+.fc-controls .btn {
+  flex: 1 1 calc(50% - 16px);
+  min-height: 56px;
+  min-width: 0;
+  font-size: 18px;
+  font-weight: 600;
+}
+@media (min-width: 560px) {
+  /* One row of four equal buttons. A long label (German "Rückgängig
+   * machen", Indonesian "Permainan baru") wraps to a second line inside
+   * its button, and a single word too wide for a quarter of the row
+   * pushes the last button onto a second row — text is never clipped
+   * and never shrunk (min-width: auto keeps each button at least as wide
+   * as its longest word; solitaire's `min-width: 0; nowrap` clips). */
+  .fc-controls .btn { flex: 1 1 0; min-width: auto; white-space: normal; }
+}
+/* Same fix as Five in a Row: the site's 0.5-opacity disabled button is
+ * unreadable for this audience. Present, plainly not ready. */
+.fc-controls .btn:disabled {
+  opacity: 1;
+  background: var(--paper-dim);
+  border-style: dashed;
+  cursor: default;
+}
+.fc-controls .btn:disabled:hover { background: var(--paper-dim); }
+
+
+/* ============================== settings ============================== */
+
+.fc-row-note {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--felt-dark);
+}
+
+/* Language picker: native names, two columns on phones, three from
+ * 480px, 56px buttons, the current one wearing the gold ring. */
+#freecell .lang-grid,
+#fc-settings-panel .lang-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 4px 0 0;
+}
+@media (min-width: 480px) {
+  #fc-settings-panel .lang-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+#fc-settings-panel .lang-btn {
+  min-height: 56px;
+  min-width: 0;
+  padding: 8px 10px;
+  font-size: 17px;
+  font-weight: 600;
+  white-space: nowrap;
+  justify-content: center;
+}
+#fc-settings-panel .lang-btn[aria-pressed="true"] {
+  box-shadow: 0 0 0 3px var(--accent), var(--shadow-sm);
+  background: #e4f2ea;
+  border-color: var(--felt);
+}
+
+/* The deal controls: the number on a Georgia line, then 56px controls. */
+.fc-deal-current {
+  margin: 0 0 12px;
+  font: 700 19px/1.3 Georgia, "Times New Roman", serif;
+  letter-spacing: 0.03em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+#fc-settings-panel .fc-deal-btn {
+  min-height: 56px;
+  font-size: 17px;
+  font-weight: 600;
+}
+#fc-deal-replay { width: 100%; margin-bottom: 16px; }
+.fc-deal-label {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--ink);
+}
+.fc-deal-row {
+  display: flex;
+  gap: 10px;
+  align-items: stretch;
+}
+.fc-deal-input {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 56px;
+  padding: 8px 14px;
+  font: 600 19px/1.2 var(--font-sans);
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+  background: #fdfbf4;
+  border: 2px solid #b9c2ba;
+  border-radius: var(--radius-md);
+}
+.fc-deal-input:focus { border-color: var(--felt); outline: 3px solid var(--focus-ring); outline-offset: 1px; }
+.fc-deal-row .btn { flex: 0 0 auto; }
+.fc-deal-input.is-invalid { border-color: var(--danger); }
+
+/* =============================== toasts =============================== */
+
+#fc-toasts {
+  position: fixed;
+  /* Low on the screen, so "Your game is back" never covers the status line. */
+  top: auto;
+  bottom: max(24px, calc(env(safe-area-inset-bottom) + 16px));
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 300;
+  pointer-events: none;
+}
+#fc-toasts .achievement-toast {
+  position: static;
+  transform: none;
+}
+
+/* ============================ reduced motion ========================== */
+
+@media (prefers-reduced-motion: reduce) {
+  #freecell *,
+  #fc-toasts * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---- card back themes: the base colours, the ornament colour and the
+ * lattice pattern (an SVG data URI — img-src allows data:) for each. The
+ * same block styles the swatches in Settings, so a swatch is the real
+ * back at 32px. ---- */
+#freecell[data-back="burgundy"],
+.fc-back-swatch[data-back="burgundy"] {
+  --bk-a: #96303f;
+  --bk-b: #561322;
+  --bk-line: #e6c67a;
+  --bk-frame: rgba(255,241,214,0.9);
+  --bk-pattern: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2740%27%20viewBox=%270%200%2040%2040%27%3E%3Cpath%20d=%27M20%200L40%2020L20%2040L0%2020Z%27%20fill=%27none%27%20stroke=%27%23e6c67a%27%20stroke-opacity=%27.42%27%20stroke-width=%271.3%27/%3E%3Cpath%20d=%27M20%209L31%2020L20%2031L9%2020Z%27%20fill=%27none%27%20stroke=%27%23e6c67a%27%20stroke-opacity=%27.28%27%20stroke-width=%271%27/%3E%3Ccircle%20cx=%2720%27%20cy=%2720%27%20r=%272.4%27%20fill=%27%23e6c67a%27%20fill-opacity=%27.55%27/%3E%3Ccircle%20cx=%270%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23e6c67a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23e6c67a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%270%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23e6c67a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23e6c67a%27%20fill-opacity=%27.5%27/%3E%3C/svg%3E");
+}
+#freecell[data-back="navy"],
+.fc-back-swatch[data-back="navy"] {
+  --bk-a: #254a86;
+  --bk-b: #0f2247;
+  --bk-line: #cfdcf3;
+  --bk-frame: rgba(236,243,255,0.9);
+  --bk-pattern: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2740%27%20viewBox=%270%200%2040%2040%27%3E%3Cpath%20d=%27M20%200L40%2020L20%2040L0%2020Z%27%20fill=%27none%27%20stroke=%27%23cfdcf3%27%20stroke-opacity=%27.42%27%20stroke-width=%271.3%27/%3E%3Cpath%20d=%27M20%209L31%2020L20%2031L9%2020Z%27%20fill=%27none%27%20stroke=%27%23cfdcf3%27%20stroke-opacity=%27.28%27%20stroke-width=%271%27/%3E%3Ccircle%20cx=%2720%27%20cy=%2720%27%20r=%272.4%27%20fill=%27%23cfdcf3%27%20fill-opacity=%27.55%27/%3E%3Ccircle%20cx=%270%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23cfdcf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23cfdcf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%270%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23cfdcf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23cfdcf3%27%20fill-opacity=%27.5%27/%3E%3C/svg%3E");
+}
+#freecell[data-back="onyx"],
+.fc-back-swatch[data-back="onyx"] {
+  --bk-a: #3a3a40;
+  --bk-b: #141416;
+  --bk-line: #d8b66a;
+  --bk-frame: rgba(216,182,106,0.95);
+  --bk-pattern: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2740%27%20viewBox=%270%200%2040%2040%27%3E%3Cpath%20d=%27M20%200L40%2020L20%2040L0%2020Z%27%20fill=%27none%27%20stroke=%27%23d8b66a%27%20stroke-opacity=%27.42%27%20stroke-width=%271.3%27/%3E%3Cpath%20d=%27M20%209L31%2020L20%2031L9%2020Z%27%20fill=%27none%27%20stroke=%27%23d8b66a%27%20stroke-opacity=%27.28%27%20stroke-width=%271%27/%3E%3Ccircle%20cx=%2720%27%20cy=%2720%27%20r=%272.4%27%20fill=%27%23d8b66a%27%20fill-opacity=%27.55%27/%3E%3Ccircle%20cx=%270%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23d8b66a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23d8b66a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%270%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23d8b66a%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23d8b66a%27%20fill-opacity=%27.5%27/%3E%3C/svg%3E");
+}
+#freecell[data-back="plum"],
+.fc-back-swatch[data-back="plum"] {
+  --bk-a: #5f2a78;
+  --bk-b: #321244;
+  --bk-line: #e7cdf3;
+  --bk-frame: rgba(245,236,255,0.9);
+  --bk-pattern: url("data:image/svg+xml,%3Csvg%20xmlns=%27http://www.w3.org/2000/svg%27%20width=%2740%27%20height=%2740%27%20viewBox=%270%200%2040%2040%27%3E%3Cpath%20d=%27M20%200L40%2020L20%2040L0%2020Z%27%20fill=%27none%27%20stroke=%27%23e7cdf3%27%20stroke-opacity=%27.42%27%20stroke-width=%271.3%27/%3E%3Cpath%20d=%27M20%209L31%2020L20%2031L9%2020Z%27%20fill=%27none%27%20stroke=%27%23e7cdf3%27%20stroke-opacity=%27.28%27%20stroke-width=%271%27/%3E%3Ccircle%20cx=%2720%27%20cy=%2720%27%20r=%272.4%27%20fill=%27%23e7cdf3%27%20fill-opacity=%27.55%27/%3E%3Ccircle%20cx=%270%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23e7cdf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%270%27%20r=%271.6%27%20fill=%27%23e7cdf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%270%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23e7cdf3%27%20fill-opacity=%27.5%27/%3E%3Ccircle%20cx=%2740%27%20cy=%2740%27%20r=%271.6%27%20fill=%27%23e7cdf3%27%20fill-opacity=%27.5%27/%3E%3C/svg%3E");
+}

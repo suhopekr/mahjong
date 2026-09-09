@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Backgammon — Free Online Game vs Computer, Big Board, No Download</title>
+<meta name="description" content="Play backgammon free online against the computer — no download, no sign-up, no timer. A big, easy-to-read board, tap a checker and the legal points light up, unlimited undo and hints.">
+<link rel="canonical" href="https://easymahjongsolitaire.com/backgammon/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Backgammon — Free Online Game vs Computer, Big Board, No Download">
+<meta property="og:description" content="Play backgammon free online against the computer — no download, no sign-up, no timer. Big checkers, legal moves light up, unlimited undo and hints.">
+<meta property="og:image" content="https://easymahjongsolitaire.com/backgammon/og-image.png">
+<meta property="og:url" content="https://easymahjongsolitaire.com/backgammon/">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- Favicon: inline SVG data URI like the rest of the site — a walnut
+     square with two points and an ivory and a burgundy checker. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%234a2c1a'/%3E%3Crect x='12' y='12' width='76' height='76' rx='8' fill='%23d9b481'/%3E%3Cpolygon points='16,14 40,14 28,62' fill='%230b4a35'/%3E%3Cpolygon points='60,86 84,86 72,38' fill='%230b4a35'/%3E%3Cpolygon points='38,14 62,14 50,62' fill='%23efe2c6' stroke='%233a2314' stroke-width='1.5'/%3E%3Ccircle cx='28' cy='26' r='10' fill='%23f6efdc' stroke='%233a2314' stroke-width='3'/%3E%3Ccircle cx='72' cy='74' r='10' fill='%237d2534' stroke='%23f4e6c8' stroke-width='3'/%3E%3C/svg%3E">
+<!--
+  Two stylesheets, in this order only, exactly as the Solitaire page:
+
+    1. /style.css  — the site's own. This page reuses .btn, the modal and
+       settings components, .site-header/.site-footer, .content/.faq-item
+       and the :root palette verbatim.
+    2. ./style.css — this game's rules, every one scoped to a .bg- class
+       or to #backgammon. It never redefines a site selector.
+
+  No inline <style>, no inline <script>: the site's Content-Security-Policy
+  is `script-src 'self'; style-src 'self'`.
+-->
+<link rel="stylesheet" href="/style.css" />
+<link rel="stylesheet" href="./style.css" />
+
+<script defer src="/_vercel/insights/script.js"></script>
+
+<!-- Google Analytics 4 — the same measurement ID and the same /ga-init.js
+     as every other page. Events from this page carry game_name:
+     "backgammon" (src/main.js trackEvent). -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPBFW58QG6"></script>
+<script src="/ga-init.js"></script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Backgammon",
+  "alternateName": "Free Backgammon vs Computer",
+  "url": "https://easymahjongsolitaire.com/backgammon/",
+  "description": "Free online backgammon against the computer with a big, easy-to-read board, tap-to-move with the legal points lit up, unlimited undo and hints, and no time limit. No download or account required.",
+  "applicationCategory": "GameApplication",
+  "genre": "Board Game",
+  "operatingSystem": "Any (web browser)",
+  "browserRequirements": "Requires JavaScript",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is this Backgammon game free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. It is completely free to play, with no purchases, subscriptions, or hidden fees." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need to download anything?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. It runs directly in your web browser on a computer, tablet, or phone. There is no app to install and no account to create." }
+    },
+    {
+      "@type": "Question",
+      "name": "How do you play Backgammon?",
+      "acceptedAnswer": { "@type": "Answer", "text": "You have fifteen ivory checkers and the computer has fifteen. Roll the dice and move your checkers the number shown on each die, always in the same direction, round the board towards your home corner. A point holding two or more of the computer's checkers is blocked; a point with just one can be hit, which sends that checker to the bar to start again. Once all your checkers are in your home corner you bear them off, and the first side to bear off all fifteen wins." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I have to drag the checkers?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Tap a checker and every point it can move to lights up in gold; tap one of them and the checker moves there. You can drag a checker instead if you prefer." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a time limit or a score?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. There is no clock, no countdown, no doubling cube and no points to protect. Take as long as you like over each move." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I undo a move?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. During your turn you can take back any of the moves you have made so far, as many times as you like, until the computer replies." }
+    },
+    {
+      "@type": "Question",
+      "name": "How strong is the computer?",
+      "acceptedAnswer": { "@type": "Answer", "text": "By default it plays at a relaxed pace that keeps games close and friendly. In Settings you can switch it to Standard, where it plays its best game." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it save my game?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Your game is saved automatically in your browser, including whose turn it is and which dice are still to play, so you can close the tab and pick up exactly where you left off." }
+    }
+  ]
+}
+</script>
+</head>
+<body class="ads-off">
+
+<a class="skip-link" id="bg-skip-link" href="#bg-board" data-i18n="skipToBoard">Skip to the board</a>
+
+<header class="site-header">
+  <h1>Backgammon</h1>
+  <p class="tagline"><span data-i18n="tagline">Classic backgammon against the computer, with big checkers. No download, no sign-up, no timer.</span>
+    <a class="bg-tagline-link" href="/" data-i18n="playMahjong">Play Mahjong Solitaire →</a></p>
+</header>
+
+<main id="backgammon" data-colours="burgundy">
+
+  <!-- The one rule of the game, always on screen above the board. -->
+  <p class="bg-goal" id="bg-goal" data-i18n="goal" data-i18n-html>Bring your <strong>ivory</strong> checkers home and bear them all off first.</p>
+
+  <!-- What to do next / what just happened. aria-live so it is read out
+       without hunting for it. Its height is reserved (two lines) so the
+       board never moves when the message changes. -->
+  <p class="bg-status" id="bg-status" aria-live="polite"></p>
+
+  <!-- The board. dir="ltr" because the points are laid out in pixels by
+       main.js and must never flip with the page's text direction. The
+       points, bar, trays and checkers are built by main.js; the dice panel
+       below is moved onto the bar in the portrait layout. -->
+  <div class="bg-board" id="bg-board" dir="ltr" data-i18n-attr="aria-label:boardAria" aria-label="Backgammon board">
+    <div class="bg-frame" id="bg-frame">
+      <div class="bg-field" id="bg-field"></div>
+    </div>
+    <div class="bg-dice-panel" id="bg-dice-panel">
+      <div class="bg-dice" id="bg-dice" role="group" data-i18n-attr="aria-label:diceAria" aria-label="Dice"></div>
+      <p class="bg-dice-caption" id="bg-dice-caption"></p>
+      <button type="button" class="btn bg-roll" id="bg-roll-btn" data-i18n="rollDice">Roll dice</button>
+    </div>
+  </div>
+  <p class="bg-plate" id="bg-plate"><span class="bg-plate-swatch" id="bg-plate-swatch" aria-hidden="true"></span><span id="bg-plate-text"></span></p>
+
+  <!-- Always on screen, never behind a menu; a word on every button. The
+       first slot is Hint, and becomes Pass (or Play my only move) when
+       that is the thing to do. -->
+  <div class="bg-controls" role="toolbar" data-i18n-attr="aria-label:controlsAria" aria-label="Game controls">
+    <button type="button" class="btn" id="bg-hint-btn" data-i18n="hint">Hint</button>
+    <button type="button" class="btn bg-pass" id="bg-pass-btn" hidden data-i18n="pass">Pass</button>
+    <button type="button" class="btn" id="bg-undo-btn" disabled data-i18n="undo">Undo</button>
+    <button type="button" class="btn" id="bg-new-btn" data-i18n="newGame">New game</button>
+    <button type="button" class="btn" id="bg-settings-btn" aria-haspopup="dialog" data-i18n="settings">Settings</button>
+  </div>
+
+  <!-- AD SLOT: adsense (mobile inline 320x100) -->
+  <!-- AD SLOT: adsense (desktop 728x90) -->
+  <div class="ad-slot ad-slot--320x100 ad-slot-mobile-only" aria-hidden="true" data-i18n="advertisement">Advertisement</div>
+  <div class="ad-slot ad-slot--728x90 ad-slot-desktop-only" aria-hidden="true" data-i18n="advertisement">Advertisement</div>
+
+<section class="content">
+  <h2>Play Backgammon Free Online</h2>
+  <p>
+    This is the classic backgammon that has been played on kitchen tables for centuries — you
+    against the computer, one game at a time — made easy to see and easy to play. It runs straight
+    in your browser with no download, no installer, and no account. Open the page and the board is
+    set up.
+  </p>
+  <p>
+    The checkers are deliberately large and the points are drawn with a clear edge, so the board
+    stays readable on a phone as well as a laptop. You do not have to drag anything: tap a checker
+    and every point it can move to glows gold, then tap the one you want. If you would rather drag,
+    that works too. When you have a checker on the bar the board tells you so, and when a roll
+    leaves you no move at all a Pass button appears.
+  </p>
+  <p>
+    There is no clock, no doubling cube, and nothing to lose. Undo takes back any move you have
+    made this turn, hints are unlimited, and the computer plays at a relaxed pace unless you ask it
+    to play its best. If you close the tab, your game is saved — whose turn it is and which dice are
+    still to play — and waiting when you come back.
+  </p>
+
+  <h2>How to Play Backgammon</h2>
+  <p>
+    You have fifteen ivory checkers; the computer has fifteen of the other colour. The aim is to
+    bring all of yours round to your home corner and then bear them off the board. The first side to
+    bear off all fifteen wins.
+  </p>
+  <ul>
+    <li><strong>Rolling:</strong> tap Roll dice. Each die is one move: a checker may go forward the
+      number of points shown on that die. You can move two different checkers, or the same checker
+      twice. A double gives you four moves.</li>
+    <li><strong>Blocked points:</strong> you cannot land on a point where the computer has two or
+      more checkers. If you land on a point where it has just one, you hit it — that checker goes to
+      the bar and must come back in from the start.</li>
+    <li><strong>The bar:</strong> if one of your checkers is hit, it must come back in before you
+      move anything else. It enters on the far side of the board, on the point matching the die.</li>
+    <li><strong>Bearing off:</strong> once all fifteen of your checkers are in your home corner, a
+      die can take a checker off the board. Tap the checker and then the home tray when it glows.</li>
+    <li><strong>Both dice:</strong> you must use both dice when you can. If only one can be played,
+      play it; if either could be played but not both, the higher one must be.</li>
+    <li><strong>Hint</strong> shows a good way to play the whole roll, numbered in order.
+      <strong>Undo</strong> takes back the moves you have made this turn.</li>
+  </ul>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq-item">
+    <h3>Is this Backgammon game free?</h3>
+    <p>Yes. It is completely free to play, with no purchases, subscriptions, or hidden fees.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Do I need to download anything?</h3>
+    <p>No. It runs directly in your web browser on a computer, tablet, or phone. There is no app
+      to install and no account to create.</p>
+  </div>
+  <div class="faq-item">
+    <h3>How do you play Backgammon?</h3>
+    <p>You have fifteen ivory checkers and the computer has fifteen. Roll the dice and move your
+      checkers the number shown on each die, always in the same direction, round the board towards
+      your home corner. A point holding two or more of the computer's checkers is blocked; a point
+      with just one can be hit, which sends that checker to the bar to start again. Once all your
+      checkers are in your home corner you bear them off, and the first side to bear off all
+      fifteen wins.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Do I have to drag the checkers?</h3>
+    <p>No. Tap a checker and every point it can move to lights up in gold; tap one of them and the
+      checker moves there. You can drag a checker instead if you prefer.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Is there a time limit or a score?</h3>
+    <p>No. There is no clock, no countdown, no doubling cube and no points to protect. Take as long
+      as you like over each move.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Can I undo a move?</h3>
+    <p>Yes. During your turn you can take back any of the moves you have made so far, as many times
+      as you like, until the computer replies.</p>
+  </div>
+  <div class="faq-item">
+    <h3>How strong is the computer?</h3>
+    <p>By default it plays at a relaxed pace that keeps games close and friendly. In Settings you
+      can switch it to Standard, where it plays its best game.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Does it save my game?</h3>
+    <p>Yes. Your game is saved automatically in your browser, including whose turn it is and which
+      dice are still to play, so you can close the tab and pick up exactly where you left off.</p>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <p>Free, easy online games — no download, no sign-up, no time limit.</p>
+    <nav class="footer-nav" aria-label="Site pages">
+    <div class="footer-nav-group">
+      <span class="footer-nav-label" id="footer-games-label">Games</span>
+      <div class="footer-nav-links" aria-labelledby="footer-games-label">
+        <!-- games:footer -->
+        <a href="/" data-crossgame-to="mahjong" data-placement="footer">Mahjong Solitaire</a>
+        <a href="/daily.html">Daily Challenge</a>
+        <a href="/solitaire/" data-crossgame-to="solitaire" data-placement="footer">Solitaire</a>
+        <a href="/freecell/" data-crossgame-to="freecell" data-placement="footer">FreeCell</a>
+        <a href="/five-in-a-row/" data-crossgame-to="five_in_a_row" data-placement="footer">Five in a Row</a>
+        <a href="/four-ball-billiards/" data-crossgame-to="four_ball_billiards" data-placement="footer">Four Ball Billiards</a>
+        <a href="/stone-flick/" data-crossgame-to="stone_flick" data-placement="footer">StoneFlick</a>
+        <a href="/shuffleboard/" data-crossgame-to="shuffleboard" data-placement="footer">Shuffleboard</a>
+        <!-- /games:footer -->
+      </div>
+    </div>
+    <div class="footer-nav-group">
+      <span class="footer-nav-label" id="footer-site-label">Site</span>
+      <div class="footer-nav-links" aria-labelledby="footer-site-label">
+        <a href="/about.html">About</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/terms.html">Terms</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
+  </nav>
+</footer>
+
+<!-- ===================== settings ===================== -->
+<div class="settings-panel" id="bg-settings-panel" data-open="false">
+  <div class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="bg-settings-title">
+    <h2 id="bg-settings-title" data-i18n="settings">Settings</h2>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="language">Language</legend>
+      <div class="lang-grid" id="bg-lang-grid"></div>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="paceLabel">The computer's pace</legend>
+      <div class="segmented" id="bg-pace-group">
+        <label><input type="radio" name="bg-pace" value="relaxed" checked><span data-i18n="paceRelaxed">Relaxed</span></label>
+        <label><input type="radio" name="bg-pace" value="standard"><span data-i18n="paceStandard">Standard</span></label>
+      </div>
+      <p class="bg-row-note" data-i18n="paceNote">Relaxed keeps games close. Standard plays its best. Takes effect at once.</p>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="firstLabel">Who moves first</legend>
+      <div class="segmented" id="bg-first-group">
+        <label><input type="radio" name="bg-first" value="random" checked><span data-i18n="firstRandom">Roll for it</span></label>
+        <label><input type="radio" name="bg-first" value="h"><span data-i18n="firstMe">Me</span></label>
+        <label><input type="radio" name="bg-first" value="c"><span data-i18n="firstComputer">The computer</span></label>
+      </div>
+      <p class="bg-row-note" data-i18n="firstNote">Takes effect on your next game.</p>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="coloursLabel">Checkers</legend>
+      <div class="bg-colours" id="bg-colours-group">
+        <label><input type="radio" name="bg-colours" value="burgundy" checked><span class="bg-swatch" data-colours="burgundy"><span class="bg-swatch-disc is-ivory"></span><span class="bg-swatch-disc is-dark"></span></span><span data-i18n="colourBurgundy">Ivory &amp; Burgundy</span></label>
+        <label><input type="radio" name="bg-colours" value="navy"><span class="bg-swatch" data-colours="navy"><span class="bg-swatch-disc is-ivory"></span><span class="bg-swatch-disc is-dark"></span></span><span data-i18n="colourNavy">Ivory &amp; Navy</span></label>
+        <label><input type="radio" name="bg-colours" value="black"><span class="bg-swatch" data-colours="black"><span class="bg-swatch-disc is-ivory"></span><span class="bg-swatch-disc is-dark"></span></span><span data-i18n="colourBlack">Ivory &amp; Black</span></label>
+      </div>
+    </fieldset>
+
+    <div class="settings-row toggle-row">
+      <label for="bg-toggle-pips" data-i18n="pipsLabel">Show pip counts</label>
+      <input type="checkbox" id="bg-toggle-pips">
+    </div>
+    <p class="bg-row-note bg-row-note-tight" data-i18n="pipsNote">How far each side still has to travel. Off keeps the board calm.</p>
+
+    <div class="settings-row toggle-row">
+      <label for="bg-toggle-sound" data-i18n="sound">Sound</label>
+      <input type="checkbox" id="bg-toggle-sound" checked>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label" data-i18n="yourGames">Your games</span>
+      <dl class="settings-stats">
+        <dt data-i18n="gamesWon">Games won</dt>
+        <dd id="bg-stat-wins">0</dd>
+        <dt data-i18n="wonBig">Won by a lot</dt>
+        <dd id="bg-stat-big">0</dd>
+        <dt data-i18n="gamesPlayed">Games played</dt>
+        <dd id="bg-stat-played">0</dd>
+        <dt data-i18n="bestRun">Best run of wins</dt>
+        <dd id="bg-stat-best">0</dd>
+      </dl>
+    </div>
+
+    <button type="button" class="btn btn-accent settings-close" id="bg-settings-close" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<!-- ===================== game over ===================== -->
+<div class="modal-overlay" id="bg-result-modal" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="bg-result-title">
+    <h2 id="bg-result-title">You won!</h2>
+    <p id="bg-result-note"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="bg-result-again" data-i18n="playAgain">Play again</button>
+      <button type="button" class="btn" id="bg-result-close" data-i18n="lookAtBoard">Look at the board</button>
+    </div>
+    <p class="cross-game-cta">
+      <a class="cross-game-link" href="/" data-crossgame-to="mahjong" data-placement="win_modal" data-i18n="tryOther">Try our other free game — Mahjong Solitaire</a>
+    </p>
+  </div>
+</div>
+
+<!-- ===================== new game while one is going ===================== -->
+<div class="modal-overlay" id="bg-confirm-modal" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="bg-confirm-title">
+    <h2 id="bg-confirm-title" data-i18n="startNewQ">Start a new game?</h2>
+    <p data-i18n="putAway">The game on the table will be put away.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="bg-confirm-yes" data-i18n="newGameGo">Start a new game</button>
+      <button type="button" class="btn" id="bg-confirm-no" data-i18n="keepPlaying">Keep playing</button>
+    </div>
+  </div>
+</div>
+
+<div id="bg-toasts" aria-live="polite"></div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

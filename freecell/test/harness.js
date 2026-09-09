@@ -1,0 +1,105 @@
+// test/harness.js
+// Zero-dependency test harness for exercising game logic without a
+// browser (no Playwright, no DOM — just the modules under test). Not
+// shipped in the game build, dev-only tooling; consistent with the
+// project's zero-runtime-dependency rule since it's not a runtime dep.
+//
+// Usage:
+//   import { test, assertEqual, assertThrows } from "./harness.js";
+//   test("description", () => { assertEqual(1 + 1, 2, "adds"); });
+// Run all suites: node test/run.js  (or npm test)
+
+let passCount = 0;
+let failCount = 0;
+
+export function test(name, fn) {
+  try {
+    fn();
+    passCount++;
+    console.log(`  ok - ${name}`);
+  } catch (err) {
+    failCount++;
+    console.log(`  FAIL - ${name}`);
+    console.log(`    ${err.message}`);
+  }
+}
+
+export function assertEqual(actual, expected, msg = "") {
+  if (!deepEqual(actual, expected)) {
+    throw new Error(
+      `${msg ? msg + ": " : ""}expected ${JSON.stringify(expected)}, got ${JSON.stringify(actual)}`
+    );
+  }
+}
+
+export function assertTrue(cond, msg = "expected truthy value") {
+  if (!cond) throw new Error(msg);
+}
+
+/**
+ * Assert fn() throws. `matcher` (RegExp or substring) is checked against
+ * the thrown error's message when given.
+ */
+export function assertThrows(fn, matcher, msg = "expected function to throw") {
+  let threw = false;
+  let error = null;
+  try {
+    fn();
+  } catch (err) {
+    threw = true;
+    error = err;
+  }
+  if (!threw) throw new Error(msg);
+  if (matcher) {
+    const text = error.message || String(error);
+    const matches = matcher instanceof RegExp ? matcher.test(text) : text.includes(matcher);
+    if (!matches) {
+      throw new Error(`error message "${text}" did not match ${matcher}`);
+    }
+  }
+}
+
+function deepEqual(a, b) {
+  if (a === b) return true;
+  if (typeof a !== typeof b || a === null || b === null) return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) return false;
+    return a.every((v, i) => deepEqual(v, b[i]));
+  }
+  if (typeof a === "object") {
+    const aKeys = Object.keys(a);
+    const bKeys = Object.keys(b);
+    if (aKeys.length !== bKeys.length) return false;
+    return aKeys.every((k) => deepEqual(a[k], b[k]));
+  }
+  return false;
+}
+
+export function summary() {
+  console.log(`\n${passCount} passed, ${failCount} failed`);
+  if (failCount > 0) process.exitCode = 1;
+}
+
+// --- site build ------------------------------------------------------------
+//
+// On the portal this game's CSS was an inline <style> in index.html, and
+// several suites read the page and slice that block out. On the site the
+// CSS lives in ./style.css (the site's Content-Security-Policy refuses
+// inline styles), so this puts it back where those suites expect it: the
+// page exactly as a browser sees it, with the stylesheet inlined at the
+// <link> that loads it. Every test that used to read index.html reads
+// this instead, and none of their assertions had to change.
+import { readFileSync as _readFileSync } from "node:fs";
+import _path from "node:path";
+export function readPage(root) {
+  const html = _readFileSync(_path.join(root, "index.html"), "utf8");
+  const css = _readFileSync(_path.join(root, "style.css"), "utf8");
+  const link = /([ \t]*)<link rel="stylesheet" href="\.\/style\.css" \/>\n/;
+  const m = html.match(link);
+  if (!m) throw new Error("index.html no longer links ./style.css");
+  // Re-indented two deeper than the <link>, which is exactly where the
+  // inline block's rules used to sit — a few suites slice by indented text.
+  const indent = m[1] + "  ";
+  const body = css.split("\n").map((l) => (l ? indent + l : l)).join("\n");
+  return html.replace(link, `${m[1]}<style>\n${body}${m[1]}</style>\n`);
+}

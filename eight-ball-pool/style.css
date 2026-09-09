@@ -1,0 +1,474 @@
+/* eight-ball-pool/style.css
+ *
+ * Loaded after the site stylesheet (/style.css) and subordinate to it, on
+ * the same three rules as solitaire/style.css:
+ *
+ *   1. never redefines a selector the site defines (.btn, the modal and
+ *      settings components, .site-header/.site-footer, .achievement-toast);
+ *   2. no bare element selectors;
+ *   3. every selector is a .pool- class or scoped under #eight-ball-pool.
+ *
+ * The table itself is a <canvas> — the cloth, the wood, the pockets, the
+ * balls and the cue are all painted by src/game/render.js, which is where
+ * the felt recipe from DESIGN.md 1.3 ends up in this game. So this file
+ * only has to dress the page AROUND the table: the goal and status lines,
+ * the plate that says who is on which group, the shot row, and the
+ * toolbar.
+ *
+ * Sizing: every table dimension comes from src/main.js measure(), which
+ * sets the canvas's CSS width and height in px from the measured width of
+ * .pool-play and the height still free on screen. Nothing here guesses.
+ */
+
+#eight-ball-pool {
+  --pool-chip-bg: #e7ddc6;
+  --pool-rail: #4a2a17;
+  --pool-cloth-chip: #146b4c;
+
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 8px 8px calc(24px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* The site's link colour is a deep blue meant for the cream page, and on
+ * the header's dark green it fails contrast badly. The site stylesheet
+ * has no name for a link inside the tagline, so this one carries a class
+ * of its own rather than redefining a selector that is not ours. */
+.pool-header-link {
+  color: var(--paper);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.pool-header-link:hover,
+.pool-header-link:focus-visible { text-decoration-thickness: 2px; }
+
+/* ============================ goal + status ============================ */
+
+.pool-goal {
+  margin: 2px 0 8px;
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.45;
+  text-align: center;
+  color: var(--ink);
+}
+.pool-goal strong { font-weight: 700; }
+
+/* Two lines reserved so the table never moves when the text changes; and
+ * pinned to the top of the window while the table is in view, because on
+ * a short phone the player scrolls the header away to see the far
+ * cushion and the sentence telling them what to do must not go with it.
+ * Sticky INSIDE .pool-play, so it lets go the moment the table does. */
+.pool-status {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  margin: 0 0 10px;
+  min-height: calc(2.7em + 16px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 19px;
+  font-weight: 600;
+  line-height: 1.35;
+  color: var(--ink);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  background: var(--paper-dim);
+  width: 100%;
+  max-width: 560px;
+}
+
+/* ======================= the play block (board + shot) =================
+ * The board and the shot row travel together so that the sticky rule
+ * below has an end: the power bar stays pinned to the bottom of the
+ * window while the table is on screen, and stops the moment this block
+ * does — it never follows the player down into the FAQ. */
+
+.pool-play {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+}
+
+/* ------------------------------ the plate ----------------------------- */
+/* One line of facts: who is on which group and how many they have left. */
+
+.pool-plate {
+  margin: 0 0 8px;
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+.pool-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: var(--pool-chip-bg);
+  border: 1.5px solid #cbbf9f;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+/* Whose shot it is.
+ *
+ * Design review: this used to be a gold ring on a butter-yellow fill, and
+ * gold is the one colour on this site that has a job — DESIGN.md §1.4,
+ * "gold never appears on a button, chip or text", because a player who
+ * sees gold must be able to read it as "this piece is picked up" or "this
+ * is where it can go". A gold chip sitting permanently above the table
+ * spends that meaning on a label. The chip says the same thing the way
+ * Word Search's badge does: filled deep felt, ivory text (11:1), against
+ * the other player's flat paper chip. */
+.pool-chip.is-turn {
+  background: var(--felt-dark);
+  border-color: var(--felt-dark);
+  color: #fdfbf4;
+  font-weight: 700;
+  box-shadow: var(--shadow-sm);
+}
+
+/* ------------------------------ the table ----------------------------- */
+
+.pool-board {
+  position: relative;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  /* Its own stacking context, so nothing the canvas overlays can rise
+   * above the site's fixed modals and toasts. */
+  isolation: isolate;
+  line-height: 0;
+  max-width: 100%;
+}
+.pool-board:focus { outline: none; }
+.pool-canvas {
+  display: block;
+  border-radius: var(--radius-lg);
+  /* A finger on the cloth aims; it must not scroll the page underneath. */
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  max-width: 100%;
+}
+.pool-canvas:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+/* ---------------------------- the shot row ---------------------------- */
+
+.pool-shot {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
+  width: 100%;
+  max-width: 640px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "word  shoot"
+    "power shoot"
+    "spin  spin";
+  column-gap: 12px;
+  row-gap: 2px;
+  align-items: center;
+  margin-top: 8px;
+  padding: 6px 0 calc(6px + env(safe-area-inset-bottom));
+}
+/* The backdrop only exists for the case where the row is actually stuck
+ * over the cloth — a small screen. On anything roomier the table always
+ * fits above it, and an opaque band there is just a stray panel edge
+ * drawn across the page. */
+@media (max-width: 620px), (max-height: 640px) {
+  .pool-shot {
+    background: var(--paper);
+    box-shadow: 0 -6px 12px -8px rgba(15, 36, 25, 0.45);
+  }
+}
+
+.pool-power-word {
+  grid-area: word;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--felt-dark);
+  padding-left: 2px;
+  letter-spacing: 0.01em;
+}
+
+/* The power bar. A native range input, so the keyboard, the screen reader
+ * and every browser's own touch handling come for free — dressed up to
+ * 56px of target with a thumb big enough to find with a thumb. */
+.pool-power {
+  grid-area: power;
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 56px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+}
+#eight-ball-pool .pool-power:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+  border-radius: var(--radius-md);
+}
+#eight-ball-pool .pool-power::-webkit-slider-runnable-track {
+  height: 18px;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #a9c7b6, #2f7f5c);
+  border: 1.5px solid #6f8f7e;
+}
+#eight-ball-pool .pool-power::-moz-range-track {
+  height: 18px;
+  border-radius: 9px;
+  background: linear-gradient(90deg, #a9c7b6, #2f7f5c);
+  border: 1.5px solid #6f8f7e;
+}
+#eight-ball-pool .pool-power::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 38px;
+  height: 38px;
+  margin-top: -12px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #ffffff, var(--tile-face) 45%, #d8cfb6);
+  border: 2px solid var(--felt-dark);
+  box-shadow: var(--shadow-sm);
+}
+#eight-ball-pool .pool-power::-moz-range-thumb {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 30%, #ffffff, var(--tile-face) 45%, #d8cfb6);
+  border: 2px solid var(--felt-dark);
+  box-shadow: var(--shadow-sm);
+}
+
+.pool-shoot {
+  grid-area: shoot;
+  min-height: 74px;
+  min-width: 148px;
+  font-size: 18px;
+  font-weight: 700;
+}
+.pool-shoot:disabled {
+  opacity: 1;
+  background: var(--paper-dim);
+  border-style: dashed;
+  cursor: default;
+}
+.pool-shoot:disabled:hover { background: var(--paper-dim); }
+
+/* Side spin — hidden until Settings asks for it. */
+/* [hidden] is a UA rule at the lowest specificity, so a display here
+ * would beat it and show an empty row. Turn it off explicitly. */
+.pool-spin[hidden] { display: none; }
+.pool-spin {
+  grid-area: spin;
+  border: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.pool-spin-legend {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--felt-dark);
+  padding: 0;
+  float: left;
+  margin-right: 10px;
+}
+
+/* ============================== controls ============================== */
+
+.pool-controls {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 640px;
+  margin-top: 14px;
+}
+/* One row of four, even at 375px: the table is deliberately taller than
+ * the fold on the smallest phones, so a 2x2 toolbar would put half of it
+ * two flicks away instead of one. 83px per button at 375px, and "New
+ * game" is allowed to wrap to two lines rather than shrink its type
+ * (BRIEF.md "Languages"). */
+.pool-controls .btn {
+  flex: 1 1 0;
+  min-height: 56px;
+  min-width: 0;
+  padding: 8px 6px;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+@media (min-width: 560px) {
+  .pool-controls .btn { white-space: nowrap; font-size: 18px; padding: 10px 18px; }
+  .pool-shot {
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "word power shoot"
+      "spin spin  spin";
+    column-gap: 14px;
+  }
+  .pool-power-word { min-width: 84px; text-align: right; }
+  .pool-shoot { min-height: 56px; }
+}
+/* The site's 0.5-opacity disabled button is unreadable for this audience.
+ * Present, plainly not ready. */
+.pool-controls .btn:disabled {
+  opacity: 1;
+  background: var(--paper-dim);
+  border-style: dashed;
+  cursor: default;
+}
+.pool-controls .btn:disabled:hover { background: var(--paper-dim); }
+
+/* Height is the scarce thing on a phone, and the table is what it should
+ * be spent on. Under 900px of window the text above the cloth gives back
+ * about 45px — the goal drops a point, the status reserves two tighter
+ * lines instead of two roomy ones, and the plate loses its padding —
+ * without any of them falling below the sizes DESIGN.md 1.8 sets. */
+/* Design review: this block used to drop the goal to 17px, the status to
+ * 18px and the reserve to 2.3 lines — and it fires at 1280x800 and
+ * 1024x768 as well as on phones, so 8 Ball Pool was the only page on the
+ * site running below the shared type scale on nearly every screen a
+ * player owns. Solitaire holds 18/19 and a two-line reserve everywhere.
+ * Now only the spacing tightens; the type does not move. */
+@media (max-height: 900px) {
+  .pool-goal { margin: 0 0 6px; }
+  .pool-status { padding: 8px 12px; margin-bottom: 8px; }
+  .pool-plate { margin-bottom: 6px; }
+  .pool-shot { row-gap: 0; padding-top: 4px; }
+  .pool-power-word { font-size: 17px; }
+}
+/* A phone on its side has almost no height at all. Even here the goal
+ * stays at the 17px floor for glanceable text and the status keeps two
+ * reserved lines, so the table still never jumps when the message
+ * changes — only the padding around them gives way. */
+@media (max-height: 460px) {
+  .pool-goal { font-size: 17px; margin-bottom: 4px; }
+  .pool-status { min-height: calc(2.7em + 8px); font-size: 18px; padding: 4px 10px; margin-bottom: 6px; }
+  .pool-chip { min-height: 28px; padding: 3px 10px; }
+}
+
+/* ============================== settings ============================== */
+
+.pool-row-note {
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--felt-dark);
+}
+.pool-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.35);
+  display: inline-block;
+}
+.pool-swatch[data-cloth="green"] { background: #2c8763; }
+.pool-swatch[data-cloth="blue"] { background: #26707d; }
+.pool-swatch[data-cloth="burgundy"] { background: #7d2a3a; }
+
+/* Language picker (DESIGN.md "Language picker"): one site .btn per
+ * language in its own script, two across on a phone, three from 480px,
+ * 56px tall, the chosen one wearing the gold selection ring. */
+#eight-ball-pool .lang-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+@media (min-width: 480px) {
+  #eight-ball-pool .lang-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+#eight-ball-pool .lang-btn {
+  min-height: 56px;
+  min-width: 0;
+  padding: 10px 8px;
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+#eight-ball-pool .lang-btn[aria-pressed="true"] {
+  box-shadow: 0 0 0 3px var(--accent);
+  border-color: var(--felt);
+  background: #e4f2ea;
+}
+
+/* ============================ right-to-left =========================== */
+/* Arabic: /i18n/i18n.js sets <html dir="rtl">, so the text blocks, the
+ * settings sheet and the modals mirror on their own. The table is
+ * dir="ltr" in the markup and painted in px, so it never mirrors. The one
+ * thing that breaks is the site's skip link, parked at left: -9999px — in
+ * a right-to-left page the space to the LEFT is scrollable, so the page
+ * grows 10,000px wide. Park it on the right, the side that is clipped. */
+[dir="rtl"] #pool-skip-link {
+  left: auto;
+  right: -9999px;
+  border-radius: 0 0 0 8px;
+}
+[dir="rtl"] #pool-skip-link:focus {
+  right: 0;
+  left: auto;
+}
+[dir="rtl"] #eight-ball-pool .pool-power-word { text-align: left; }
+/* A range input runs right-to-left in an rtl page — the browser does that
+ * on its own and it is correct — so the track's weak-to-strong gradient
+ * has to turn around with it, or Firm would be painted at the pale end. */
+[dir="rtl"] #eight-ball-pool .pool-power::-webkit-slider-runnable-track {
+  background: linear-gradient(270deg, #a9c7b6, #2f7f5c);
+}
+[dir="rtl"] #eight-ball-pool .pool-power::-moz-range-track {
+  background: linear-gradient(270deg, #a9c7b6, #2f7f5c);
+}
+
+/* ================================ toasts ============================== */
+
+#pool-toasts {
+  position: fixed;
+  top: max(88px, calc(env(safe-area-inset-top) + 74px));
+  left: 0;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 300;
+  pointer-events: none;
+}
+#pool-toasts .achievement-toast {
+  position: static;
+  transform: none;
+}
+
+/* ============================ reduced motion ========================== */
+
+@media (prefers-reduced-motion: reduce) {
+  #eight-ball-pool *,
+  #pool-toasts * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

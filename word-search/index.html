@@ -1,0 +1,392 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Word Search — Free Online Puzzles, Big Letters, No Download</title>
+<meta name="description" content="Play Word Search free online — no download, no sign-up, no timer. Big, easy-to-read letters, a new themed puzzle every day, tap or drag to find the words, unlimited hints.">
+<link rel="canonical" href="https://easymahjongsolitaire.com/word-search/">
+
+<!-- Open Graph -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Word Search — Free Online Puzzles, Big Letters, No Download">
+<meta property="og:description" content="Play Word Search free online — no download, no sign-up, no timer. Big, easy-to-read letters, a new themed puzzle every day, unlimited hints.">
+<meta property="og:image" content="https://easymahjongsolitaire.com/word-search/og-image.png">
+<meta property="og:url" content="https://easymahjongsolitaire.com/word-search/">
+<meta name="twitter:card" content="summary_large_image">
+
+<!-- Favicon: inline SVG data URI like the rest of the site — a paper
+     sheet on the felt with a rose capsule through a row of letters. -->
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='18' fill='%23146b4c'/%3E%3Crect x='14' y='14' width='72' height='72' rx='8' fill='%23f3ead6' stroke='%23cfc2a4' stroke-width='3'/%3E%3Crect x='20' y='42' width='60' height='18' rx='9' fill='%23f4b8c1'/%3E%3Ctext x='50' y='36' font-family='Arial,Helvetica,sans-serif' font-size='17' font-weight='800' text-anchor='middle' fill='%230f2419'%3EB R T%3C/text%3E%3Ctext x='50' y='57' font-family='Arial,Helvetica,sans-serif' font-size='17' font-weight='800' text-anchor='middle' fill='%230f2419'%3EW O R D%3C/text%3E%3Ctext x='50' y='78' font-family='Arial,Helvetica,sans-serif' font-size='17' font-weight='800' text-anchor='middle' fill='%230f2419'%3EK E N%3C/text%3E%3C/svg%3E">
+<!--
+  Two stylesheets, in this order only, exactly as the Solitaire page:
+
+    1. /style.css  — the site's own. This page reuses .btn, the modal and
+       settings components, .site-header/.site-footer, .content/.faq-item
+       and the :root palette verbatim.
+    2. ./style.css — this game's rules, every one scoped to a .ws- class
+       or to #word-search. It never redefines a site selector.
+
+  No inline <style>, no inline <script>: the site's Content-Security-Policy
+  is `script-src 'self'; style-src 'self'`.
+-->
+<link rel="stylesheet" href="/style.css" />
+<link rel="stylesheet" href="./style.css" />
+
+<script defer src="/_vercel/insights/script.js"></script>
+
+<!-- Google Analytics 4 — the same measurement ID and the same /ga-init.js
+     as every other page. Events from this page carry game_name:
+     "word_search" (src/main.js trackEvent). -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-CPBFW58QG6"></script>
+<script src="/ga-init.js"></script>
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "WebApplication",
+  "name": "Word Search",
+  "alternateName": "Free Daily Word Search Puzzles",
+  "url": "https://easymahjongsolitaire.com/word-search/",
+  "description": "Free online Word Search with big, easy-to-read letters, a new themed puzzle every day, tap-or-drag word finding, unlimited hints and no time limit. No download or account required.",
+  "applicationCategory": "GameApplication",
+  "genre": "Word Puzzle",
+  "operatingSystem": "Any (web browser)",
+  "browserRequirements": "Requires JavaScript",
+  "isAccessibleForFree": true,
+  "offers": {
+    "@type": "Offer",
+    "price": "0",
+    "priceCurrency": "USD"
+  }
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is this Word Search free?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. It is completely free to play, with no purchases, subscriptions, or hidden fees." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I need to download anything?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. It runs directly in your web browser on a computer, tablet, or phone. There is no app to install and no account to create." }
+    },
+    {
+      "@type": "Question",
+      "name": "How do you play Word Search?",
+      "acceptedAnswer": { "@type": "Answer", "text": "A list of words is hidden in a grid of letters. Find each word in the grid and mark it: drag your finger or mouse from its first letter to its last, or simply tap the first letter and then the last letter. Found words are coloured in and crossed off the list. When every word is found, the puzzle is solved." }
+    },
+    {
+      "@type": "Question",
+      "name": "Do I have to drag across the letters?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. Tapping the first letter and then the last letter of a word works just as well, and a wrong tap costs nothing. Dragging works too if you prefer it." }
+    },
+    {
+      "@type": "Question",
+      "name": "Which way do the words go?",
+      "acceptedAnswer": { "@type": "Answer", "text": "To begin with, words only read left to right or top to bottom. In Settings you can choose All directions, which also hides words diagonally and backwards for more of a challenge." }
+    },
+    {
+      "@type": "Question",
+      "name": "What is Today's puzzle?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Every day there is one new puzzle on a fresh theme — Garden, Birds, Baking and so on — that is the same for everyone who plays that day. You can also press New puzzle for another one whenever you like." }
+    },
+    {
+      "@type": "Question",
+      "name": "Is there a time limit or a score?",
+      "acceptedAnswer": { "@type": "Answer", "text": "No. There is no clock, no countdown, and no score. Take as long as you like, and use as many hints as you want." }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I make the letters bigger?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. The Small puzzle has the largest letters, and the grid always fits your screen without scrolling sideways. In Settings you can also switch between capital and small letters." }
+    },
+    {
+      "@type": "Question",
+      "name": "Does it save my puzzle?",
+      "acceptedAnswer": { "@type": "Answer", "text": "Yes. Your puzzle and the words you have found are saved automatically in your browser, so you can close the tab and carry on later exactly where you left off." }
+    }
+  ]
+}
+</script>
+</head>
+<body class="ads-off">
+
+<a class="skip-link ws-skip" href="#ws-grid" data-i18n="skipToBoard">Skip to the puzzle</a>
+
+<header class="site-header">
+  <h1>Word Search</h1>
+  <p class="tagline"><span data-i18n="tagline">A new themed puzzle every day, with big, easy-to-read letters. No download, no sign-up, no timer.</span>
+    <a class="ws-tagline-link" href="/" data-i18n="playMahjong">Play Mahjong Solitaire →</a></p>
+</header>
+
+<main id="word-search">
+
+  <!-- The one rule of the game, always on screen above the sheet. main.js
+       swaps the key (goalEasy / goalAll) when the directions setting
+       changes; the <strong> is our own, hence data-i18n-html. -->
+  <p class="ws-goal" id="ws-goal" data-i18n="goalEasy" data-i18n-html>Find every word from the list hidden in the letters — <strong>across and down</strong>.</p>
+
+  <!-- What to do next / what just happened. aria-live so it is read out
+       without hunting for it. Its height is reserved (two lines) so the
+       sheet never moves when the message changes. -->
+  <p class="ws-status" id="ws-status" aria-live="polite"></p>
+
+  <!-- Theme title, badge and date share one row above the table. -->
+  <div class="ws-head">
+    <h2 class="ws-title" id="ws-title">Garden</h2>
+    <span class="ws-badge" id="ws-badge">Today's puzzle</span>
+    <span class="ws-date" id="ws-date"></span>
+  </div>
+
+  <!-- The board: a paper sheet laid on the felt table, and the list of
+       words. Below 720px the list wraps under the sheet; from 720px it
+       stands beside it. Sizes are custom properties set by main.js from
+       the measured width. dir="ltr": the grid is laid out in px by
+       main.js and never flips, even when the page is Arabic. -->
+  <div class="ws-board" id="ws-board" dir="ltr">
+    <div class="ws-table" id="ws-table" data-i18n-attr="aria-label:tableLabel" aria-label="Word search table">
+      <div class="ws-sheet" id="ws-sheet">
+        <div class="ws-grid" id="ws-grid" role="grid" data-i18n-attr="aria-label:gridLabel" aria-label="Letter grid. Use the arrow keys to move and Enter to mark the first and last letter of a word." tabindex="0">
+          <div class="ws-caps" id="ws-caps" aria-hidden="true"></div>
+        </div>
+      </div>
+    </div>
+    <div class="ws-words" id="ws-words" role="list" data-i18n-attr="aria-label:wordsLabel" aria-label="Words to find"></div>
+  </div>
+
+  <!-- Always on screen, never behind a menu; a word on every button. -->
+  <div class="ws-controls" role="toolbar" data-i18n-attr="aria-label:controlsLabel" aria-label="Puzzle controls">
+    <button type="button" class="btn" id="ws-hint-btn" data-i18n="hint">Hint</button>
+    <button type="button" class="btn" id="ws-new-btn" data-i18n="newPuzzle">New puzzle</button>
+    <button type="button" class="btn" id="ws-today-btn" data-i18n="todayPuzzle">Today's puzzle</button>
+    <button type="button" class="btn" id="ws-settings-btn" aria-haspopup="dialog" data-i18n="settings">Settings</button>
+  </div>
+
+  <!-- AD SLOT: adsense (mobile inline 320x100) -->
+  <!-- AD SLOT: adsense (desktop 728x90) -->
+  <div class="ad-slot ad-slot--320x100 ad-slot-mobile-only" aria-hidden="true" data-i18n="advertisement">Advertisement</div>
+  <div class="ad-slot ad-slot--728x90 ad-slot-desktop-only" aria-hidden="true" data-i18n="advertisement">Advertisement</div>
+
+<section class="content">
+  <h2>Play Word Search Free Online</h2>
+  <p>
+    This is the word search from the puzzle page of the newspaper — a grid of letters with a
+    list of words hidden in it — made easy to see and easy to play. It runs straight in your
+    browser with no download, no installer, and no account. Open the page and today's puzzle
+    is waiting on the table.
+  </p>
+  <p>
+    The letters are deliberately large and dark on a warm paper sheet, so the grid stays
+    readable even on a phone. You do not have to drag anything: tap the first letter of a word
+    and then its last letter, and the word is coloured in and crossed off the list. Dragging
+    across a word works too, and a wrong tap costs nothing at all.
+  </p>
+  <p>
+    There is no clock, no score, and nothing to lose. Hints are unlimited — each one lights up
+    the first letter of a word you have not found yet. Every day brings a fresh themed puzzle
+    that is the same for everyone, and New puzzle gives you another whenever you like. If you
+    close the tab, your puzzle is saved and waiting when you come back.
+  </p>
+
+  <h2>How to Play Word Search</h2>
+  <p>
+    The aim is to find every word on the list in the grid of letters. Each word is hidden in a
+    straight line, and the theme — Garden, Birds, Baking — tells you what kind of words to
+    expect.
+  </p>
+  <ul>
+    <li><strong>Find a word:</strong> look for its first letter, then follow the line of letters
+      from it. To begin with, words only run left to right or top to bottom.</li>
+    <li><strong>Mark it:</strong> tap the first letter (it lights up gold), then tap the last
+      letter. Or drag your finger or mouse from the first letter to the last. Either way the
+      word is coloured in and crossed off the list.</li>
+    <li><strong>Hint</strong> lights up the first letter of a word you have not found yet, as
+      often as you like.</li>
+    <li><strong>Today's puzzle</strong> is the day's shared puzzle; <strong>New puzzle</strong>
+      makes another one on a random theme.</li>
+    <li><strong>Settings</strong> lets you choose the grid size, whether words can run diagonally
+      and backwards, and capital or small letters.</li>
+  </ul>
+
+  <h2>Frequently Asked Questions</h2>
+
+  <div class="faq-item">
+    <h3>Is this Word Search free?</h3>
+    <p>Yes. It is completely free to play, with no purchases, subscriptions, or hidden fees.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Do I need to download anything?</h3>
+    <p>No. It runs directly in your web browser on a computer, tablet, or phone. There is no app
+      to install and no account to create.</p>
+  </div>
+  <div class="faq-item">
+    <h3>How do you play Word Search?</h3>
+    <p>A list of words is hidden in a grid of letters. Find each word in the grid and mark it:
+      drag your finger or mouse from its first letter to its last, or simply tap the first
+      letter and then the last letter. Found words are coloured in and crossed off the list.
+      When every word is found, the puzzle is solved.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Do I have to drag across the letters?</h3>
+    <p>No. Tapping the first letter and then the last letter of a word works just as well, and
+      a wrong tap costs nothing. Dragging works too if you prefer it.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Which way do the words go?</h3>
+    <p>To begin with, words only read left to right or top to bottom. In Settings you can
+      choose All directions, which also hides words diagonally and backwards for more of a
+      challenge.</p>
+  </div>
+  <div class="faq-item">
+    <h3>What is Today's puzzle?</h3>
+    <p>Every day there is one new puzzle on a fresh theme — Garden, Birds, Baking and so on —
+      that is the same for everyone who plays that day. You can also press New puzzle for
+      another one whenever you like.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Is there a time limit or a score?</h3>
+    <p>No. There is no clock, no countdown, and no score. Take as long as you like, and use as
+      many hints as you want.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Can I make the letters bigger?</h3>
+    <p>Yes. The Small puzzle has the largest letters, and the grid always fits your screen
+      without scrolling sideways. In Settings you can also switch between capital and small
+      letters.</p>
+  </div>
+  <div class="faq-item">
+    <h3>Does it save my puzzle?</h3>
+    <p>Yes. Your puzzle and the words you have found are saved automatically in your browser,
+      so you can close the tab and carry on later exactly where you left off.</p>
+  </div>
+</section>
+
+<footer class="site-footer">
+  <p>Free, easy online games — no download, no sign-up, no time limit.</p>
+    <nav class="footer-nav" aria-label="Site pages">
+    <div class="footer-nav-group">
+      <span class="footer-nav-label" id="footer-games-label">Games</span>
+      <div class="footer-nav-links" aria-labelledby="footer-games-label">
+        <!-- games:footer -->
+        <a href="/" data-crossgame-to="mahjong" data-placement="footer">Mahjong Solitaire</a>
+        <a href="/daily.html">Daily Challenge</a>
+        <a href="/solitaire/" data-crossgame-to="solitaire" data-placement="footer">Solitaire</a>
+        <a href="/freecell/" data-crossgame-to="freecell" data-placement="footer">FreeCell</a>
+        <a href="/five-in-a-row/" data-crossgame-to="five_in_a_row" data-placement="footer">Five in a Row</a>
+        <a href="/four-ball-billiards/" data-crossgame-to="four_ball_billiards" data-placement="footer">Four Ball Billiards</a>
+        <a href="/stone-flick/" data-crossgame-to="stone_flick" data-placement="footer">StoneFlick</a>
+        <a href="/shuffleboard/" data-crossgame-to="shuffleboard" data-placement="footer">Shuffleboard</a>
+        <!-- /games:footer -->
+      </div>
+    </div>
+    <div class="footer-nav-group">
+      <span class="footer-nav-label" id="footer-site-label">Site</span>
+      <div class="footer-nav-links" aria-labelledby="footer-site-label">
+        <a href="/about.html">About</a>
+        <a href="/privacy.html">Privacy Policy</a>
+        <a href="/terms.html">Terms</a>
+        <a href="/contact.html">Contact</a>
+      </div>
+    </div>
+  </nav>
+</footer>
+
+<!-- ===================== settings ===================== -->
+<div class="settings-panel" id="ws-settings-panel" data-open="false">
+  <div class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="ws-settings-title">
+    <h2 id="ws-settings-title" data-i18n="settings">Settings</h2>
+
+    <!-- Language first, so a visitor who cannot read the English labels
+         finds it at the top. Filled by i18n.renderPicker(). -->
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="language">Language</legend>
+      <div class="lang-grid" id="ws-lang-grid"></div>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="puzzleSize">Puzzle size</legend>
+      <div class="segmented" id="ws-size-group">
+        <label><input type="radio" name="ws-size" value="small"><span data-i18n="sizeSmall">Small 8×8</span></label>
+        <label><input type="radio" name="ws-size" value="medium"><span data-i18n="sizeMedium">Medium 10×10</span></label>
+        <label id="ws-size-large-label"><input type="radio" name="ws-size" value="large"><span data-i18n="sizeLarge">Large 12×12</span></label>
+      </div>
+      <p class="ws-row-note" id="ws-size-note" data-i18n="sizeNote">Small has the biggest letters. Takes effect on your next puzzle.</p>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="directions">Which way the words go</legend>
+      <div class="segmented" id="ws-dirs-group">
+        <label><input type="radio" name="ws-dirs" value="easy" checked><span data-i18n="dirsEasy">Across and down</span></label>
+        <label><input type="radio" name="ws-dirs" value="all"><span data-i18n="dirsAll">All directions</span></label>
+      </div>
+      <p class="ws-row-note" data-i18n="dirsNote">All directions also hides words diagonally and backwards. Takes effect on your next puzzle.</p>
+    </fieldset>
+
+    <fieldset class="settings-row">
+      <legend class="settings-label" data-i18n="letters">Letters</legend>
+      <div class="segmented" id="ws-case-group">
+        <label><input type="radio" name="ws-case" value="upper" checked><span data-i18n="caseUpper">CAPITALS</span></label>
+        <label><input type="radio" name="ws-case" value="lower"><span data-i18n="caseLower">small letters</span></label>
+      </div>
+    </fieldset>
+
+    <div class="settings-row toggle-row">
+      <label for="ws-toggle-sound" data-i18n="sound">Sound</label>
+      <input type="checkbox" id="ws-toggle-sound" checked>
+    </div>
+
+    <div class="settings-row">
+      <span class="settings-label" data-i18n="yourPuzzles">Your puzzles</span>
+      <dl class="settings-stats">
+        <dt data-i18n="puzzlesSolved">Puzzles solved</dt>
+        <dd id="ws-stat-solved">0</dd>
+        <dt data-i18n="daysPlayed">Days played</dt>
+        <dd id="ws-stat-days">0</dd>
+        <dt data-i18n="dailySolved">Daily puzzles solved</dt>
+        <dd id="ws-stat-daily">0</dd>
+      </dl>
+    </div>
+
+    <button type="button" class="btn btn-accent settings-close" id="ws-settings-close" data-i18n="close">Close</button>
+  </div>
+</div>
+
+<!-- ===================== win ===================== -->
+<div class="modal-overlay" id="ws-win-modal" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="ws-win-title">
+    <h2 id="ws-win-title" data-i18n="solved">Puzzle solved!</h2>
+    <p id="ws-win-note"></p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="ws-win-again" data-i18n="playAnother">Play another</button>
+      <button type="button" class="btn" id="ws-win-today" data-i18n="todayPuzzle">Today's puzzle</button>
+      <button type="button" class="btn" id="ws-win-close" data-i18n="lookAtPuzzle">Look at the puzzle</button>
+    </div>
+    <p class="cross-game-cta">
+      <a class="cross-game-link" href="/" data-crossgame-to="mahjong" data-placement="win_modal" data-i18n="tryOther">Try our other free game — Mahjong Solitaire</a>
+    </p>
+  </div>
+</div>
+
+<!-- ===================== new puzzle while one is going ===================== -->
+<div class="modal-overlay" id="ws-confirm-modal" data-open="false">
+  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="ws-confirm-title">
+    <h2 id="ws-confirm-title" data-i18n="startDifferentQ">Start a different puzzle?</h2>
+    <p data-i18n="putAwayPuzzle">The one you are working on will be put away.</p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-accent" id="ws-confirm-yes" data-i18n="startNew">Start the new puzzle</button>
+      <button type="button" class="btn" id="ws-confirm-no" data-i18n="keepPlaying">Keep playing</button>
+    </div>
+  </div>
+</div>
+
+<div id="ws-toasts" aria-live="polite"></div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

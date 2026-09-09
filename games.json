@@ -34,6 +34,20 @@
       "check": { "play": null, "shell": "site" }
     },
     {
+      "key": "freecell",
+      "name": "FreeCell",
+      "path": "/freecell/",
+      "ga": "freecell",
+      "card": {
+        "thumb": "/freecell-thumb.jpg",
+        "size": 400,
+        "alt": "FreeCell table with eight columns of big, easy-to-read cards",
+        "desc": "Every deal can be solved — four free cells and a little patience."
+      },
+      "sitemap": { "changefreq": "monthly", "priority": "0.9" },
+      "check": { "play": null, "shell": "site" }
+    },
+    {
       "key": "five-in-a-row",
       "name": "Five in a Row",
       "path": "/five-in-a-row/",
