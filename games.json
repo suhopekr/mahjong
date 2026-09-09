@@ -76,6 +76,20 @@
       "check": { "play": null, "shell": "site" }
     },
     {
+      "key": "backgammon",
+      "name": "Backgammon",
+      "path": "/backgammon/",
+      "ga": "backgammon",
+      "card": {
+        "thumb": "/backgammon-thumb.jpg",
+        "size": 400,
+        "alt": "Backgammon board with ivory and burgundy checkers and two dice",
+        "desc": "Roll the dice and bring your checkers home, against a gentle computer."
+      },
+      "sitemap": { "changefreq": "monthly", "priority": "0.9" },
+      "check": { "play": null, "shell": "site" }
+    },
+    {
       "key": "four-ball-billiards",
       "name": "Four Ball Billiards",
       "path": "/four-ball-billiards/",
