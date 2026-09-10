@@ -330,5 +330,108 @@ for (const file of htmlFiles(root)) {
   ok(!/data-i18n/.test(faqRaw), `${name}: the JSON-LD itself is untouched by i18n`);
 }
 
+// ---------------------------------------------------------------------------
+// the Mahjong board's own words
+// ---------------------------------------------------------------------------
+//
+// Mahjong and the Daily Challenge are the two pages that are NOT ES modules
+// (game.js is a classic script), so they have no strings.test.js of their own
+// the way every other game does. Everything that suite would have checked is
+// checked here instead, and one thing more that only a whole-page check can
+// see: that every data-i18n key WRITTEN IN THE MARKUP actually exists. A
+// typo there does not throw — /i18n/i18n.js falls back to the key itself, so
+// a mistyped "titleUndo" ships as the literal word "titleUndo" on a button.
+
+section("Mahjong (game.js) strings");
+{
+  // loadModule() above answers the content-module question ("does it export
+  // a `content` object?"); these three are ordinary modules, so import them.
+  const src = (f) => import(pathToFileURL(path.join(root, f)).href);
+  const { mahjong } = await src("i18n/mahjong.js");
+  const { common } = await src("i18n/common.js");
+  const { LANG_CODES } = await src("i18n/i18n.js");
+  const enKeys = Object.keys(mahjong.en).sort();
+  ok(enKeys.length > 100, `mahjong.js: has an English table (${enKeys.length} keys)`);
+
+  // Parity, both directions, per language — the same rule every game's
+  // strings.test.js enforces.
+  for (const code of LANG_CODES) {
+    if (code === "en") continue;
+    const dict = mahjong[code];
+    if (!ok(dict && typeof dict === "object", `mahjong.js: ${code} exists`)) continue;
+    const keys = Object.keys(dict).sort();
+    const missing = enKeys.filter((k) => !(k in dict));
+    const extra = keys.filter((k) => !(k in mahjong.en));
+    ok(missing.length === 0, `mahjong.js: ${code} has every English key (missing ${missing.join(", ")})`);
+    ok(extra.length === 0, `mahjong.js: ${code} invents no key (${extra.join(", ")})`);
+    for (const k of enKeys) {
+      if (!(k in dict)) continue;
+      const a = mahjong.en[k], b = dict[k];
+      // A key that takes an argument in English must take one everywhere,
+      // or a count/name silently disappears in that language only.
+      ok(typeof a === typeof b || (Array.isArray(a) && Array.isArray(b)),
+        `mahjong.js: ${code}.${k} is the same kind of value as English (${typeof a} vs ${typeof b})`);
+      if (Array.isArray(a)) {
+        ok(Array.isArray(b) && b.length === a.length,
+          `mahjong.js: ${code}.${k} has ${a.length} entries`);
+      }
+      if (typeof a === "function" && typeof b === "function") {
+        // Call both with the arguments the game actually passes, so a
+        // template that dropped ${time} fails here and not on the board.
+        const arg = { name: "X", time: "01:23", month: "M", day: 4, year: 2026, n: 7, tile: "T" };
+        let out = "";
+        try { out = String(b(arg)); } catch (e) {
+          ok(false, `mahjong.js: ${code}.${k} can be called (${e.message})`); continue;
+        }
+        const used = [...String(a).matchAll(/\$\{\s*(\w+)\s*\}/g)].map((m) => m[1]);
+        for (const v of new Set(used)) {
+          ok(out.includes(String(arg[v])),
+            `mahjong.js: ${code}.${k} still puts \${${v}} in its sentence — got "${out}"`);
+        }
+      }
+      // The install-hint strings mark real menu names with **bold**; an odd
+      // number of ** means one of them lost its partner in translation.
+      if (typeof a === "string" && typeof b === "string" && a.includes("**")) {
+        ok((b.split("**").length - 1) % 2 === 0,
+          `mahjong.js: ${code}.${k} has matched ** pairs`);
+      }
+    }
+  }
+
+  // Every key the two pages name in their markup resolves in one of the two
+  // tables this page's runtime is given (mahjong first, then common).
+  const known = (k) => k in mahjong.en || k in common.en;
+  for (const name of ["index.html", "daily.html"]) {
+    const html = strip(readFileSync(path.join(root, name), "utf8"));
+    const used = new Set();
+    for (const m of html.matchAll(/data-i18n="([^"]+)"/g)) used.add(m[1]);
+    for (const m of html.matchAll(/data-i18n-html="([^"]*)"/g)) if (m[1]) used.add(m[1]);
+    for (const m of html.matchAll(/data-i18n-attr="([^"]+)"/g)) {
+      for (const pair of m[1].split(";")) {
+        const key = pair.split(":")[1];
+        if (key) used.add(key.trim());
+      }
+    }
+    ok(used.size > 30, `${name}: its own chrome is keyed (${used.size} keys)`);
+    const unknown = [...used].filter((k) => !known(k));
+    ok(unknown.length === 0, `${name}: every data-i18n key exists (${unknown.join(", ")})`);
+    // The bridge has to be on the page, or every one of those keys renders
+    // as its own name.
+    ok(/<script type="module" src="\/mahjong-i18n\.js"><\/script>/.test(html),
+      `${name}: loads /mahjong-i18n.js`);
+    // CSP: the bridge and the dictionary are same-origin modules, and
+    // nothing about them may add an inline style or script.
+    ok(!/ style="/.test(html), `${name}: no inline style attribute`);
+  }
+
+  // game.js must not have gone back to writing English into the DOM.
+  const gamejs = readFileSync(path.join(root, "game.js"), "utf8");
+  const literals = [...gamejs.matchAll(/(?:textContent|\.title)\s*=\s*(['"])([A-Za-z][^'"]{3,})\1/g)]
+    .map((m) => m[2]);
+  ok(literals.length === 0, `game.js: says nothing in English directly (${literals.join(" | ")})`);
+  const announces = [...gamejs.matchAll(/announce\((['"])([^'"]+)\1\)/g)].map((m) => m[2]);
+  ok(announces.length === 0, `game.js: announces nothing in English directly (${announces.join(" | ")})`);
+}
+
 console.log(`\n${pass} passed, ${fail} failed`);
 process.exit(fail ? 1 : 0);

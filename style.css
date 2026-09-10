@@ -416,18 +416,37 @@ a:visited { color: #5c3d99; }
   margin: 0 0 10px;
   font-size: 18px;
 }
-.nav-lang .lang-grid {
+/* The Mahjong pages offer the same fourteen buttons inside Settings, so the
+ * grid is shared by selector rather than copied. The settings sheet is
+ * narrower than the nav panel and never gets the four-column step. */
+.nav-lang .lang-grid,
+.settings-lang .lang-grid {
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 @media (min-width: 480px) {
-  .nav-lang .lang-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .nav-lang .lang-grid,
+  .settings-lang .lang-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (min-width: 780px) {
   .nav-lang .lang-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }
-.nav-lang .lang-btn {
+.settings-lang h3 {
+  margin: 0 0 10px;
+}
+/* The note is one line here, not three: the settings sheet scrolls, and
+ * reserving three lines above the grid pushes Tile size off the first
+ * screen on a phone. */
+.settings-lang-note {
+  min-height: 1.6em;
+  margin: 12px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--felt-dark);
+}
+.nav-lang .lang-btn,
+.settings-lang .lang-btn {
   min-height: 56px;
   min-width: 0;
   padding: 10px 8px;
@@ -437,7 +456,8 @@ a:visited { color: #5c3d99; }
 }
 /* 현재 언어는 세 가지로 읽힌다: aria-pressed, 앰버 링 + 초록 채움, 그리고
  * 바의 버튼에 이미 그 이름이 적혀 있다는 사실. */
-.nav-lang .lang-btn[aria-pressed="true"] {
+.nav-lang .lang-btn[aria-pressed="true"],
+.settings-lang .lang-btn[aria-pressed="true"] {
   box-shadow: 0 0 0 3px var(--accent);
   border-color: var(--felt);
   background: #e4f2ea;

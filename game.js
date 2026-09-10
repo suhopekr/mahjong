@@ -20,6 +20,24 @@
   var MahjongTiles = ROOT.MahjongTiles; // tiles.js가 먼저 로드되어 있어야 함
 
   /* =======================================================================
+   * [I18N] 이 파일이 말하는 모든 문장
+   *
+   * 이 파일은 모듈이 아니라서 /i18n/i18n.js 를 직접 import 할 수 없다.
+   * 대신 /mahjong-i18n.js (모듈)가 인스턴스를 만들어 window.mahjongI18n 에
+   * 올려두고, initApp() 이 그걸 집어서 여기 I18N 에 넣는다. 모듈 스크립트는
+   * defer 취급이라 DOMContentLoaded 보다 먼저 실행되므로 그 시점에 반드시
+   * 존재한다 — 그래도 아래 t() 는 없을 때 키를 그대로 돌려준다. 사이트가
+   * 영어로 보이는 것은 결함이지만, 보드가 아예 안 뜨는 것은 사고다.
+   *
+   * 언어를 바꾸면 페이지를 새로 읽는다(/i18n/switch.js). 그래서 여기서는
+   * 언어 변경을 구독하지 않는다 — 144장을 반씩 두 언어로 그릴 일이 없다.
+   * ======================================================================= */
+  var I18N = null;
+  function t(key, arg) {
+    return I18N ? I18N.t(key, arg) : key;
+  }
+
+  /* =======================================================================
    * [LAYOUT] 좌표 데이터
    *
    * 좌표계: (x, y, z) half-tile 정수 그리드. 타일 1개의 폭/높이 = 2 단위.
@@ -1008,13 +1026,16 @@
    * 절제해서 만든다.
    * ======================================================================= */
 
+  // 이름/설명은 키로만 들고 있는다 — 이 배열은 파일이 읽히는 순간(번역
+  // 인스턴스가 아직 없을 때) 만들어지므로, 문장을 여기서 확정하면 영어로
+  // 굳는다. 실제 문장은 그릴 때 t() 가 만든다.
   var ACHIEVEMENT_DEFS = [
-    { id: 'first-win', label: 'First Win', desc: 'Clear your first board.' },
-    { id: 'wins-10', label: '10 Wins', desc: 'Clear 10 boards in total.' },
-    { id: 'wins-50', label: '50 Wins', desc: 'Clear 50 boards in total.' },
-    { id: 'no-hint-win', label: 'No-Hint Win', desc: 'Clear a board without using Hint.' },
-    { id: 'under-5-min', label: 'Under 5 Minutes', desc: 'Clear a board in under 5 minutes.' },
-    { id: 'daily-7', label: '7 Daily Challenges', desc: 'Complete 7 Daily Challenges.' },
+    { id: 'first-win', labelKey: 'achFirstWin', descKey: 'achFirstWinDesc' },
+    { id: 'wins-10', labelKey: 'achWins10', descKey: 'achWins10Desc' },
+    { id: 'wins-50', labelKey: 'achWins50', descKey: 'achWins50Desc' },
+    { id: 'no-hint-win', labelKey: 'achNoHint', descKey: 'achNoHintDesc' },
+    { id: 'under-5-min', labelKey: 'achUnder5', descKey: 'achUnder5Desc' },
+    { id: 'daily-7', labelKey: 'achDaily7', descKey: 'achDaily7Desc' },
   ];
 
   function isAchievementUnlocked(id) { return !!achievements.unlocked[id]; }
@@ -1078,9 +1099,10 @@
     if (!el) { toastQueue = []; return; }
     var def = toastQueue.shift();
     toastShowing = true;
-    el.textContent = 'Achievement unlocked: ' + def.label;
+    var unlockedMsg = t('achievementUnlocked', { name: t(def.labelKey) });
+    el.textContent = unlockedMsg;
     el.classList.add('is-visible');
-    announce('Achievement unlocked: ' + def.label);
+    announce(unlockedMsg);
     setTimeout(function () {
       el.classList.remove('is-visible');
       setTimeout(function () {
@@ -1105,10 +1127,10 @@
       icon.textContent = unlocked ? '★' : '☆';
       var label = document.createElement('span');
       label.className = 'achievement-badge-label';
-      label.textContent = def.label;
+      label.textContent = t(def.labelKey);
       var desc = document.createElement('span');
       desc.className = 'achievement-badge-desc';
-      desc.textContent = unlocked ? 'Unlocked' : def.desc;
+      desc.textContent = unlocked ? t('unlocked') : t(def.descKey);
       cell.appendChild(icon);
       cell.appendChild(label);
       cell.appendChild(desc);
@@ -1120,9 +1142,16 @@
   // 한다. 스트릭 숫자나 "놓쳤다" 같은 문구는 의도적으로 넣지 않는다
   // (요구사항: 압박 금지). #daily-calendar-grid가 없는 페이지(index.html)
   // 에서는 조용히 아무 일도 하지 않는다.
-  var CALENDAR_WEEKDAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
-  var CALENDAR_MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June',
+  // 월 이름과 요일 머리글은 언어별 배열이다(/i18n/mahjong.js: monthNames,
+  // weekdayLetters — 각각 1월부터 12개, 일요일부터 7개). 번역이 없을 때는
+  // t() 가 키를 돌려주므로 배열이 아닐 수 있어, 쓰는 자리에서 한 번 확인한다.
+  var CALENDAR_FALLBACK_WEEKDAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+  var CALENDAR_FALLBACK_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
+  function calendarList(key, fallback) {
+    var v = t(key);
+    return (Array.isArray(v) && v.length === fallback.length) ? v : fallback;
+  }
 
   function renderDailyCalendar() {
     var gridEl = document.getElementById('daily-calendar-grid');
@@ -1132,10 +1161,13 @@
     var now = new Date();
     var year = now.getFullYear();
     var month = now.getMonth();
-    if (titleEl) titleEl.textContent = CALENDAR_MONTH_NAMES[month] + ' ' + year;
+    var monthNames = calendarList('monthNames', CALENDAR_FALLBACK_MONTHS);
+    var monthName = monthNames[month];
+    // 어순은 언어가 정한다 — "September 2026" / "2026년 9월".
+    if (titleEl) titleEl.textContent = t('monthTitle', { month: monthName, year: year });
 
     gridEl.innerHTML = '';
-    CALENDAR_WEEKDAY_LABELS.forEach(function (label) {
+    calendarList('weekdayLetters', CALENDAR_FALLBACK_WEEKDAYS).forEach(function (label) {
       var head = document.createElement('div');
       head.className = 'daily-calendar-weekday';
       head.textContent = label;
@@ -1171,9 +1203,9 @@
         check.setAttribute('aria-hidden', 'true');
         check.textContent = '✓';
         cell.appendChild(check);
-        cell.setAttribute('aria-label', CALENDAR_MONTH_NAMES[month] + ' ' + d + ', completed');
+        cell.setAttribute('aria-label', t('dayLabelDone', { month: monthName, day: d }));
       } else {
-        cell.setAttribute('aria-label', CALENDAR_MONTH_NAMES[month] + ' ' + d);
+        cell.setAttribute('aria-label', t('dayLabel', { month: monthName, day: d }));
       }
       gridEl.appendChild(cell);
     }
@@ -1258,30 +1290,17 @@
     return 'android-other';
   }
 
-  // **굵게** 만 처리한다. 문구가 코드 안에 있는 이유는 플랫폼마다 본문 첫
-  // 문장까지 달라지기 때문 — "이 브라우저로는 안 된다"는 경우 "홈 화면에
-  // 추가하면 안전하다"는 전제 자체가 성립하지 않는다.
+  // 플랫폼마다 본문 첫 문장까지 달라진다 — "이 브라우저로는 안 된다"는
+  // 경우엔 "홈 화면에 추가하면 안전하다"는 전제 자체가 성립하지 않는다.
+  // 그래서 문구가 아니라 문구의 '키'를 플랫폼별로 고른다. 문장 안의
+  // **굵게** 는 사람이 자기 휴대폰에서 찾아야 하는 메뉴 이름을 가리키므로
+  // 번역할 때도 그 나라 휴대폰이 쓰는 이름으로 바꾸고 ** 는 남긴다.
   var INSTALL_HINT_COPY = {
-    'ios-safari': {
-      body: 'Your stats, badges, and daily history are saved only in this browser. Adding this page to your home screen keeps them much safer.',
-      steps: 'Tap the **Share** button — the square with an arrow pointing up — then scroll down and tap **Add to Home Screen**.'
-    },
-    'ios-other': {
-      body: 'Your stats, badges, and daily history are saved only in this browser. This browser cannot add pages to your home screen, but Safari can.',
-      steps: 'Open this page in **Safari** to save this game to your home screen. Then tap the **Share** button and choose **Add to Home Screen**.'
-    },
-    'android-chrome': {
-      body: 'Your stats, badges, and daily history are saved only in this browser. Adding this page to your home screen keeps them much safer.',
-      steps: 'Tap the **\u22ee** menu at the top right, then tap **Add to Home screen**.'
-    },
-    'android-inapp': {
-      body: 'Your stats, badges, and daily history are saved only in this browser. This browser cannot add pages to your home screen, but Chrome can.',
-      steps: 'Open this page in **Chrome** to save this game to your home screen. Look for **Open in Chrome** in this app\u2019s menu.'
-    },
-    'android-other': {
-      body: 'Your stats, badges, and daily history are saved only in this browser. Adding this page to your home screen keeps them much safer.',
-      steps: 'Open your browser\u2019s menu and choose **Add to Home screen**.'
-    }
+    'ios-safari': { body: 'installBodySafe', steps: 'installStepsIosSafari' },
+    'ios-other': { body: 'installBodyIosOther', steps: 'installStepsIosOther' },
+    'android-chrome': { body: 'installBodySafe', steps: 'installStepsAndroidChrome' },
+    'android-inapp': { body: 'installBodyAndroidInapp', steps: 'installStepsAndroidInapp' },
+    'android-other': { body: 'installBodySafe', steps: 'installStepsAndroidOther' }
   };
 
   // innerHTML을 안 쓰는 이유는 보안이 아니라(문자열이 전부 위 상수다) 이
@@ -1317,8 +1336,8 @@
     // 문구를 못 채우면 제목과 Got it 버튼만 남은 빈 모달이 된다 — 그럴 바엔
     // 열지 않는다.
     if (!bodyEl || !stepsEl) return;
-    setTextWithBold(bodyEl, copy.body);
-    setTextWithBold(stepsEl, copy.steps);
+    setTextWithBold(bodyEl, t(copy.body));
+    setTextWithBold(stepsEl, t(copy.steps));
     openModal(el);
     trackEvent('homescreen_prompt_shown', { install_platform: platform });
   }
@@ -2048,7 +2067,7 @@
     if (!canPause()) return;
     pausedByUser = true;
     enterPausedState(true);
-    announce('Game paused.');
+    announce(t('announceGamePaused'));
     saveGameProgress();
   }
 
@@ -2083,7 +2102,7 @@
     pausedByUser = false;
     closeModal(modalPause);
     resumeElapsedTimer();
-    announce('Game resumed.');
+    announce(t('announceGameResumed'));
     saveGameProgress();
   }
 
@@ -2174,12 +2193,12 @@
       return;
     }
     modalStuckMode = 'waiting';
-    stuckTitleEl.textContent = 'No more matches';
-    stuckMessageEl.textContent = 'No more matches — shuffling the tiles...';
+    stuckTitleEl.textContent = t('noMoreMatches');
+    stuckMessageEl.textContent = t('noMoreMatchesShuffling');
     stuckActionsEl.hidden = true;
     pauseElapsedTimer();
     openModal(modalStuck);
-    announce('No more matches. Shuffling the tiles automatically.');
+    announce(t('announceShuffleAuto'));
     clearPendingStuckTimeout();
     pendingStuckTimeoutId = setTimeout(runAutoShuffle, AUTO_SHUFFLE_DELAY_MS);
   }
@@ -2216,7 +2235,7 @@
       return;
     }
 
-    announce('Tiles shuffled, game continues.');
+    announce(t('announceShuffled'));
 
     // 셔플 직후에도 이론상 다시 막힌 상태일 수 있으니 재확인한다. 이 경우
     // handleNoMoreMatches가 consecutiveAutoShuffles 값을 보고 다시 자동
@@ -2230,10 +2249,8 @@
     modalStuckMode = 'giveup';
     clearPendingStuckTimeout();
     pauseElapsedTimer();
-    stuckTitleEl.textContent = "Let's start fresh";
-    stuckMessageEl.textContent = (reason === 'loop')
-      ? "Still stuck after a few shuffles. Starting a new game is recommended."
-      : "We couldn't find another solvable arrangement. Starting a new game is recommended.";
+    stuckTitleEl.textContent = t('startFresh');
+    stuckMessageEl.textContent = t(reason === 'loop' ? 'stuckLoop' : 'stuckUnsolvable');
     stuckActionsEl.hidden = false;
     openModal(modalStuck);
     announce(stuckMessageEl.textContent);
@@ -2269,22 +2286,24 @@
     var titleEl = document.getElementById('win-title');
     var newGameBtn = document.getElementById('btn-win-newgame');
     if (dailyMode) {
-      if (titleEl) titleEl.textContent = "Today's Challenge complete!";
-      if (newGameBtn) newGameBtn.textContent = 'Replay Today';
+      if (titleEl) titleEl.textContent = t('todayComplete');
+      if (newGameBtn) newGameBtn.textContent = t('replayToday');
     } else {
-      if (titleEl) titleEl.textContent = 'Well played!';
-      if (newGameBtn) newGameBtn.textContent = 'New Game';
+      if (titleEl) titleEl.textContent = t('wellPlayed');
+      if (newGameBtn) newGameBtn.textContent = t('newGame');
       // 요구사항 8: 메인 게임 승리 화면에서, 오늘 데일리를 아직 안 끝냈으면
       // 가벼운 버튼 하나만 노출(daily.html에는 이 엘리먼트 자체가 없음).
       var ctaEl = document.getElementById('win-daily-cta');
       if (ctaEl) ctaEl.hidden = isDailyCompletedOn(todayDateString());
     }
-    document.getElementById('win-time').textContent = formatTime(elapsed);
+    // 한 문장을 통째로 언어에 맡긴다 — 시간이 문장 어디에 오는지, 굵게
+    // 칠 자리가 어디인지는 언어마다 다르다. **시간** 은 setTextWithBold가
+    // <strong> 노드로 만든다(그래서 #win-time 은 여기서 사라진다).
+    var winBodyEl = document.getElementById('win-body');
+    if (winBodyEl) setTextWithBold(winBodyEl, t('clearedIn', { time: formatTime(elapsed) }));
 
     openModal(modalWin);
-    announce(dailyMode
-      ? ("Today's challenge complete! Cleared in " + formatTime(elapsed) + '.')
-      : ('Congratulations! You cleared the board in ' + formatTime(elapsed) + '.'));
+    announce(t(dailyMode ? 'announceWinDaily' : 'announceWin', { time: formatTime(elapsed) }));
   }
 
   // ---- 게임 동작 ------------------------------------------------------------
@@ -2329,7 +2348,7 @@
     var genRng = dailyMode ? makeRng(dailySeedForDateString(todayDateString())) : rng;
     var gen = createGameState(layoutId, genRng);
     if (!gen) {
-      announce('Could not generate a board. Please try again.');
+      announce(t('announceBoardFail'));
       return;
     }
     state = gen;
@@ -2348,7 +2367,7 @@
       // "시작"한 게 아니라서 계측 제외 — game_start 대비 game_win 비율로
       // 이탈률을 어림잡을 때 이 임시 보드가 분모를 부풀리면 안 되므로.
       trackEvent('game_start', { layout: state.layoutId, mode: dailyMode ? 'daily' : 'normal' });
-      announce(dailyMode ? "Today's challenge started. 144 tiles on the board." : 'New game started. 144 tiles on the board.');
+      announce(t(dailyMode ? 'announceDailyStart' : 'announceNewGame'));
     }
   }
 
@@ -2412,7 +2431,7 @@
       enterPausedState(true);
     } else {
       startTimerLoop();
-      announce('Game resumed.');
+      announce(t('announceGameResumed'));
     }
     // 저장된 paused:true를 즉시 false로 덮어써 둔다 — isPaused는 이미
     // false이므로 saveGameProgress()가 paused:false를 기록한다. 이걸
@@ -2463,10 +2482,10 @@
         if (shouldRestorePaused(saved, false)) {
           pausedByUser = true;
           enterPausedState(true);
-          announce("Today's challenge resumed, still paused.");
+          announce(t('announceDailyResumedPaused'));
         } else {
           startTimerLoop();
-          announce("Today's challenge resumed.");
+          announce(t('announceDailyResumed'));
         }
         return;
       }
@@ -2486,7 +2505,7 @@
     resumeElapsedTimer();
 
     var type = undoLastMove(state);
-    if (!type) { announce('Nothing to undo.'); return; }
+    if (!type) { announce(t('announceNothingUndo')); return; }
     undoCountThisGame++;
     consecutiveAutoShuffles = 0; // 되돌리기는 "막힘 연쇄"를 끊는 새로운 시도로 취급
     state.selected = -1;
@@ -2494,7 +2513,7 @@
     fullRender();
     saveGameProgress();
     updateStatusStrip();
-    announce('Move undone.');
+    announce(t('announceUndone'));
 
     // 되돌린 결과가 다시 막힌 상태일 수도 있다(예: 셔플 전으로 되돌아간 경우).
     if (remainingPairsCount(graph, state.tiles) === 0) {
@@ -2512,13 +2531,13 @@
   function doHint() {
     if (isPaused) return; // 요구사항 2: 일시정지 중엔 힌트 무반응
     var pair = findHintPair(graph, state.tiles, rng);
-    if (!pair) { announce('No hints available right now.'); return; }
+    if (!pair) { announce(t('announceNoHints')); return; }
     hintUsedThisGame = true; // "힌트 없이 클리어" 배지 판정용
     hintCountThisGame++;
     if (pendingHintTimeoutId) { clearTimeout(pendingHintTimeoutId); pendingHintTimeoutId = null; }
     hintSlots = new Set(pair);
     syncBoard(false);
-    announce('Hint: a matching pair is highlighted.');
+    announce(t('announceHint'));
     pendingHintTimeoutId = setTimeout(function () {
       pendingHintTimeoutId = null;
       hintSlots.clear();
@@ -2545,12 +2564,13 @@
 
   function setFullscreenUI(active) {
     document.body.classList.toggle('is-fullscreen', active);
-    if (fullscreenLabelEl) fullscreenLabelEl.textContent = active ? 'Exit Full Screen' : 'Full Screen';
-    if (fullscreenLabelElMobile) fullscreenLabelElMobile.textContent = active ? 'Exit Full Screen' : 'Full Screen';
+    var fsLabel = t(active ? 'exitFullScreen' : 'fullScreen');
+    if (fullscreenLabelEl) fullscreenLabelEl.textContent = fsLabel;
+    if (fullscreenLabelElMobile) fullscreenLabelElMobile.textContent = fsLabel;
     var btn = document.getElementById('btn-fullscreen');
-    if (btn) btn.title = active ? 'Exit full screen' : 'Toggle full screen';
+    if (btn) btn.title = t(active ? 'titleExitFullScreen' : 'titleFullScreen');
     var btnMobile = document.getElementById('btn-fullscreen-mobile');
-    if (btnMobile) btnMobile.title = active ? 'Exit full screen' : 'Toggle full screen';
+    if (btnMobile) btnMobile.title = t(active ? 'titleExitFullScreen' : 'titleFullScreen');
     // 레이아웃이 막 바뀌었으니(헤더/본문 표시 여부, 가용 공간) 다음 페인트
     // 이후에 다시 재보 — 폴백(동기 클래스 토글)에서 특히 중요하다.
     requestAnimationFrame(function () { if (geometry) recomputeBoardLayout(); });
@@ -2559,13 +2579,13 @@
   function enterFakeFullscreen() {
     usingFakeFullscreen = true;
     setFullscreenUI(true);
-    announce('Entered full screen.');
+    announce(t('announceEnteredFs'));
   }
 
   function exitFakeFullscreen() {
     usingFakeFullscreen = false;
     setFullscreenUI(false);
-    announce('Exited full screen.');
+    announce(t('announceExitedFs'));
   }
 
   // 표준 API에서 온 변화(사용자가 ESC를 눌렀거나, 다른 경로로 상태가
@@ -2621,7 +2641,7 @@
       state.selected = i;
       syncBoard(false);
       var def0 = MahjongTiles.TILE_DEF_BY_ID[state.tiles[i]];
-      announce(MahjongTiles.tileAriaName(def0) + ' selected.');
+      announce(t('announceSelected', { tile: MahjongTiles.tileAriaName(def0) }));
       return;
     }
     if (canMatch(graph, state.tiles, state.selected, i)) {
@@ -2633,12 +2653,12 @@
       playSound('match');
       syncBoard(true);
       afterStateChange();
-      announce('Matched and removed.');
+      announce(t('announceMatched'));
     } else {
       state.selected = i;
       syncBoard(false);
       var def1 = MahjongTiles.TILE_DEF_BY_ID[state.tiles[i]];
-      announce(MahjongTiles.tileAriaName(def1) + ' selected.');
+      announce(t('announceSelected', { tile: MahjongTiles.tileAriaName(def1) }));
     }
   }
 
@@ -2687,6 +2707,13 @@
    * Bootstrap
    * ======================================================================= */
   function initApp() {
+    // /mahjong-i18n.js 는 모듈이라 defer 취급 — 이 리스너가 불릴 때는 이미
+    // 실행이 끝나 있다. 없으면(그 파일을 안 실은 페이지) t() 가 키를
+    // 돌려주고, 화면은 영어로 남는다.
+    I18N = ROOT.mahjongI18n || null;
+    if (MahjongTiles && typeof MahjongTiles.setTranslator === 'function') {
+      MahjongTiles.setTranslator(t);
+    }
     dailyMode = document.body.dataset.daily === 'true';
     boardEl = document.getElementById('board');
     viewportEl = document.getElementById('board-viewport');
@@ -2951,16 +2978,16 @@
       backupCopyBtn.addEventListener('click', function () {
         if (!backupCodeEl.value) return;
         var done = function () {
-          if (backupStatusEl) backupStatusEl.textContent = 'Copied.';
+          if (backupStatusEl) backupStatusEl.textContent = t('copied');
         };
         if (navigator.clipboard && navigator.clipboard.writeText) {
           navigator.clipboard.writeText(backupCodeEl.value).then(done).catch(function () {
             backupCodeEl.select();
-            if (backupStatusEl) backupStatusEl.textContent = 'Could not copy automatically — code is selected, press Ctrl/Cmd+C.';
+            if (backupStatusEl) backupStatusEl.textContent = t('copyManual');
           });
         } else {
           backupCodeEl.select();
-          if (backupStatusEl) backupStatusEl.textContent = 'Code is selected — press Ctrl/Cmd+C to copy.';
+          if (backupStatusEl) backupStatusEl.textContent = t('copySelected');
         }
       });
     }
@@ -2969,10 +2996,10 @@
         var result = importBackupCode(backupImportInput.value);
         if (!backupStatusEl) return;
         if (result.ok) {
-          backupStatusEl.textContent = 'Restored — your stats, badges, and daily history are back.';
+          backupStatusEl.textContent = t('restoreDone');
           renderDailyCalendar();
         } else {
-          backupStatusEl.textContent = "That code doesn't look right — please check it and try again.";
+          backupStatusEl.textContent = t('restoreBad');
         }
       });
     }

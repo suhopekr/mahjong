@@ -292,7 +292,29 @@ function bigTextArtFor(def) {
 /* ---- 접근성 라벨 ----------------------------------------------------------
  * aria-label에 쓰일 사람이 읽는 이름.
  * ------------------------------------------------------------------------- */
+/* 스크린 리더가 읽는 타일 이름.
+ *
+ * 타일 '얼굴'은 숫자와 한자라서 애초에 번역할 텍스트가 없다 — 여기서 바꾸는
+ * 건 눈에 보이지 않는 aria-label 뿐이다. def.label 은 이 파일이 만들 때
+ * 박아 넣은 영어이고(그 시점엔 번역 런타임이 없다), game.js 가 initApp 에서
+ * setTranslator() 로 번역 함수를 넘겨주면 그때부터 그 언어로 읽힌다.
+ * 안 넘겨주면 영어 그대로 — Node 자체 테스트가 그 경로다. */
+var tileTranslate = null;
+function setTranslator(fn) {
+  tileTranslate = (typeof fn === 'function') ? fn : null;
+}
+
+var SUIT_NAME_KEY = { dots: 'tileDots', bamboo: 'tileBamboo', chars: 'tileChars' };
+var WIND_NAME_KEY = { E: 'tileWindE', S: 'tileWindS', W: 'tileWindW', N: 'tileWindN' };
+var DRAGON_NAME_KEY = { red: 'tileDragonRed', green: 'tileDragonGreen', white: 'tileDragonWhite' };
+
 function tileAriaName(def) {
+  if (!tileTranslate || !def) return def ? def.label : '';
+  if (SUIT_NAME_KEY[def.group]) return tileTranslate(SUIT_NAME_KEY[def.group], { n: def.rank });
+  if (def.group === 'wind' && WIND_NAME_KEY[def.rank]) return tileTranslate(WIND_NAME_KEY[def.rank]);
+  if (def.group === 'dragon' && DRAGON_NAME_KEY[def.rank]) return tileTranslate(DRAGON_NAME_KEY[def.rank]);
+  if (def.group === 'flower') return tileTranslate('tileFlower');
+  if (def.group === 'season') return tileTranslate('tileSeason');
   return def.label;
 }
 
@@ -307,5 +329,6 @@ function tileAriaName(def) {
     classicArtFor: classicArtFor,
     bigTextArtFor: bigTextArtFor,
     tileAriaName: tileAriaName,
+    setTranslator: setTranslator,
   };
 })();

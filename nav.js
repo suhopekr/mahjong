@@ -28,8 +28,9 @@
 // CSP (vercel.json: script-src 'self'; style-src 'self'): no inline style
 // attribute is ever written here — the only styling this file does is toggle
 // classes and data-open, exactly like .settings-panel and .modal-overlay.
-import { createI18n, LANGUAGES } from "/i18n/i18n.js";
+import { createI18n } from "/i18n/i18n.js";
 import { common } from "/i18n/common.js";
+import { wireLanguageGrid } from "/i18n/switch.js";
 
 /* The i18n instance lives out here, above the guard: the long-form content
  * translation below has to run on a page whether or not the bar's markup
@@ -237,59 +238,25 @@ if (nav && panel && sheet && btnGames) {
   });
 
   /* ---- the language grid -------------------------------------------------
-   * i18n.renderPicker() draws it (the same .btn.lang-btn buttons with
-   * aria-pressed that every game's Settings uses). Its own click handler
-   * would call setLang() and stop there; we need the reload as well, so this
-   * capture-phase listener runs first and stops the event before the button's
-   * own handler sees it — one place decides what a language tap does.
-   *
-   * The order is the whole point (DESIGN.md §4): acknowledge the tap, say
-   * what is about to happen IN THE NEW LANGUAGE, hold long enough for that to
-   * be seen, then reload from the top of the page. The reload is what makes a
-   * page whose board reads site.v1.lang only at boot switch at all. */
-  const RELOAD_HOLD_MS = 250;
-  let switching = false;
-
-  /** languageReload in the language being switched TO — read straight out of
-   *  the table, because this instance is still on the old language. */
-  function reloadNote(code) {
-    const dict = common[code] || common.en;
-    const v = dict.languageReload ?? common.en.languageReload;
-    const entry = LANGUAGES.find((l) => l.code === code);
-    return typeof v === "function" ? v({ name: entry ? entry.name : code }) : v;
-  }
-
-  if (langGrid) {
-    i18n.renderPicker(langGrid);
-    langGrid.addEventListener("click", (e) => {
-      const btn = e.target.closest(".lang-btn");
-      if (!btn || !langGrid.contains(btn)) return;
-      e.stopPropagation();          // renderPicker's own handler must not run
-      e.preventDefault();
-      const code = btn.dataset.lang;
-      if (switching || !code || code === i18n.lang) return;
-      switching = true;
-
-      // 1. the tap is acknowledged before anything moves
-      for (const b of langGrid.querySelectorAll(".lang-btn")) b.setAttribute("aria-pressed", String(b === btn));
-      // 2. what is happening, in the new language, politely announced
-      if (langNote) langNote.textContent = reloadNote(code);
+   * /i18n/switch.js decides what a language tap does — acknowledge, say what
+   * is happening in the new language, hold, reload — because Settings on a
+   * Mahjong page offers the same fourteen buttons and the two must not
+   * drift. What is local to the bar is the one hook below: the panel goes
+   * fully opaque for the hold, so the person sees one solid surface and
+   * never a flash of half-drawn board. (It also covers the one side effect
+   * of setLang() — it re-translates the whole document with this instance's
+   * common-only table, which the reload then undoes.) */
+  wireLanguageGrid({
+    i18n,
+    common,
+    grid: langGrid,
+    note: langNote,
+    onSwitch(code) {
       track("language_change", { from_lang: i18n.lang, to_lang: code, placement: "nav_panel" });
-      // The panel goes fully opaque for the hold: the person sees one solid
-      // surface, never a flash of half-drawn board. (It also covers the one
-      // side effect of setLang() — it re-translates the whole document with
-      // this instance's common-only table, which the reload then undoes.)
       panel.classList.add("nav-panel-switching");
-      i18n.setLang(code);
       applyOwn();
-      // 3. hold, then come back at the top rather than at a remembered
-      //    board offset — that offset is the part that reads as a crash.
-      window.setTimeout(() => {
-        window.scrollTo(0, 0);
-        location.reload();
-      }, RELOAD_HOLD_MS);
-    }, true);
-  }
+    },
+  });
 
   /* ---- cross-game clicks from the panel ----------------------------------
    * On a game page the game already wires every a[data-crossgame-to]

@@ -81,6 +81,7 @@ to `dir="rtl"` for Arabic).
 | --- | --- | --- | --- |
 | Buttons, settings, status lines, win/undo phrases, the footer's tagline and link names | `/i18n/common.js` | `data-i18n` | **yes** — it is the source, do not change it |
 | A game's own phrases (hints, card names, its status line) | `<game>/src/i18n/strings.js` | `data-i18n` | **yes** — same |
+| Mahjong's and the Daily Challenge's own phrases (the toolbar, the calendar, every modal, what the screen reader says) | `/i18n/mahjong.js` | `data-i18n` | **yes** — same |
 | Game names + one-line card descriptions (footer link, Games-panel card, front-page card, a game page's `h1`) | `/i18n/games.js` | `data-i18n-content` | yes, but **generated** from `games.json` — never hand-edit `en` |
 | The long-form article on a game page (intro, How to Play, FAQ) | `<game>/src/i18n/content.js` | `data-i18n-content` | **no** — it is in the HTML |
 | The long-form text of `/`, `/daily.html`, `/about.html`, `/contact.html` | `/i18n/pages/<page>.js` | `data-i18n-content` | **no** — same |
@@ -97,6 +98,12 @@ have to guess which shape a page uses.
 
 **One rule for which file a key is in:** a key starting `game.` is in
 `/i18n/games.js`. Everything else is in the page's own module.
+
+`/i18n/mahjong.js` is the one file that breaks the "a game's strings live
+under the game's directory" pattern, and it has no choice: Mahjong and the
+Daily Challenge *are* the root of the site (`/` and `/daily.html`), so there
+is no `/mahjong/` to put it in. It is a `strings.js` in every other respect
+— `data-i18n`, English is the source, one block per language.
 
 ### The shape of a content module
 
@@ -225,6 +232,7 @@ language block each). Counts are as of this writing —
 | --- | --- | --- |
 | `/i18n/common.js` | 6 keys still English-only: `footerTagline`, `siteLinks`, `about`, `privacyPolicy`, `terms`, `contact` | Add each to all 13 non-English blocks, then **delete it from the `PENDING` array** at the bottom of the file. The tests require a key to leave `PENDING` once every language has it. The other 29 keys are already translated — leave them. |
 | `/i18n/games.js` | 24: `game.<key>.name` and `game.<key>.desc` for `mahjong`, `daily`, `solitaire`, `freecell`, `word-search`, `five-in-a-row`, `dots-and-boxes`, `backgammon`, `four-ball-billiards`, `eight-ball-pool`, `stone-flick`, `shuffleboard` | Add a language block **after** `en`. Never edit `en`. All 24 or none. |
+| `/i18n/mahjong.js` | 125, all of them | The two pages that run on `game.js`: the toolbar and the phone's action bar, Settings, the six badges, the backup code, the "add to home screen" hints, every modal, the Daily calendar, and the sentences a screen reader reads. Add a language block **after** `en`; never edit `en`. Three shapes of value live in here and each must keep its shape — see below. |
 
 ### One file per page
 
@@ -247,6 +255,35 @@ Billiards, StoneFlick, Shuffleboard) have no long-form article on the site
 yet — their names and card descriptions are in `/i18n/games.js` and that is
 all they need.
 
+### `/i18n/mahjong.js` — the three shapes of value
+
+Almost every string on this site is a plain string. This one file has all
+three shapes, and `node tools/i18n-check.mjs` fails if a translation changes
+the shape of a value:
+
+- **strings** — the usual thing.
+- **functions** — `clearedIn: ({ time }) => \`You cleared the board in **${time}**.\``.
+  Keep the arrow function and the parameter name; move `${time}` to wherever
+  your language wants it. A translation that drops `${time}` loses the
+  player's time, so the checker calls both versions and compares.
+- **arrays** — `monthNames` is 12 month names starting January;
+  `weekdayLetters` is 7 weekday initials **starting Sunday**. The calendar
+  cells are one character wide, so use the shortest form the language has
+  (`日 月 火 水 木 金 土`, `일 월 화 수 목 금 토`, `S M D M D F S`).
+  `monthTitle` is what decides the heading's word order, so Korean reads
+  `2026년 9월` from the same two pieces English reads `September 2026` from.
+
+Two more rules that are specific to this file:
+
+- The keyboard letter in a tooltip — `(U)`, `(H)`, `(N)`, `(Space or P)` —
+  is the same key on every keyboard. Translate the words around it and leave
+  the bracket alone.
+- `**bold**` appears only in the `install*` strings, and it marks the name of
+  a real menu item on the player's own phone. Translate those to **what that
+  phone actually says in that language** (Korean iOS: `**공유**`,
+  `**홈 화면에 추가**`) and keep the `**` markers — `game.js` turns them into
+  `<strong>` nodes, never `innerHTML`.
+
 ---
 
 ## 7. Before you open a pull request
@@ -255,6 +292,17 @@ all they need.
 npm --prefix tools test        # must end "0 failures"
 node tools/i18n-check.mjs      # the language checks on their own, verbosely
 ```
+
+Working on one language of `/i18n/mahjong.js` and want the checks before you
+merge it in? Put the block in a file of its own as
+`export const dict = { … }` and run
+
+```
+node tools/check-trans.mjs <lang> <that file>
+```
+
+which is the same shape/argument/`**`/shortcut checking, aimed at one draft
+and naming every problem at once instead of one per run.
 
 What will stop you, and what it means:
 

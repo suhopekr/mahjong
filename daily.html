@@ -36,7 +36,7 @@
      매칭/되돌리기/힌트/셔플/설정/전체화면 등은 index.html과 완전히 같은
      코드를 그대로 공유한다. -->
 <body class="ads-off" data-daily="true" data-tile-size="large" data-tileset="big" data-show-free="true" data-show-timer="true">
-<a class="skip-link" href="#main">Skip to game</a>
+<a class="skip-link" href="#main" data-i18n="skipToBoard">Skip to game</a>
 
 <div class="achievement-toast" id="achievement-toast" role="status" aria-live="polite"></div>
 
@@ -199,48 +199,48 @@
 
   <div class="game-shell">
     <div class="game-column">
-      <div class="toolbar" role="toolbar" aria-label="Game controls">
+      <div class="toolbar" role="toolbar" aria-label="Game controls" data-i18n-attr="aria-label:gameControls">
         <div class="toolbar-buttons">
-          <button type="button" class="btn" id="btn-undo" title="Undo last move (U)">Undo</button>
-          <button type="button" class="btn" id="btn-hint" title="Show a hint (H)">Hint</button>
-          <button type="button" class="btn" id="btn-pause" title="Pause the game (Space or P)">Pause</button>
-          <button type="button" class="btn" id="btn-fullscreen" title="Toggle full screen"><span id="btn-fullscreen-label">Full Screen</span></button>
-          <button type="button" class="btn" id="btn-settings" title="Settings" aria-haspopup="dialog">Settings</button>
-          <button type="button" class="btn" id="btn-new-game" title="Restart today's puzzle (N)">New Game</button>
+          <button type="button" class="btn" id="btn-undo" title="Undo last move (U)" data-i18n="undo" data-i18n-attr="title:titleUndo">Undo</button>
+          <button type="button" class="btn" id="btn-hint" title="Show a hint (H)" data-i18n="hint" data-i18n-attr="title:titleHint">Hint</button>
+          <button type="button" class="btn" id="btn-pause" title="Pause the game (Space or P)" data-i18n="pause" data-i18n-attr="title:titlePause">Pause</button>
+          <button type="button" class="btn" id="btn-fullscreen" title="Toggle full screen" data-i18n-attr="title:titleFullScreen"><span id="btn-fullscreen-label" data-i18n="fullScreen">Full Screen</span></button>
+          <button type="button" class="btn" id="btn-settings" title="Settings" aria-haspopup="dialog" data-i18n="settings" data-i18n-attr="title:settings">Settings</button>
+          <button type="button" class="btn" id="btn-new-game" title="Restart today's puzzle (N)" data-i18n="newGame" data-i18n-attr="title:titleNewGameDaily">New Game</button>
         </div>
         <div class="status-strip">
-          <span class="pairs-stat"><span class="visually-hidden">Possible matching pairs remaining: </span>Pairs: <span class="stat-value" id="pairs-count">0</span></span>
-          <span class="timer-stat">Time: <span class="stat-value timer-value" id="timer-display">00:00</span></span>
+          <span class="pairs-stat"><span class="visually-hidden" data-i18n="pairsSr">Possible matching pairs remaining: </span><span data-i18n="pairsLabel">Pairs:</span> <span class="stat-value" id="pairs-count">0</span></span>
+          <span class="timer-stat"><span data-i18n="timeLabel">Time:</span> <span class="stat-value timer-value" id="timer-display">00:00</span></span>
         </div>
       </div>
 
       <div class="orientation-hint" id="orientation-hint" hidden>
         <span class="orientation-hint-icon" aria-hidden="true">💡</span>
-        <span>Tip: turn your phone sideways for bigger tiles.</span>
-        <button type="button" class="orientation-hint-close" id="orientation-hint-close" aria-label="Dismiss tip">✕</button>
+        <span data-i18n="orientationTip">Tip: turn your phone sideways for bigger tiles.</span>
+        <button type="button" class="orientation-hint-close" id="orientation-hint-close" aria-label="Dismiss tip" data-i18n-attr="aria-label:dismissTip">✕</button>
       </div>
 
       <!-- dir="ltr" — the tiles are placed in px; the board never mirrors. -->
       <div class="board-viewport" id="board-viewport" dir="ltr">
         <div class="board-scale-wrap">
-          <div class="board" id="board" role="group" aria-label="Mahjong board"></div>
+          <div class="board" id="board" role="group" aria-label="Mahjong board" data-i18n-attr="aria-label:boardLabel"></div>
         </div>
       </div>
 
       <p id="live-region" class="visually-hidden" role="status" aria-live="polite"></p>
     </div>
 
-    <aside class="sidebar" aria-label="Advertisement">
+    <aside class="sidebar" aria-label="Advertisement" data-i18n-attr="aria-label:advertisement">
       <!-- AD SLOT: adsense (desktop sidebar 300x250) -->
-      <div class="ad-slot ad-slot--300x250 ad-slot-desktop-only" aria-hidden="true">Advertisement</div>
+      <div class="ad-slot ad-slot--300x250 ad-slot-desktop-only" aria-hidden="true" data-i18n="advertisement">Advertisement</div>
     </aside>
   </div>
 
   <!-- 이번 달 완료 현황 — 완료한 날짜에 체크 표시만, 연속 기록이나
        "놓쳤다" 같은 문구는 쓰지 않는다(압박 금지). game.js의
        renderDailyCalendar가 채운다. -->
-  <section class="daily-calendar-section" aria-label="This month's completed challenges">
-    <h2 class="daily-calendar-title" id="daily-calendar-title">This Month</h2>
+  <section class="daily-calendar-section" aria-label="This month's completed challenges" data-i18n-attr="aria-label:thisMonthLabel">
+    <h2 class="daily-calendar-title" id="daily-calendar-title" data-i18n="thisMonth">This Month</h2>
     <div class="daily-calendar-grid" id="daily-calendar-grid"></div>
   </section>
 
@@ -296,91 +296,105 @@
   </nav>
 </footer>
 
-<div class="mobile-actionbar" role="toolbar" aria-label="Game controls" id="mobile-actionbar">
-  <button type="button" class="mobile-actionbar-btn" id="btn-undo-mobile" title="Undo last move (U)">Undo</button>
-  <button type="button" class="mobile-actionbar-btn" id="btn-hint-mobile" title="Show a hint (H)">Hint</button>
-  <button type="button" class="mobile-actionbar-btn" id="btn-menu-mobile" title="Menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="mobile-menu-sheet">Menu</button>
+<div class="mobile-actionbar" role="toolbar" aria-label="Game controls" id="mobile-actionbar" data-i18n-attr="aria-label:gameControls">
+  <button type="button" class="mobile-actionbar-btn" id="btn-undo-mobile" title="Undo last move (U)" data-i18n="undo" data-i18n-attr="title:titleUndo">Undo</button>
+  <button type="button" class="mobile-actionbar-btn" id="btn-hint-mobile" title="Show a hint (H)" data-i18n="hint" data-i18n-attr="title:titleHint">Hint</button>
+  <button type="button" class="mobile-actionbar-btn" id="btn-menu-mobile" title="Menu" aria-haspopup="dialog" aria-expanded="false" aria-controls="mobile-menu-sheet" data-i18n="menu" data-i18n-attr="title:menu">Menu</button>
 </div>
 
 <div class="mobile-menu-sheet" id="mobile-menu-sheet" data-open="false">
   <div class="mobile-menu-backdrop" id="mobile-menu-backdrop"></div>
-  <div class="mobile-menu-panel" role="dialog" aria-modal="true" aria-label="Menu">
-    <a class="btn mobile-menu-btn" href="/">Main Game</a>
-    <button type="button" class="btn mobile-menu-btn" id="btn-pause-mobile" title="Pause the game (Space or P)">Pause</button>
-    <button type="button" class="btn mobile-menu-btn" id="btn-new-game-mobile" title="Restart today's puzzle (N)">New Game</button>
-    <button type="button" class="btn mobile-menu-btn" id="btn-fullscreen-mobile" title="Toggle full screen"><span id="btn-fullscreen-label-mobile">Full Screen</span></button>
-    <button type="button" class="btn mobile-menu-btn" id="btn-settings-mobile" title="Settings" aria-haspopup="dialog">Settings</button>
-    <button type="button" class="btn mobile-menu-btn mobile-menu-close" id="btn-menu-close">Close</button>
+  <div class="mobile-menu-panel" role="dialog" aria-modal="true" aria-label="Menu" data-i18n-attr="aria-label:menu">
+    <a class="btn mobile-menu-btn" href="/" data-i18n="mainGame">Main Game</a>
+    <button type="button" class="btn mobile-menu-btn" id="btn-pause-mobile" title="Pause the game (Space or P)" data-i18n="pause" data-i18n-attr="title:titlePause">Pause</button>
+    <button type="button" class="btn mobile-menu-btn" id="btn-new-game-mobile" title="Restart today's puzzle (N)" data-i18n="newGame" data-i18n-attr="title:titleNewGameDaily">New Game</button>
+    <button type="button" class="btn mobile-menu-btn" id="btn-fullscreen-mobile" title="Toggle full screen" data-i18n-attr="title:titleFullScreen"><span id="btn-fullscreen-label-mobile" data-i18n="fullScreen">Full Screen</span></button>
+    <button type="button" class="btn mobile-menu-btn" id="btn-settings-mobile" title="Settings" aria-haspopup="dialog" data-i18n="settings" data-i18n-attr="title:settings">Settings</button>
+    <button type="button" class="btn mobile-menu-btn mobile-menu-close" id="btn-menu-close" data-i18n="close">Close</button>
   </div>
 </div>
 
 <!-- 설정 패널 -->
 <div class="settings-panel" id="settings-panel" data-open="false">
   <div class="settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-    <h2 id="settings-title">Settings</h2>
+    <h2 id="settings-title" data-i18n="settings">Settings</h2>
 
     <fieldset class="settings-row">
-      <legend class="settings-label">Tile size</legend>
+      <legend class="settings-label" data-i18n="tileSize">Tile size</legend>
       <div class="segmented" id="tile-size-group">
-        <label><input type="radio" name="tile-size" value="normal"><span>Normal</span></label>
-        <label><input type="radio" name="tile-size" value="large" checked><span>Large</span></label>
-        <label><input type="radio" name="tile-size" value="xlarge"><span>Extra Large</span></label>
+        <label><input type="radio" name="tile-size" value="normal"><span data-i18n="sizeNormal">Normal</span></label>
+        <label><input type="radio" name="tile-size" value="large" checked><span data-i18n="sizeLarge">Large</span></label>
+        <label><input type="radio" name="tile-size" value="xlarge"><span data-i18n="sizeXLarge">Extra Large</span></label>
       </div>
     </fieldset>
 
     <fieldset class="settings-row">
-      <legend class="settings-label">Tile style</legend>
+      <legend class="settings-label" data-i18n="tileStyle">Tile style</legend>
       <div class="segmented" id="tileset-group">
-        <label><input type="radio" name="tileset" value="classic"><span>Classic</span></label>
-        <label><input type="radio" name="tileset" value="big" checked><span>Big &amp; Bold</span></label>
+        <label><input type="radio" name="tileset" value="classic"><span data-i18n="styleClassic">Classic</span></label>
+        <label><input type="radio" name="tileset" value="big" checked><span data-i18n="styleBig">Big &amp; Bold</span></label>
       </div>
     </fieldset>
 
     <div class="settings-row toggle-row">
-      <label for="toggle-free">Highlight open tiles</label>
+      <label for="toggle-free" data-i18n="highlightOpen">Highlight open tiles</label>
       <input type="checkbox" id="toggle-free" checked>
     </div>
 
     <div class="settings-row toggle-row">
-      <label for="toggle-timer">Show timer</label>
+      <label for="toggle-timer" data-i18n="showTimer">Show timer</label>
       <input type="checkbox" id="toggle-timer" checked>
     </div>
 
     <div class="settings-row toggle-row">
-      <label for="toggle-sound">Sound effects</label>
+      <label for="toggle-sound" data-i18n="soundEffects">Sound effects</label>
       <input type="checkbox" id="toggle-sound" checked>
     </div>
 
     <div class="settings-row">
-      <span class="settings-label">Statistics</span>
+      <span class="settings-label" data-i18n="statistics">Statistics</span>
       <dl class="settings-stats">
-        <dt>Games played</dt>
+        <dt data-i18n="gamesPlayed">Games played</dt>
         <dd id="stat-games">0</dd>
-        <dt>Games won</dt>
+        <dt data-i18n="gamesWon">Games won</dt>
         <dd id="stat-wins">0</dd>
-        <dt>Best time</dt>
+        <dt data-i18n="bestTime">Best time</dt>
         <dd id="stat-best">—</dd>
       </dl>
     </div>
 
     <div class="settings-row">
-      <span class="settings-label">Achievements</span>
+      <span class="settings-label" data-i18n="achievements">Achievements</span>
       <div class="achievements-grid" id="achievements-grid"></div>
     </div>
 
     <div class="settings-row">
-      <span class="settings-label">Backup &amp; Restore</span>
-      <p class="meta-note">Save your stats, badges, and daily history as a short code you can paste back in later, or on another device.</p>
-      <button type="button" class="btn" id="btn-backup-export">Create Backup Code</button>
-      <textarea id="backup-export-code" class="backup-code-area" readonly rows="3" aria-label="Your backup code"></textarea>
-      <button type="button" class="btn" id="btn-backup-copy">Copy Code</button>
-      <label for="backup-import-input" class="settings-label backup-restore-label">Restore from a code</label>
-      <textarea id="backup-import-input" class="backup-code-area" rows="3" aria-label="Paste a backup code here to restore"></textarea>
-      <button type="button" class="btn" id="btn-backup-import">Restore</button>
+      <span class="settings-label" data-i18n="backupRestore">Backup &amp; Restore</span>
+      <p class="meta-note" data-i18n="backupNote">Save your stats, badges, and daily history as a short code you can paste back in later, or on another device.</p>
+      <button type="button" class="btn" id="btn-backup-export" data-i18n="createBackup">Create Backup Code</button>
+      <textarea id="backup-export-code" class="backup-code-area" readonly rows="3" aria-label="Your backup code" data-i18n-attr="aria-label:yourBackupCode"></textarea>
+      <button type="button" class="btn" id="btn-backup-copy" data-i18n="copyCode">Copy Code</button>
+      <label for="backup-import-input" class="settings-label backup-restore-label" data-i18n="restoreFromCode">Restore from a code</label>
+      <textarea id="backup-import-input" class="backup-code-area" rows="3" aria-label="Paste a backup code here to restore" data-i18n-attr="aria-label:pasteBackupCode"></textarea>
+      <button type="button" class="btn" id="btn-backup-import" data-i18n="restore">Restore</button>
       <p id="backup-status" class="meta-note" role="status" aria-live="polite"></p>
     </div>
 
-    <button type="button" class="btn btn-accent settings-close" id="btn-settings-close">Close</button>
+
+    <!-- Language LAST, and the reason is the same one DESIGN.md §4 gives for
+         the nav panel putting its grid after the game cards: fourteen 56px
+         buttons are seven rows on a phone, and at the top of the sheet they
+         push Tile size — the setting people actually open this panel for —
+         clean off the first screen. The top bar's Language button is two
+         taps closer anyway; this is the copy for someone who is already in
+         here. Both grids are wired by /i18n/switch.js, so a tap does exactly
+         the same thing in either place. -->
+    <section class="settings-row settings-lang" aria-labelledby="mahjong-lang-title">
+      <h3 id="mahjong-lang-title" class="settings-label" data-i18n="language">Language</h3>
+      <div class="lang-grid" id="mahjong-lang-grid"></div>
+      <p class="settings-lang-note" id="mahjong-lang-note" aria-live="polite"></p>
+    </section>
+    <button type="button" class="btn btn-accent settings-close" id="btn-settings-close" data-i18n="close">Close</button>
   </div>
 </div>
 
@@ -388,11 +402,11 @@
      한다. 한쪽만 고치면 데일리 페이지에만 옛 문구가 남는다. -->
 <div class="modal-overlay" id="modal-install-hint" data-open="false">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="install-hint-title">
-    <h2 id="install-hint-title">Keep your progress safe</h2>
+    <h2 id="install-hint-title" data-i18n="installTitle">Keep your progress safe</h2>
     <p id="install-hint-body"></p>
     <p class="install-hint-steps" id="install-hint-steps"></p>
     <div class="modal-actions">
-      <button type="button" class="btn btn-accent" id="install-hint-close">Got it</button>
+      <button type="button" class="btn btn-accent" id="install-hint-close" data-i18n="gotIt">Got it</button>
     </div>
   </div>
 </div>
@@ -401,21 +415,21 @@
      시작하는 것이므로 문구는 공용, game.js가 재사용). -->
 <div class="modal-overlay" id="modal-newgame-confirm" data-open="false">
   <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="newgame-confirm-title">
-    <h2 id="newgame-confirm-title">Start a new game?</h2>
-    <p>Your current game will be lost.</p>
+    <h2 id="newgame-confirm-title" data-i18n="startNewQ">Start a new game?</h2>
+    <p data-i18n="newGameLost">Your current game will be lost.</p>
     <div class="modal-actions">
-      <button type="button" class="btn" id="btn-newgame-confirm-keep">Keep Playing</button>
-      <button type="button" class="btn" id="btn-newgame-confirm-start">New Game</button>
+      <button type="button" class="btn" id="btn-newgame-confirm-keep" data-i18n="keepPlaying">Keep Playing</button>
+      <button type="button" class="btn" id="btn-newgame-confirm-start" data-i18n="newGame">New Game</button>
     </div>
   </div>
 </div>
 
 <div class="modal-overlay" id="modal-stuck" data-open="false">
   <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="stuck-title">
-    <h2 id="stuck-title">No more matches</h2>
-    <p id="stuck-message">No more matches — shuffling the tiles...</p>
+    <h2 id="stuck-title" data-i18n="noMoreMatches">No more matches</h2>
+    <p id="stuck-message" data-i18n="noMoreMatchesShuffling">No more matches — shuffling the tiles...</p>
     <div class="modal-actions" id="stuck-actions" hidden>
-      <button type="button" class="btn btn-accent" id="btn-stuck-newgame">New Game</button>
+      <button type="button" class="btn btn-accent" id="btn-stuck-newgame" data-i18n="newGame">New Game</button>
     </div>
   </div>
 </div>
@@ -424,10 +438,10 @@
      ("Today's Challenge complete!" / "Replay Today"). -->
 <div class="modal-overlay" id="modal-win" data-open="false">
   <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="win-title">
-    <h2 id="win-title">Today's Challenge complete!</h2>
-    <p>You cleared the board in <strong id="win-time">00:00</strong>.</p>
+    <h2 id="win-title" data-i18n="todayComplete">Today's Challenge complete!</h2>
+    <p id="win-body">You cleared the board in <strong id="win-time">00:00</strong>.</p>
     <div class="modal-actions">
-      <button type="button" class="btn btn-accent" id="btn-win-newgame">Replay Today</button>
+      <button type="button" class="btn btn-accent" id="btn-win-newgame" data-i18n="replayToday">Replay Today</button>
     </div>
   </div>
 </div>
@@ -437,11 +451,11 @@
      — dailyMode에서는 이 모달을 여는 코드 경로 자체를 타지 않는다. -->
 <div class="modal-overlay" id="modal-resume" data-open="false">
   <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="resume-title">
-    <h2 id="resume-title">Welcome back</h2>
-    <p>You have a game in progress. Continue where you left off, or start a new game?</p>
+    <h2 id="resume-title" data-i18n="welcomeBack">Welcome back</h2>
+    <p data-i18n="resumeBody">You have a game in progress. Continue where you left off, or start a new game?</p>
     <div class="modal-actions">
-      <button type="button" class="btn btn-accent" id="btn-resume-continue">Continue</button>
-      <button type="button" class="btn btn-ghost" id="btn-resume-newgame">New Game</button>
+      <button type="button" class="btn btn-accent" id="btn-resume-continue" data-i18n="continueGame">Continue</button>
+      <button type="button" class="btn btn-ghost" id="btn-resume-newgame" data-i18n="newGame">New Game</button>
     </div>
   </div>
 </div>
@@ -453,10 +467,10 @@
      절대 비치지 않게 한다(반투명 금지 요구사항). -->
 <div class="modal-overlay pause-overlay" id="modal-pause" data-open="false">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="pause-title">
-    <h2 id="pause-title">Paused</h2>
-    <p>Time: <span id="pause-elapsed">00:00</span></p>
+    <h2 id="pause-title" data-i18n="paused">Paused</h2>
+    <p><span data-i18n="timeLabel">Time:</span> <span id="pause-elapsed">00:00</span></p>
     <div class="modal-actions">
-      <button type="button" class="btn btn-accent btn-pause-resume" id="btn-pause-resume">Resume</button>
+      <button type="button" class="btn btn-accent btn-pause-resume" id="btn-pause-resume" data-i18n="resumeGame">Resume</button>
     </div>
   </div>
 </div>
@@ -464,5 +478,9 @@
 <script src="tiles.js"></script>
 <script src="game.js"></script>
 <script type="module" src="/nav.js"></script>
+<!-- The bridge that gives game.js the language runtime. Deferred like every
+     module, so it runs after game.js is parsed and before DOMContentLoaded,
+     which is when game.js’s initApp() looks for window.mahjongI18n. -->
+<script type="module" src="/mahjong-i18n.js"></script>
 </body>
 </html>

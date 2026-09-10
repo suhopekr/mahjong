@@ -112,6 +112,21 @@ Français, Italiano, Deutsch, Русский, Türkçe, Indonesia, 한국어, �
 live in `/i18n/common.js`, a game's own in `<slug>/src/i18n/strings.js`
 (lookup: game[lang] → common[lang] → game.en → common.en → the key).
 
+Mahjong and Daily are the exception in HOW they reach that runtime, not in
+what they get. `game.js` is a classic script and cannot `import`, so
+`/mahjong-i18n.js` — a module, therefore deferred, therefore run after
+game.js is parsed and before `DOMContentLoaded` — builds the instance from
+`/i18n/common.js` + `/i18n/mahjong.js`, puts it on `window.mahjongI18n`, and
+`initApp()` picks it up. Inside game.js everything goes through `t(key, arg)`
+and nothing is written in English; `tiles.js` takes the same function via
+`MahjongTiles.setTranslator()` for the tiles' aria-labels. Constants that
+would otherwise freeze English at parse time (the badges, the month names,
+the install-hint copy) hold KEYS, not sentences.
+
+A language change reloads the page (`/i18n/switch.js`, shared by `/nav.js`
+and the two Settings grids) — game.js reads the language once and draws 144
+tiles from it, so a live swap would leave half a board in each language.
+
 - One choice for the whole site, stored under `site.v1.lang`; first visit
   follows the browser language.
 - Static markup carries `data-i18n="key"` (`data-i18n-html` where our own
@@ -157,6 +172,11 @@ round, because it is the SEO copy and a crawler sets no `localStorage`:
 - `/i18n/TRANSLATING.md` is the translator's guide: the mechanism, the key
   scheme, the tone, and the exact list of files and keys.
   `node tools/i18n-check.mjs --keys` prints that list live.
+- `python3 tools/qa/mahjong_i18n_qa.py` drives a real browser over `/` and
+  `/daily.html` in six languages under the real CSP. It is the only check
+  that can see the one thing the bridge rests on — that `window.mahjongI18n`
+  exists by `DOMContentLoaded` — because if it does not, every string
+  renders as its own key and nothing static notices.
 
 ## Ads (not live yet)
 
