@@ -778,11 +778,21 @@ export function setTheme(id) {
 }
 
 /** The exact object game/themes.js's check() functions expect. Built here
- * so no call site has to remember which stored facts feed unlock rules. */
+ * so no call site has to remember which stored facts feed unlock rules.
+ *
+ * `stagesCleared` is NORMAL clears only, which is what the thresholds in
+ * game/themes.js were written against — a theme that asks for twenty
+ * stages must not be handed to someone who has beaten seven of them three
+ * ways. Stars are the opposite and deliberately so: getTotalStars() adds
+ * up all three difficulties, which is what makes replaying a cleared
+ * stage on hard worth something.
+ *
+ * This line read `state.campaign.cleared` until the save grew a third
+ * difficulty and the field moved into levels[]. Nothing in the suite
+ * called it, so the tables screen threw on open — in a build that
+ * shipped. test/campaign.test.js now calls every getter this module
+ * exports for exactly that reason. */
 export function themeUnlockContext() {
-  // `cleared` lives per difficulty in levels[] now; the normal track is the
-  // one theme unlocks count (the old flat `campaign.cleared` no longer
-  // exists, and reading it threw on every boot).
   return { stagesCleared: track(0).cleared.length, totalStars: getTotalStars() };
 }
 

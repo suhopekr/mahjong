@@ -184,3 +184,48 @@ test("the stage map can reach every difficulty, and locks the ones not earned", 
   // seeing, and a tab that vanishes reads as a tab that broke.
   assertTrue(/tab\.disabled = !open/.test(paint), "an unreachable difficulty must be disabled, not hidden");
 });
+
+test("every getter the save exports still answers after a schema change", () => {
+  // THE TEST THAT WAS MISSING, AND WHAT IT COST.
+  //
+  // Schema v3 moved the campaign's fields into levels[]. Every function
+  // this suite calls was updated. themeUnlockContext() was not, because
+  // nothing called it — it read state.campaign.cleared.length, which no
+  // longer exists, and the tables screen threw the moment it opened.
+  //
+  // So this calls EVERY getter, with the arguments a caller would use,
+  // and asserts none of them throws. It is a shallow test on purpose:
+  // the bug class is a field that moved, and a field that moved throws
+  // on the first read.
+  const s = fresh.mod;
+  const calls = [
+    ["isStageCleared", () => s.isStageCleared(1), () => s.isStageCleared(1, 2)],
+    ["getStars", () => s.getStars(1), () => s.getStars(1, 2)],
+    ["getBestTurns", () => s.getBestTurns(1), () => s.getBestTurns(1, 2)],
+    ["isStageUnlocked", () => s.isStageUnlocked(1)],
+    ["isLevelUnlocked", () => s.isLevelUnlocked(1, 1)],
+    ["getTotalStars", () => s.getTotalStars()],
+    ["getContinuePoint", () => s.getContinuePoint()],
+    ["getContinueStageId", () => s.getContinueStageId()],
+    ["themeUnlockContext", () => s.themeUnlockContext()],
+    ["getTheme", () => s.getTheme()],
+    ["isSoundEnabled", () => s.isSoundEnabled()],
+    ["getMatchSetup", () => s.getMatchSetup()],
+    ["getPracticeRecord", () => s.getPracticeRecord(10)],
+    ["getPreviewsHeld", () => s.getPreviewsHeld()],
+    ["hasSeenBriefing", () => s.hasSeenBriefing("first-shot")],
+  ];
+  for (const [name, ...fns] of calls) {
+    for (const fn of fns) {
+      try {
+        fn();
+      } catch (err) {
+        assertTrue(false, `${name}() throws on a v3 save: ${err.message}`);
+      }
+    }
+  }
+  // And the one that broke, checked for its answer rather than its
+  // silence: hard and extreme clears must not count toward a theme that
+  // asks for cleared STAGES.
+  assertEqual(s.themeUnlockContext().stagesCleared, 1, "one stage cleared, beaten at all three difficulties");
+});
