@@ -88,6 +88,20 @@
       "check": { "play": null, "shell": "site" }
     },
     {
+      "key": "dots-and-boxes",
+      "name": "Dots and Boxes",
+      "path": "/dots-and-boxes/",
+      "ga": "dots_and_boxes",
+      "card": {
+        "thumb": "/dots-and-boxes-thumb.jpg",
+        "size": 400,
+        "alt": "Dots and Boxes grid with lines joined and several boxes claimed in orange and blue",
+        "desc": "Join two dots to draw a line — close a box and it is yours."
+      },
+      "sitemap": { "changefreq": "monthly", "priority": "0.9" },
+      "check": { "play": "#start-game-btn", "shell": "standalone" }
+    },
+    {
       "key": "backgammon",
       "name": "Backgammon",
       "path": "/backgammon/",

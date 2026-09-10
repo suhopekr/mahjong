@@ -1,0 +1,471 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- The portal build pinned maximum-scale=1, user-scalable=no. This site's
+       audience is 65+ and pinch zoom is a feature they actually use, so the
+       zoom lock is gone (site CLAUDE.md / DESIGN.md). -->
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Dots and Boxes — Free Online Dots and Boxes Game, No Download | Easy Classics</title>
+  <meta name="description" content="Play Dots and Boxes free online — no download, no sign-up, no time limit. Join two dots to draw a line, close the fourth side of a box to claim it and go again. Three computer levels, or two players on one screen.">
+  <link rel="canonical" href="https://easymahjongsolitaire.com/dots-and-boxes/">
+
+  <!-- Open Graph -->
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Dots and Boxes — Free Online Dots and Boxes Game, No Download">
+  <meta property="og:description" content="Join the dots, close a box to claim it and take another turn. Free, no download, no time limit — three computer levels or two players on one screen.">
+  <meta property="og:image" content="https://easymahjongsolitaire.com/dots-and-boxes/og-image.png">
+  <meta property="og:url" content="https://easymahjongsolitaire.com/dots-and-boxes/">
+  <meta name="twitter:card" content="summary_large_image">
+  <!-- Inline favicon: a 3x3 dot grid with one box closed in the accent
+       orange — the picture the game is, at 16px. -->
+  <link
+    rel="icon"
+    href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f4efe6'/%3E%3Crect x='7' y='7' width='9' height='9' rx='1' fill='%23e4572e'/%3E%3Cg stroke='%232b2b2b' stroke-width='2.2' stroke-linecap='round'%3E%3Cline x1='7' y1='7' x2='16' y2='7'/%3E%3Cline x1='16' y1='7' x2='16' y2='16'/%3E%3Cline x1='7' y1='16' x2='16' y2='16'/%3E%3Cline x1='7' y1='7' x2='7' y2='16'/%3E%3Cline x1='16' y1='25' x2='25' y2='25'/%3E%3Cline x1='25' y1='7' x2='25' y2='16'/%3E%3C/g%3E%3Cg fill='%232b2b2b'%3E%3Ccircle cx='7' cy='7' r='2.4'/%3E%3Ccircle cx='16' cy='7' r='2.4'/%3E%3Ccircle cx='25' cy='7' r='2.4'/%3E%3Ccircle cx='7' cy='16' r='2.4'/%3E%3Ccircle cx='16' cy='16' r='2.4'/%3E%3Ccircle cx='25' cy='16' r='2.4'/%3E%3Ccircle cx='7' cy='25' r='2.4'/%3E%3Ccircle cx='16' cy='25' r='2.4'/%3E%3Ccircle cx='25' cy='25' r='2.4'/%3E%3C/g%3E%3C/svg%3E"
+  />
+  <!-- Two stylesheets, in this order only — the same order every other page
+       on this site uses, standalone builds included.
+
+       1. /style.css — the site's own, for the top bar, the Games panel and
+          the twelve game cards (DESIGN.md "Site navigation"). This page used
+          to leave it out and restate the bar in its own skin variables
+          instead. The design review ended that: a forked bar drifted into a
+          different brand within one day (an amber mark instead of the site's
+          deep-green badge, grey card borders, beige pills, orange "Playing
+          now"), and the bar's whole value is that it is ONE implementation.
+          The fight the old note worried about is settled by ORDER, not by
+          leaving the sheet out: this file is loaded second, so its own rules
+          win wherever the two disagree, and the handful of properties that
+          leak through anyway are neutralised by name at the end of
+          ./style.css (search for "the site's top bar").
+       2. ./style.css — this game's own, extracted from the portal build's
+          inline <style> block.
+
+       No inline <style> and no inline <script> other than JSON-LD: the
+       site's Content-Security-Policy is `script-src 'self'; style-src
+       'self'`, which admits neither. The CrazyGames SDK script tag is gone
+       with it — see src/core/ads.js. -->
+  <link rel="stylesheet" href="/style.css" />
+  <link rel="stylesheet" href="./style.css" />
+
+  <!-- Vercel Web Analytics — served from the deployed domain itself, same
+       as every other page on this site. -->
+  <script defer src="/_vercel/insights/script.js"></script>
+
+  <!-- Google Analytics 4 — the SAME measurement ID and the SAME /ga-init.js
+       the rest of the site uses. Events from this page carry
+       game_name: "dots_and_boxes" (see trackEvent in src/main.js). -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-CPBFW58QG6"></script>
+  <script src="/ga-init.js"></script>
+
+  <!-- JSON-LD: WebApplication, matching the other game pages. -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebApplication",
+    "name": "Dots and Boxes",
+    "alternateName": "Free Dots and Boxes",
+    "url": "https://easymahjongsolitaire.com/dots-and-boxes/",
+    "description": "Free online Dots and Boxes: join two dots to draw a line, close the fourth side of a box to claim it and move again. Three computer levels, two players on one screen, a daily challenge, and no time limit.",
+    "applicationCategory": "GameApplication",
+    "genre": "Board Game",
+    "operatingSystem": "Any (web browser)",
+    "browserRequirements": "Requires JavaScript",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
+</head>
+<body data-nav="shown">
+  <!-- games:nav -->
+  <nav class="site-nav" id="site-nav" aria-label="Site" data-nav-from="dots_and_boxes">
+    <div class="site-nav-inner">
+      <a class="nav-brand" href="/" id="link-crossgame-home" data-crossgame-to="mahjong" data-placement="top_nav_brand" dir="ltr">
+        <svg class="nav-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="var(--nav-mark-bg, #0b4a35)"/><circle cx="9" cy="9.5" r="4.2" fill="var(--nav-mark-ink, #f7f2e6)"/><rect x="11" y="11" width="9" height="10" rx="2.2" fill="var(--nav-mark-ink, #f7f2e6)"/></svg><span class="nav-words"><span class="b-easy">Easy</span> <span class="b-classics">Classics</span></span></a>
+      <span class="nav-spacer" aria-hidden="true"></span>
+      <button class="btn nav-btn" id="nav-games" type="button" aria-haspopup="dialog"
+              aria-expanded="false" aria-controls="nav-panel" data-i18n="games">Games</button>
+      <button class="btn nav-btn" id="nav-lang" type="button" aria-haspopup="dialog"
+              aria-expanded="false" aria-controls="nav-panel">English</button>
+    </div>
+  </nav>
+
+  <div class="nav-panel" id="nav-panel" data-open="false">
+    <div class="nav-panel-sheet" id="nav-panel-sheet" role="dialog" aria-modal="true"
+         aria-labelledby="nav-panel-title" tabindex="-1">
+      <div class="nav-panel-head">
+        <h2 id="nav-panel-title" data-i18n="games">Games</h2>
+        <button type="button" class="btn nav-panel-close" id="nav-close" data-i18n="close">Close</button>
+      </div>
+      <div class="nav-panel-body" id="nav-panel-body">
+        <ul class="nav-card-grid">
+          <li>
+            <a class="game-card" href="/" data-crossgame-to="mahjong" data-placement="top_nav">
+              <img class="game-card-thumb" src="/mahjong-thumb.jpg" width="400" height="400"
+                   alt="Mahjong Solitaire board with big tiles laid out in a pattern" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">Mahjong Solitaire</span>
+                <span class="game-card-desc">Match the free tiles in pairs and clear the whole board — no timer.</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card" href="/daily.html">
+              <img class="game-card-thumb" src="/daily-thumb.jpg" width="400" height="400"
+                   alt="Today's Mahjong Solitaire board with a small month calendar in the corner, today ringed" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">Daily Challenge</span>
+                <span class="game-card-desc">One fresh Mahjong board every day — the same puzzle for everybody.</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card" href="/solitaire/" data-crossgame-to="solitaire" data-placement="top_nav">
+              <img class="game-card-thumb" src="/solitaire-thumb.jpg" width="400" height="400"
+                   alt="Solitaire table with big, easy-to-read cards" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">Solitaire</span>
+                <span class="game-card-desc">The classic card game with big cards — tap a card and it moves by itself.</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card" href="/freecell/" data-crossgame-to="freecell" data-placement="top_nav">
+              <img class="game-card-thumb" src="/freecell-thumb.jpg" width="400" height="400"
+                   alt="FreeCell table with eight columns of big, easy-to-read cards" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">FreeCell</span>
+                <span class="game-card-desc">Every deal can be solved — four free cells and a little patience.</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card" href="/word-search/" data-crossgame-to="word_search" data-placement="top_nav">
+              <img class="game-card-thumb" src="/word-search-thumb.jpg" width="400" height="400"
+                   alt="Word search grid with large letters and highlighted words" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">Word Search</span>
+                <span class="game-card-desc">Find the hidden words on a big, clear grid — a new puzzle every day.</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card" href="/five-in-a-row/" data-crossgame-to="five_in_a_row" data-placement="top_nav">
+              <img class="game-card-thumb" src="/five-in-a-row-thumb.png" width="720" height="720"
+                   alt="Five in a Row board with black and white stones" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">Five in a Row</span>
+                <span class="game-card-desc">Line up five stones on a big, easy-to-see board.</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card" href="/dots-and-boxes/" aria-current="page">
+              <img class="game-card-thumb" src="/dots-and-boxes-thumb.jpg" width="400" height="400"
+                   alt="Dots and Boxes grid with lines joined and several boxes claimed in orange and blue" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">Dots and Boxes</span>
+                <span class="game-card-desc">Join two dots to draw a line — close a box and it is yours.</span>
+                <span class="nav-now" data-i18n="playingNow">Playing now</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card" href="/backgammon/" data-crossgame-to="backgammon" data-placement="top_nav">
+              <img class="game-card-thumb" src="/backgammon-thumb.jpg" width="400" height="400"
+                   alt="Backgammon board with ivory and burgundy checkers and two dice" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">Backgammon</span>
+                <span class="game-card-desc">Roll the dice and bring your checkers home, against a gentle computer.</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card" href="/four-ball-billiards/" data-crossgame-to="four_ball_billiards" data-placement="top_nav">
+              <img class="game-card-thumb" src="/four-ball-billiards-thumb.jpg" width="400" height="400"
+                   alt="Four Ball Billiards table with a white cue ball and two red balls" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">Four Ball Billiards</span>
+                <span class="game-card-desc">Carom billiards on a table with no pockets — hit both reds to score.</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card" href="/eight-ball-pool/" data-crossgame-to="eight_ball_pool" data-placement="top_nav">
+              <img class="game-card-thumb" src="/eight-ball-pool-thumb.jpg" width="400" height="400"
+                   alt="Pool table with the balls racked and the cue ball ready" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">8 Ball Pool</span>
+                <span class="game-card-desc">Line up your shot on a big green table — solids, stripes, then the black.</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card" href="/stone-flick/" data-crossgame-to="stone_flick" data-placement="top_nav">
+              <img class="game-card-thumb" src="/stone-flick-thumb.jpg" width="400" height="400"
+                   alt="StoneFlick table with light and dark stones" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">StoneFlick</span>
+                <span class="game-card-desc">Flick your stones across the table and knock the other side's off.</span>
+              </span>
+            </a>
+          </li>
+          <li>
+            <a class="game-card" href="/shuffleboard/" data-crossgame-to="shuffleboard" data-placement="top_nav">
+              <img class="game-card-thumb" src="/shuffleboard-thumb.jpg" width="400" height="400"
+                   alt="Table shuffleboard with red and blue weights on a maple board" decoding="async" loading="lazy">
+              <span class="game-card-body">
+                <span class="game-card-title">Shuffleboard</span>
+                <span class="game-card-desc">Slide your weights down a long maple board into the scoring zones.</span>
+              </span>
+            </a>
+          </li>
+        </ul>
+        <section class="nav-lang" id="nav-lang-section" aria-labelledby="nav-lang-title">
+          <h3 id="nav-lang-title" data-i18n="language">Language</h3>
+          <div class="lang-grid" id="nav-lang-grid"></div>
+          <p class="nav-lang-note" id="nav-lang-note" aria-live="polite"></p>
+        </section>
+      </div>
+    </div>
+  </div>
+  <!-- /games:nav -->
+
+  <!-- dir="ltr" on the game's own roots, not on <body>: choosing Arabic in
+       the Games panel sets dir="rtl" on <html> (/i18n/i18n.js), which is
+       exactly right for the bar and the panel (DESIGN.md §7) and exactly
+       wrong for this game — its own UI has no i18n runtime yet, so it is
+       English whatever the site language is, and English mirrored is just
+       broken. Same rule the site's boards follow. -->
+  <main id="app" dir="ltr">
+    <h1 class="game-title">Dots and Boxes</h1>
+    <div id="top-bar">
+      <!-- The in-game way into the site's Games panel: the bar above is
+           hidden while a board is live (DESIGN.md §6), so this takes over
+           there and is hidden itself during setup, when the real bar is
+           two rows up. /nav.js owns the panel; src/main.js only opens it. -->
+      <button type="button" id="games-btn" class="small-btn" hidden>Games</button>
+      <div id="top-actions">
+        <!--
+          Always reachable regardless of gamePhase, deliberately — a
+          read-only progress view can't affect a game in progress, and
+          "what did I just unlock?" is exactly the question a player has
+          the moment an achievement toast fires mid-game (milestone 14
+          design decision, see CLAUDE.md).
+        -->
+        <button type="button" id="achievements-btn" class="icon-btn" aria-label="View achievements">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M7 4h10v3a5 5 0 0 1-10 0V4z"/>
+            <path d="M7 5H4a3 3 0 0 0 3 5"/>
+            <path d="M17 5h3a3 3 0 0 1-3 5"/>
+            <line x1="12" y1="12" x2="12" y2="16"/>
+            <path d="M9 20h6"/>
+            <path d="M9.5 16.3h5l.7 3.7h-6.4z"/>
+          </svg>
+          <span id="achievements-count">0/12</span>
+        </button>
+        <!-- Disabled (not hidden) while a game is in progress — changing
+             mode/difficulty/size mid-game is what this gates, and
+             everything it opens (including the skin picker) is nested
+             behind it. -->
+        <button type="button" id="settings-btn" class="icon-btn" aria-label="Settings">
+          <!-- A conventional filled cog: 8 blocky teeth around a ring
+               with a hollow center (single path, fill-rule="evenodd"
+               cuts the hole — no background-color dependency, unlike a
+               "punch a matching-bg circle on top" approach). Coordinates
+               generated with a small script (8 teeth, tooth radius 10.2,
+               root radius 7.4, hole radius 3.8) rather than hand-placed,
+               after an earlier stroked-ring + detached-teeth version
+               read as an asterisk/flower instead of a gear. -->
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+            <path fill-rule="evenodd" d="M10.27,4.8 L9.62,2.08 L14.38,2.08 L13.73,4.8 L15.87,5.69 L17.33,3.3 L20.7,6.67 L18.31,8.13 L19.2,10.27 L21.92,9.62 L21.92,14.38 L19.2,13.73 L18.31,15.87 L20.7,17.33 L17.33,20.7 L15.87,18.31 L13.73,19.2 L14.38,21.92 L9.62,21.92 L10.27,19.2 L8.13,18.31 L6.67,20.7 L3.3,17.33 L5.69,15.87 L4.8,13.73 L2.08,14.38 L2.08,9.62 L4.8,10.27 L5.69,8.13 L3.3,6.67 L6.67,3.3 L8.13,5.69 Z M12.0,8.2 L13.17,8.39 L14.23,8.93 L15.07,9.77 L15.61,10.83 L15.8,12.0 L15.61,13.17 L15.07,14.23 L14.23,15.07 L13.17,15.61 L12.0,15.8 L10.83,15.61 L9.77,15.07 L8.93,14.23 L8.39,13.17 L8.2,12.0 L8.39,10.83 L8.93,9.77 L9.77,8.93 L10.83,8.39 Z"/>
+          </svg>
+        </button>
+        <!-- Icon swapped between on/off states by main.js; never gated by
+             gamePhase — muting isn't a game setting that could discard a
+             game in progress. -->
+        <button type="button" id="sound-toggle-btn" class="icon-btn" aria-label="Toggle sound"></button>
+      </div>
+    </div>
+
+    <div id="hud">
+      <div id="player-0" class="player-card">
+        <span class="dot"></span>
+        <span class="player-info">
+          <span class="player-label" id="player-0-label">Player 1</span>
+          <span class="score" id="score-0">0</span>
+        </span>
+      </div>
+      <div id="turn-label">Player 1's turn</div>
+      <div id="player-1" class="player-card">
+        <span class="dot"></span>
+        <span class="player-info">
+          <span class="player-label" id="player-1-label">Player 2</span>
+          <span class="score" id="score-1">0</span>
+        </span>
+      </div>
+    </div>
+
+    <div id="board-wrap">
+      <canvas id="board"></canvas>
+      <div id="setup-overlay">
+        <!-- Starts immediately with whatever's currently configured
+             (defaults: vs AI / Medium / 5x5 / Quick Start) — the settings
+             modal is where those get changed, not this screen. -->
+        <button id="start-game-btn" type="button">Play</button>
+        <div id="daily-challenge-entry">
+          <button id="daily-challenge-btn" type="button">Daily Challenge</button>
+          <div id="daily-preview"></div>
+          <div id="daily-streak-info"></div>
+        </div>
+        <button type="button" id="play-friend-btn" class="text-link-btn">Play with a friend</button>
+      </div>
+      <div id="coin-flip-banner" hidden>
+        <div id="coin-flip-text"></div>
+      </div>
+      <div id="game-over-banner" hidden>
+        <div class="overlay-panel">
+          <div id="game-over-text"></div>
+          <div id="game-over-score"></div>
+          <div id="game-over-streak" hidden></div>
+          <div id="game-over-actions">
+            <button id="rematch-btn" type="button">Rematch</button>
+            <button id="game-over-new-game-btn" type="button" class="small-btn">New Game</button>
+          </div>
+        </div>
+      </div>
+      <div id="daily-result-overlay" hidden>
+        <div class="overlay-panel">
+          <div id="daily-result-text"></div>
+          <div id="daily-result-score"></div>
+          <div id="daily-result-streak"></div>
+          <div id="daily-countdown"></div>
+          <button id="daily-result-close-btn" type="button" class="small-btn">Back to Menu</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Only visible during gamePhase === 'playing'. -->
+    <div id="game-controls" hidden>
+      <button type="button" id="undo-btn" class="small-btn">Undo</button>
+      <button type="button" id="hint-btn" class="small-btn">Hint</button>
+      <button type="button" id="restart-btn" class="small-btn">New Game</button>
+    </div>
+  </main>
+
+  <!--
+    Fixed to the VIEWPORT, not #board-wrap — deliberately outside the
+    normal layout flow so it never competes for space with, or gets
+    clipped by, the board/HUD/game-over banners. Sits above every modal
+    (z-index 1000 > 900/850) so an unlock toast is never hidden even if a
+    panel happens to be open when it fires.
+  -->
+  <div id="achievement-toast-container" aria-live="polite" dir="ltr"></div>
+
+  <div id="achievements-overlay" class="modal-overlay" dir="ltr" hidden>
+    <div id="achievements-panel" class="modal-panel">
+      <div class="modal-header">
+        <h2>Achievements</h2>
+        <span id="achievements-header-count">0/12</span>
+        <button type="button" id="achievements-close-btn" class="icon-btn" aria-label="Close achievements">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <line x1="5" y1="5" x2="19" y2="19"/>
+            <line x1="19" y1="5" x2="5" y2="19"/>
+          </svg>
+        </button>
+      </div>
+      <ul id="achievements-list"></ul>
+    </div>
+  </div>
+
+  <div id="skin-overlay" class="modal-overlay" dir="ltr" hidden>
+    <div id="skin-panel" class="modal-panel">
+      <div class="modal-header">
+        <h2>Board Skins</h2>
+        <button type="button" id="skin-close-btn" class="icon-btn" aria-label="Close skin picker">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <line x1="5" y1="5" x2="19" y2="19"/>
+            <line x1="19" y1="5" x2="5" y2="19"/>
+          </svg>
+        </button>
+      </div>
+      <ul id="skin-list"></ul>
+    </div>
+  </div>
+
+  <div id="settings-overlay" class="modal-overlay" dir="ltr" hidden>
+    <div id="settings-panel" class="modal-panel">
+      <div class="modal-header">
+        <h2>Settings</h2>
+        <button type="button" id="settings-close-btn" class="icon-btn" aria-label="Close settings">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+            <line x1="5" y1="5" x2="19" y2="19"/>
+            <line x1="19" y1="5" x2="5" y2="19"/>
+          </svg>
+        </button>
+      </div>
+      <div id="settings-body" class="settings-body">
+        <div class="settings-row">
+          <span class="settings-row-label">Mode</span>
+          <div class="seg-group" id="mode-toggle">
+            <button type="button" class="seg-btn" data-mode="local">2 Player</button>
+            <button type="button" class="seg-btn" data-mode="ai">vs AI</button>
+          </div>
+        </div>
+        <div class="settings-row" id="difficulty-row">
+          <span class="settings-row-label">Difficulty</span>
+          <div class="seg-group" id="difficulty-toggle">
+            <button type="button" class="seg-btn" data-difficulty="easy">Easy</button>
+            <button type="button" class="seg-btn" data-difficulty="medium">Medium</button>
+            <button type="button" class="seg-btn" data-difficulty="hard">Hard</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-label">Board Size</span>
+          <div class="seg-group" id="size-toggle">
+            <button type="button" class="seg-btn" data-size="3">3×3</button>
+            <button type="button" class="seg-btn" data-size="5">5×5</button>
+            <button type="button" class="seg-btn" data-size="7">7×7</button>
+          </div>
+        </div>
+        <div class="settings-row">
+          <span class="settings-row-label">Start</span>
+          <div class="seg-group" id="quickstart-toggle">
+            <button type="button" class="seg-btn" data-quickstart="off">Classic</button>
+            <button type="button" class="seg-btn" data-quickstart="on">Quick Start</button>
+          </div>
+        </div>
+        <button type="button" id="skin-open-btn" class="settings-link-row">
+          <span>Board Skin</span>
+          <span class="settings-link-value">
+            <span id="skin-current-swatch" class="skin-swatch-dot-inline"></span>
+            <span id="skin-current-name">Paper</span>
+          </span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Only shown when abandoning a game that's genuinely in progress
+       (see main.js's NEW_GAME_CONFIRM_THRESHOLD) — a fresh/barely-started
+       board skips straight to New Game with no prompt. -->
+  <div id="confirm-overlay" class="modal-overlay" dir="ltr" hidden>
+    <div id="confirm-panel" class="confirm-panel">
+      <div id="confirm-text">Abandon this game and start a new one?</div>
+      <div id="confirm-actions">
+        <button type="button" id="confirm-cancel-btn" class="small-btn">Cancel</button>
+        <button type="button" id="confirm-ok-btn">New Game</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+  <!-- The shared top bar / Games panel behaviour (DESIGN.md "Site
+       navigation"). Loaded after the game so the game owns first paint. -->
+  <script type="module" src="/nav.js"></script>
+</body>
+</html>

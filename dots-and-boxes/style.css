@@ -1,0 +1,1078 @@
+/* dots-and-boxes/style.css — SITE BUILD (easymahjongsolitaire.com).
+ *
+ * This is the CrazyGames portal build's inline <style> block, moved out
+ * to a file. The site's Content-Security-Policy (vercel.json:
+ * `script-src 'self'; style-src 'self'`) admits no inline <style> and no
+ * style="" attribute, so the block could not stay in index.html — the
+ * <link> in the head sits exactly where it used to be. Setting
+ * el.style.x from JS is CSSOM and still fine, which is what the board
+ * skins do (src/main.js applyActiveTheme()).
+ *
+ * Everything above the "top bar" section is the portal build unchanged
+ * apart from the three edits called out in NOTES.md; the site navigation
+ * block at the very bottom is new (DESIGN.md "Site navigation" §6).
+ */
+
+:root {
+  --bg: #f4efe6;
+  --panel: #ffffff;
+  --text: #2b2b2b;
+  --muted: #8a8478;
+  --accent: #e4572e;
+  /* A distinct color from --accent on purpose (milestone 13-3): the
+     Daily Challenge is a separate, deliberately different call to
+     action next to "Start Game," not a variant of it. */
+  --daily-accent: #2b6cb0;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overscroll-behavior: none;
+}
+
+/* DESIGN.md §6: the page cannot scroll, so the site bar cannot scroll
+ * away — it takes a real row at the top and the game gets what is left.
+ * A flex column rather than calc(100vh - var(--nav-h)): 100vh is wrong
+ * on iOS and the notch padding would make that arithmetic wrong twice. */
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+/* Any modal open (milestone 14 UI pass) locks background scroll — the
+   modal's own body scrolls internally (see .modal-panel) instead. */
+body.modal-open {
+  overflow: hidden;
+}
+
+/* was height: 100% — now the one flexible row under the site bar
+ * (DESIGN.md §6). max-width/margin-inline moved up from the children:
+ * every child was already capped at 520px and centred by
+ * align-items: center, so capping the container instead is the same
+ * picture and lets the <h1> line up with the board. */
+#app {
+  flex: 1 1 auto;
+  min-height: 0;
+  height: auto;
+  width: 100%;
+  max-width: 520px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px;
+  gap: 10px;
+}
+
+/* The page's one <h1>, first in <main> (DESIGN.md §5): visually small,
+ * still first in the reading order — the hierarchy is board-first and
+ * the h1's remaining jobs are SEO and telling someone arriving from an
+ * ad what they just opened. It used to sit inside #top-bar next to the
+ * icon buttons; the site's nav check wants it as <main>'s first child,
+ * and on its own line it can also be bigger than the 1.1rem it was. */
+.game-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-align: center;
+  color: var(--text);
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (min-width: 768px) {
+  .game-title { font-size: 22px; }
+}
+
+/* --- top bar: title + icon actions (milestone 14) ------------------ */
+
+/* The actions row. The title used to sit at its start; now that the <h1>
+ * is <main>'s own first child (DESIGN.md §5) this row is the Games button
+ * plus the three icon buttons, and the icons must stay at the end whether
+ * or not Games is showing — hence flex-end + auto margin rather than
+ * space-between, which would slide the icons left as soon as the Games
+ * button hides during setup. */
+#top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  width: 100%;
+  max-width: 520px;
+  gap: 8px;
+}
+
+#games-btn {
+  margin-inline-end: auto;
+}
+
+/* The in-game entry to the site's Games panel — the mid-game half of
+ * DESIGN.md §6 ("each game's menu gains a Games item"), since the bar
+ * itself is hidden while a board is live. Shown only during play, for
+ * exactly that reason: during setup the real bar is two rows above it.
+ * A word, never an icon — the site's 65+ rule. */
+#games-btn[hidden] {
+  display: none;
+}
+
+#top-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+/* Icon-only buttons (achievements/settings/sound) share this: circular,
+   same 48px touch-target floor as .small-btn, background/shadow match
+   the rest of the pill-button vocabulary so they read as part of the
+   same UI, not a different control family. */
+/* SITE BUILD: 48px, not the portal build's 44px. The site's audience
+   turned out to be 65+ women (site CLAUDE.md), and 48px is the floor
+   every other game here uses. Every "0.8rem" in this file went up for
+   the same reason — nothing a player reads is under ~14px now. */
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 8px;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.icon-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.icon-btn svg {
+  display: block;
+}
+
+/* Achievements keeps its icon+count pairing (was "🏆 0/12", now the
+   trophy SVG + text) — needs asymmetric padding instead of the square
+   footprint every other icon-btn gets. */
+#achievements-btn {
+  padding-left: 12px;
+  padding-right: 12px;
+  gap: 4px;
+  width: auto;
+}
+
+#achievements-count {
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+#sound-toggle-btn:not(.active) {
+  opacity: 0.5;
+}
+
+#hud {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  width: 100%;
+  max-width: 520px;
+}
+
+/* Only shown once a game is actually in progress (main.js toggles this
+   via gamePhase) — the first screen has nothing to score yet, and
+   hiding it there means the empty board preview gets the vertical
+   space instead. */
+#hud[hidden] {
+  display: none;
+}
+
+.player-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  background: var(--panel);
+  border: 2px solid transparent;
+  min-width: 84px;
+  justify-content: center;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.player-card .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--player-color);
+  flex-shrink: 0;
+}
+
+.player-card .player-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.15;
+}
+
+.player-card .player-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.player-card .score {
+  font-weight: 700;
+  font-size: 1.2rem;
+}
+
+.player-card.active {
+  border-color: var(--player-color);
+  /* color-mix() is a ~2023+ feature; on an older/low-end browser that
+     doesn't parse it, this whole declaration is invalid and ignored,
+     leaving the plain box-shadow just above it in effect instead — a
+     flat, ungraded glow rather than the player-tinted one, not a
+     missing indicator. border-color above (plain var(), universally
+     supported) still shows which player's turn it is either way. */
+  box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--player-color) 20%, transparent);
+}
+
+#turn-label {
+  font-size: 1rem;
+  color: var(--muted);
+  min-width: 140px;
+  text-align: center;
+}
+
+#board-wrap {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  flex: 1;
+  min-height: 260px;
+}
+
+/* A short landscape phone (~360-390px tall) doesn't have 260px to
+   spare on top of the header/HUD even with the settings row gone. The
+   non-board chrome (title, HUD padding/text, #app's own padding/gap)
+   gets trimmed to claw back as much height as possible for the board —
+   which actually matters, since a 7x7 board with a cramped cell size
+   is a real usability problem the size-toggle explicitly calls for
+   avoiding — and only THEN does min-height drop to a smaller (not
+   zero) floor, as a last-resort guarantee rather than the primary
+   lever. */
+@media (max-height: 450px) {
+  #app {
+    padding: 6px;
+    gap: 6px;
+  }
+
+  .game-title {
+    display: none;
+  }
+
+  .player-card {
+    padding: 4px 10px;
+  }
+
+  .player-card .score {
+    font-size: 1rem;
+  }
+
+  #turn-label {
+    font-size: 0.9rem;
+    min-width: 100px;
+  }
+
+  #board-wrap {
+    min-height: 180px;
+  }
+}
+
+#board {
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+  background: var(--panel);
+  border-radius: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.08);
+}
+
+#game-over-banner,
+#coin-flip-banner,
+#setup-overlay,
+#daily-result-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  border-radius: 14px;
+}
+
+/* setup-overlay precedes any game (nothing colored underneath yet) and
+   coin-flip-banner shows over a fresh/prefilled board, not a finished
+   one -- a near-opaque wash over the whole board-wrap is fine (and was
+   always the intent) for these two. */
+#coin-flip-banner,
+#setup-overlay {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+/* Game over and the daily-result screen must NOT wash out the board:
+   the finished box colors ARE the payoff of a game, and this shared
+   rgba(255,255,255,0.92) background used to flatten all 25 boxes to a
+   uniform gray right when the score matters most. These two stay fully
+   transparent now -- only their content gets a background, via
+   .overlay-panel below -- so the real final color split stays visible
+   behind/around the panel. */
+#game-over-banner,
+#daily-result-overlay {
+  background: transparent;
+}
+
+/* The card itself: same visual language as .modal-panel (var(--panel)
+   + shadow) so it reads as "the same kind of surface" as every other
+   panel in the app, and so it automatically follows all 4 board skins
+   (theme.js sets --panel per skin) without any extra per-theme CSS. */
+.overlay-panel {
+  background: var(--panel);
+  border-radius: 14px;
+  padding: 20px 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+#game-over-banner[hidden],
+#coin-flip-banner[hidden],
+#setup-overlay[hidden],
+#daily-result-overlay[hidden] { display: none; }
+
+#game-over-text {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+#game-over-score {
+  margin-top: -8px;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+#game-over-streak {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* A broken new best just uses the normal text color+weight above; a
+   freshly-set one gets called out — same accent used for the active
+   player card / active toggle elsewhere, so "highlighted" already
+   reads consistently as "this is the notable thing" across the UI. */
+#game-over-streak.new-best {
+  color: var(--accent);
+  font-size: 1.05rem;
+}
+
+#game-over-actions {
+  display: flex;
+  gap: 10px;
+}
+
+/* Rematch is the one-click primary action (same settings, instant
+   restart); New Game is the secondary escape hatch back to setup —
+   .small-btn's lighter pill styling is what keeps it visually
+   secondary next to Rematch's solid accent button. */
+#game-over-actions .small-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+}
+
+#coin-flip-text {
+  font-size: 1.3rem;
+  font-weight: 700;
+  animation: coin-flip-pop 0.2s ease;
+}
+
+@keyframes coin-flip-pop {
+  from { transform: scale(0.7); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+/* --- daily challenge (milestone 13-3) ----------------------------- */
+
+#daily-challenge-entry {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+#daily-challenge-btn {
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+/* Eye-catching only while today hasn't been played yet — CLAUDE.md's
+   daily requirement ("눈에 띄게"). Already-played today intentionally
+   looks like any other secondary button once this class is gone. */
+#daily-challenge-btn.daily-ready {
+  background: var(--daily-accent);
+  color: white;
+  animation: daily-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes daily-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(43, 108, 176, 0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(43, 108, 176, 0); }
+}
+
+#daily-streak-info {
+  font-size: 0.9rem;
+  color: var(--muted);
+  min-height: 1em; /* avoid a layout shift when there's no streak to show yet */
+}
+
+#daily-preview {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+#daily-result-text {
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+#daily-result-score {
+  margin-top: -8px;
+  font-size: 1rem;
+  color: var(--muted);
+}
+
+#daily-result-streak {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--daily-accent);
+  min-height: 1em;
+}
+
+#daily-countdown {
+  font-size: 0.95rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums; /* keeps the ticking digits from jittering horizontally */
+}
+
+/* "Play with a friend" — a quiet text link, not a competing button,
+   under the Play/Daily CTAs on the first screen. Immediately starts a
+   2-player local game (no settings modal detour). */
+.text-link-btn {
+  background: none;
+  box-shadow: none;
+  color: var(--muted);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: underline;
+  padding: 6px 8px;
+  border-radius: 4px;
+  /* Looks like plain text but still meets the 48px touch-target floor. */
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+}
+
+button {
+  font: inherit;
+  border: none;
+  background: var(--accent);
+  color: white;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+button:active {
+  transform: translateY(1px);
+}
+
+#start-game-btn {
+  font-size: 1.15rem;
+  font-weight: 700;
+  padding: 16px 36px;
+  border-radius: 999px;
+  box-shadow: 0 4px 14px rgba(228, 87, 46, 0.35);
+}
+
+.small-btn {
+  font: inherit;
+  background: var(--panel);
+  color: var(--text);
+  border: none;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  /* Same 48px touch-target floor as .seg-btn below. */
+  min-height: 48px;
+  min-width: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.small-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* --- in-game controls: Undo / Hint / New Game (milestone 14) ------- */
+/* Only visible during gamePhase === 'playing' — everything else (mode/
+   difficulty/size/quick-start/skin) now lives in the settings modal,
+   reachable only from setup, so this bar is deliberately small: three
+   actions that make sense mid-game and nothing else. */
+
+#game-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  max-width: 520px;
+  flex-wrap: wrap;
+}
+
+#game-controls[hidden] {
+  display: none;
+}
+
+/* --- achievement toasts (milestone 13-2) ------------------------- */
+
+#achievement-toast-container {
+  position: fixed;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  /* Purely informational — never intercepts a click meant for
+     whatever's underneath it, even while a toast is visible. */
+  pointer-events: none;
+}
+
+/* SITE BUILD: while the site bar is on screen (setup only — it hides
+   during play) a toast at top: 12px would land on the wordmark. Skin
+   unlocks can fire at boot, on exactly that screen. */
+body[data-nav="shown"] #achievement-toast-container {
+  top: calc(var(--nav-h) + 12px);
+}
+
+.achievement-toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--text);
+  color: white;
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-size: 0.95rem;
+  font-weight: 700;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25);
+  max-width: min(90vw, 360px);
+  animation: toast-in 0.2s ease;
+}
+
+.achievement-toast .toast-icon {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+@keyframes toast-in {
+  from { transform: translateY(-14px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* --- shared modal shell: achievements / skins / settings (milestone
+   14 pulls what used to be three near-identical blocks into one) ---- */
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.modal-overlay[hidden] {
+  display: none;
+}
+
+/* The settings modal can open achievements/skins ON TOP of itself
+   (their "entry points" now live inside it) — a lower z-index here
+   guarantees that nesting regardless of DOM order. */
+#settings-overlay {
+  z-index: 850;
+}
+
+.modal-panel {
+  background: var(--panel);
+  border-radius: 14px;
+  width: 100%;
+  max-width: 480px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 16px;
+  gap: 12px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  flex: 1;
+}
+
+#achievements-header-count {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+#achievements-list,
+#skin-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.achievement-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+}
+
+/* An unlocked row gets a light accent wash so scanning the list for
+   "what have I actually earned" is instant; locked rows keep their
+   title/description fully legible (CLAUDE.md's milestone note: a
+   reward you can't read isn't motivating) but visually recede via a
+   dimmed icon and muted title color. Both states use the same trophy
+   icon (see main.js's ICONS.trophy) — dimming, not a separate padlock
+   glyph, is what marks "locked" (milestone 14: only 4 icons total). */
+.achievement-row.unlocked {
+  background: rgba(228, 87, 46, 0.08);
+}
+
+.achievement-row .achievement-icon {
+  width: 28px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.achievement-row.locked .achievement-icon {
+  opacity: 0.4;
+}
+
+.achievement-row .achievement-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.achievement-row .achievement-title {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.achievement-row.locked .achievement-title {
+  color: var(--muted);
+}
+
+.achievement-row .achievement-desc {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* --- board skins (milestone 13-4) --------------------------------- */
+
+.skin-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  cursor: default;
+}
+
+.skin-row.unlocked:not(.selected) {
+  cursor: pointer;
+}
+
+.skin-row.selected {
+  background: rgba(228, 87, 46, 0.08);
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+/* Background swatch + two player-color dots — a tiny preview of the
+   skin without switching to it first. Fixed size regardless of the
+   panel's own current theme, since it's showing what ANOTHER skin
+   looks like, not the active one. */
+.skin-row .skin-swatch {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+}
+
+.skin-row.locked .skin-swatch {
+  opacity: 0.45;
+}
+
+.skin-row .skin-swatch-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+
+.skin-row .skin-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.skin-row .skin-title {
+  font-weight: 700;
+  font-size: 1rem;
+}
+
+.skin-row.locked .skin-title {
+  color: var(--muted);
+}
+
+.skin-row .skin-desc {
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+/* --- settings modal (milestone 14) -------------------------------- */
+
+.settings-body {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.settings-row-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--muted);
+}
+
+#difficulty-row.hidden {
+  display: none;
+}
+
+.seg-group {
+  display: flex;
+  background: var(--bg);
+  border-radius: 999px;
+  padding: 3px;
+  gap: 2px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.06);
+}
+
+.seg-btn {
+  font: inherit;
+  background: transparent;
+  color: var(--text);
+  border: none;
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  /* 48px, the site's floor for a 65+ audience (WCAG 2.5.5 asks 44). */
+  min-height: 48px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.seg-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
+.seg-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* The Board Skin row inside the settings modal — same visual language
+   as an achievement/skin row (a tappable card, not a plain link) so it
+   doesn't read as a lesser control next to the seg-groups above it. */
+.settings-link-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  font-size: 0.95rem;
+  min-height: 48px;
+}
+
+.settings-link-value {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-weight: 600;
+}
+
+.skin-swatch-dot-inline {
+  width: 16px;
+  height: 16px;
+  border-radius: 5px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+/* --- new-game confirmation (milestone 14) ------------------------- */
+
+.confirm-panel {
+  background: var(--panel);
+  border-radius: 14px;
+  max-width: 340px;
+  width: 100%;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+#confirm-text {
+  font-size: 1.05rem;
+  font-weight: 600;
+}
+
+#confirm-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+#confirm-actions button {
+  flex: 1;
+}
+
+/* =======================================================================
+ * SITE NAVIGATION — this build's share of the top bar and the Games panel
+ *
+ * DESIGN.md "Site navigation" is the spec; §6 is this page's half of it.
+ * The markup comes from tools/sync-games.mjs (the <!-- games:nav --> fence
+ * in index.html), the behaviour from /nav.js, and — since the design
+ * review — the LOOK from /style.css, which index.html now loads FIRST.
+ *
+ * Why the change. This file used to restate all ~330 lines of the bar and
+ * the panel in this game's own skin variables, so that the bar would follow
+ * Paper / Chalkboard / Neon / Blueprint. Within one day of parallel work
+ * that fork had become a different brand: the mark re-tinted accent-orange
+ * against every other page's deep-green badge, a near-invisible --muted
+ * hairline instead of the site's 1.5px deep-green rule, beige pills instead
+ * of the site's two ivory controls, grey card borders on the panel, and
+ * "Playing now" in orange on cream at 3.4:1. None of that was anyone's
+ * mistake; it is what a second implementation does. The bar's entire value
+ * is that it is ONE implementation, so this build joins the other three
+ * standalone ones: /style.css first, this file second, cascade ORDER
+ * settling every disagreement.
+ *
+ * What is deliberately NOT overridden any more: the three --nav-* colours.
+ * The bar is site chrome, not game surface — DESIGN.md §1's "one calm cream
+ * field, the bar reading as chrome" — and it is only ever on screen on the
+ * home / setup screen, because it hides during play. So it is the site's
+ * cream bar with the site's two controls and the site's deep-green mark on
+ * all four skins, exactly as on the other fifteen pages. A cream band above
+ * a Chalkboard board is the same picture /backgammon/ and /eight-ball-pool/
+ * already are: site chrome above a dark green table.
+ * ======================================================================= */
+
+:root {
+  /* Capped notch inset. --nav-h and the three --nav-* colours now come from
+   * /style.css unchanged, which is the point; this is the one nav variable
+   * that is genuinely local, because the cap is this build's own. */
+  --notch: min(env(safe-area-inset-top), 24px);
+}
+
+/* There is no scroll here (html, body { height: 100% }), so the bar cannot
+ * scroll away the way it does on a site-shell phone page. It takes a real
+ * row and the game gets what is left — as a FLEX COLUMN (set up at the top
+ * of this file), not as calc(100vh - var(--nav-h)): 100vh is wrong on iOS
+ * and the notch padding would make that arithmetic wrong twice. */
+.site-nav {
+  flex: 0 0 auto;
+  /* The bar is the top edge of the page, so it is the one element that pays
+   * for a notch — this game's own capped inset (see :root --notch), not the
+   * raw env() value. Nothing else here spends --notch, so it is not paid
+   * twice the way it was on Four Ball. */
+  padding-top: var(--notch);
+}
+
+/* IT HIDES DURING PLAY. Set by src/main.js's syncNavVisibility() when a
+ * board goes live and cleared on the way back to the setup screen, because
+ * the canvas geometry is measured in JS and a permanent band above a
+ * surface you tap on is a mis-tap hazard. Every toggle is followed by this
+ * game's own canvas remeasure in the same frame. Mid-game the panel is
+ * still one tap away from #games-btn in the game's own top row. */
+body[data-nav="hidden"] .site-nav {
+  display: none;
+}
+
+/* The panel is the site's cream sheet. This file redefines --accent (an
+ * orange, for the board) and body's colour comes from --text, which three
+ * of the four skins set to a near-white — so both go back to /style.css's
+ * values for the length of the panel, or the word "Games" is invisible on
+ * its own cream sheet and the chosen language is ringed in orange instead
+ * of the site's amber. DESIGN.md §6a, measured on the other three builds
+ * before this one. */
+.nav-panel {
+  /* The stacking order is genuinely local. /style.css puts the panel at 160,
+   * which is above everything a site-shell page stacks; this build's own
+   * overlays are far higher (settings 850, achievements/skins 900, the
+   * achievement toast container 1000), so at 160 the panel would open
+   * BEHIND them. 950 keeps DESIGN.md §3's rule — Games always wins over the
+   * game's own chrome, and an unlock toast is never hidden by it. */
+  z-index: 950;
+  --ink: #0f2419;
+  --accent: #f2b705;
+  color: var(--ink);
+}
+
+/* ---- what leaks through /style.css, neutralised by name ----------------
+ * Measured by diffing the computed style of all 240 elements on this page
+ * with and without /style.css in the head. Everything else this file
+ * declares already wins on ORDER; these are the properties this file never
+ * declared, so the site's value came through.
+ * ------------------------------------------------------------------------- */
+
+/* 1. The phone action bar Mahjong owns puts 64px of bottom padding on the
+ *    page body under 640px. There is no action bar here and no scroll to
+ *    absorb it. */
+html,
+body {
+  padding: 0;
+}
+
+/* 2. The page font. /style.css sets body { font-size: 18px; line-height:
+ *    1.5 }; this build sized everything at the browser default, and every
+ *    em-based size in it would grow 12.5% (same as StoneFlick — DESIGN.md
+ *    §6a). rem is unaffected, but em and the unitless sizes are not. */
+body {
+  font-size: 16px;
+  line-height: normal;
+}
+
+/* 3. The achievement toast. /style.css's own .achievement-toast is a
+ *    fixed, self-positioning, opacity-0 pill that a .is-visible class
+ *    reveals; this game's is a static child of a fixed
+ *    #achievement-toast-container and never gets that class, so the site's
+ *    position / transform / opacity / pointer-events came through and the
+ *    unlock toast would have been invisible for good. */
+.achievement-toast {
+  position: static;
+  top: auto;
+  left: auto;
+  transform: none;
+  opacity: 1;
+  pointer-events: auto;
+  z-index: auto;
+  transition: none;
+}
+
+/* 4. body's own box. /style.css gives the page body min-height: 100%,
+ *    overflow-x: hidden (its sideways-scroll safety net) and, with that,
+ *    an overflow-y of auto — which turns this fixed-height page's body
+ *    into a scroll container and changes what the canvas is measured
+ *    against. Restore exactly what this build shipped and tested with.
+ *    body.nav-open / body.modal-open still lock scrolling: both are two
+ *    classes deep and win over this. */
+body {
+  overflow: visible;
+  min-height: 0;
+}
+
+/* 5. .settings-row. Both stylesheets own that class name; the site's puts
+ *    18px of margin above and below every row, which this build's settings
+ *    sheet spaces with a gap instead — four rows would have gained 144px
+ *    of dead space inside a modal that already scrolls. */
+.settings-row {
+  margin: 0;
+}
