@@ -1,3 +1,11 @@
 .DS_Store
 node_modules/
 *.zip
+
+# Screenshots and files Claude hands back through the chat: the desktop app
+# drops them into the first connected folder, which is this repo. They are
+# conversation attachments, not source.
+Claude outputs/
+
+# Local Claude Code settings for this checkout.
+.claude/
