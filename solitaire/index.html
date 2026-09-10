@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Solitaire — Free Online Klondike, Big Cards, No Download</title>
+<title>Solitaire — Free Online Klondike, Big Cards, No Download | Easy Classics</title>
 <meta name="description" content="Play classic Solitaire (Klondike) free online — no download, no sign-up, no timer. Big, easy-to-read cards, tap a card and it moves by itself, unlimited undo and hints.">
 <link rel="canonical" href="https://easymahjongsolitaire.com/solitaire/">
 
@@ -114,13 +114,153 @@
 
 <a class="skip-link" id="sol-skip-link" href="#sol-table" data-i18n="skipToCards">Skip to the cards</a>
 
-<header class="site-header">
-  <h1>Solitaire</h1>
-  <p class="tagline"><span data-i18n="tagline">Classic Klondike with big, easy-to-read cards. No download, no sign-up, no timer.</span>
-    <a href="/" data-i18n="playMahjong">Play Mahjong Solitaire →</a></p>
-</header>
+<!-- games:nav -->
+<nav class="site-nav" id="site-nav" aria-label="Site" data-nav-from="solitaire">
+  <div class="site-nav-inner">
+    <a class="nav-brand" href="/" id="link-crossgame-home" data-crossgame-to="mahjong" data-placement="top_nav_brand" dir="ltr">
+      <svg class="nav-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="var(--nav-mark-bg, #0b4a35)"/><circle cx="9" cy="9.5" r="4.2" fill="var(--nav-mark-ink, #f7f2e6)"/><rect x="11" y="11" width="9" height="10" rx="2.2" fill="var(--nav-mark-ink, #f7f2e6)"/></svg><span class="nav-words"><span class="b-easy">Easy</span> <span class="b-classics">Classics</span></span></a>
+    <span class="nav-spacer" aria-hidden="true"></span>
+    <button class="btn nav-btn" id="nav-games" type="button" aria-haspopup="dialog"
+            aria-expanded="false" aria-controls="nav-panel" data-i18n="games">Games</button>
+    <button class="btn nav-btn" id="nav-lang" type="button" aria-haspopup="dialog"
+            aria-expanded="false" aria-controls="nav-panel">English</button>
+  </div>
+</nav>
+
+<div class="nav-panel" id="nav-panel" data-open="false">
+  <div class="nav-panel-sheet" id="nav-panel-sheet" role="dialog" aria-modal="true"
+       aria-labelledby="nav-panel-title" tabindex="-1">
+    <div class="nav-panel-head">
+      <h2 id="nav-panel-title" data-i18n="games">Games</h2>
+      <button type="button" class="btn nav-panel-close" id="nav-close" data-i18n="close">Close</button>
+    </div>
+    <div class="nav-panel-body" id="nav-panel-body">
+      <ul class="nav-card-grid">
+        <li>
+          <a class="game-card" href="/" data-crossgame-to="mahjong" data-placement="top_nav">
+            <img class="game-card-thumb" src="/mahjong-thumb.jpg" width="400" height="400"
+                 alt="Mahjong Solitaire board with big tiles laid out in a pattern" decoding="async" loading="lazy">
+            <span class="game-card-body">
+              <span class="game-card-title">Mahjong Solitaire</span>
+              <span class="game-card-desc">Match the free tiles in pairs and clear the whole board — no timer.</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="game-card" href="/daily.html">
+            <img class="game-card-thumb" src="/daily-thumb.jpg" width="400" height="400"
+                 alt="Today's Mahjong Solitaire board with a small month calendar in the corner, today ringed" decoding="async" loading="lazy">
+            <span class="game-card-body">
+              <span class="game-card-title">Daily Challenge</span>
+              <span class="game-card-desc">One fresh Mahjong board every day — the same puzzle for everybody.</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="game-card" href="/solitaire/" aria-current="page">
+            <img class="game-card-thumb" src="/solitaire-thumb.jpg" width="400" height="400"
+                 alt="Solitaire table with big, easy-to-read cards" decoding="async" loading="lazy">
+            <span class="game-card-body">
+              <span class="game-card-title">Solitaire</span>
+              <span class="game-card-desc">The classic card game with big cards — tap a card and it moves by itself.</span>
+              <span class="nav-now" data-i18n="playingNow">Playing now</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="game-card" href="/freecell/" data-crossgame-to="freecell" data-placement="top_nav">
+            <img class="game-card-thumb" src="/freecell-thumb.jpg" width="400" height="400"
+                 alt="FreeCell table with eight columns of big, easy-to-read cards" decoding="async" loading="lazy">
+            <span class="game-card-body">
+              <span class="game-card-title">FreeCell</span>
+              <span class="game-card-desc">Every deal can be solved — four free cells and a little patience.</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="game-card" href="/word-search/" data-crossgame-to="word_search" data-placement="top_nav">
+            <img class="game-card-thumb" src="/word-search-thumb.jpg" width="400" height="400"
+                 alt="Word search grid with large letters and highlighted words" decoding="async" loading="lazy">
+            <span class="game-card-body">
+              <span class="game-card-title">Word Search</span>
+              <span class="game-card-desc">Find the hidden words on a big, clear grid — a new puzzle every day.</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="game-card" href="/five-in-a-row/" data-crossgame-to="five_in_a_row" data-placement="top_nav">
+            <img class="game-card-thumb" src="/five-in-a-row-thumb.png" width="720" height="720"
+                 alt="Five in a Row board with black and white stones" decoding="async" loading="lazy">
+            <span class="game-card-body">
+              <span class="game-card-title">Five in a Row</span>
+              <span class="game-card-desc">Line up five stones on a big, easy-to-see board.</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="game-card" href="/backgammon/" data-crossgame-to="backgammon" data-placement="top_nav">
+            <img class="game-card-thumb" src="/backgammon-thumb.jpg" width="400" height="400"
+                 alt="Backgammon board with ivory and burgundy checkers and two dice" decoding="async" loading="lazy">
+            <span class="game-card-body">
+              <span class="game-card-title">Backgammon</span>
+              <span class="game-card-desc">Roll the dice and bring your checkers home, against a gentle computer.</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="game-card" href="/four-ball-billiards/" data-crossgame-to="four_ball_billiards" data-placement="top_nav">
+            <img class="game-card-thumb" src="/four-ball-billiards-thumb.jpg" width="400" height="400"
+                 alt="Four Ball Billiards table with a white cue ball and two red balls" decoding="async" loading="lazy">
+            <span class="game-card-body">
+              <span class="game-card-title">Four Ball Billiards</span>
+              <span class="game-card-desc">Carom billiards on a table with no pockets — hit both reds to score.</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="game-card" href="/eight-ball-pool/" data-crossgame-to="eight_ball_pool" data-placement="top_nav">
+            <img class="game-card-thumb" src="/eight-ball-pool-thumb.jpg" width="400" height="400"
+                 alt="Pool table with the balls racked and the cue ball ready" decoding="async" loading="lazy">
+            <span class="game-card-body">
+              <span class="game-card-title">8 Ball Pool</span>
+              <span class="game-card-desc">Line up your shot on a big green table — solids, stripes, then the black.</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="game-card" href="/stone-flick/" data-crossgame-to="stone_flick" data-placement="top_nav">
+            <img class="game-card-thumb" src="/stone-flick-thumb.jpg" width="400" height="400"
+                 alt="StoneFlick table with light and dark stones" decoding="async" loading="lazy">
+            <span class="game-card-body">
+              <span class="game-card-title">StoneFlick</span>
+              <span class="game-card-desc">Flick your stones across the table and knock the other side's off.</span>
+            </span>
+          </a>
+        </li>
+        <li>
+          <a class="game-card" href="/shuffleboard/" data-crossgame-to="shuffleboard" data-placement="top_nav">
+            <img class="game-card-thumb" src="/shuffleboard-thumb.jpg" width="400" height="400"
+                 alt="Table shuffleboard with red and blue weights on a maple board" decoding="async" loading="lazy">
+            <span class="game-card-body">
+              <span class="game-card-title">Shuffleboard</span>
+              <span class="game-card-desc">Slide your weights down a long maple board into the scoring zones.</span>
+            </span>
+          </a>
+        </li>
+      </ul>
+      <section class="nav-lang" id="nav-lang-section" aria-labelledby="nav-lang-title">
+        <h3 id="nav-lang-title" data-i18n="language">Language</h3>
+        <div class="lang-grid" id="nav-lang-grid"></div>
+        <p class="nav-lang-note" id="nav-lang-note" aria-live="polite"></p>
+      </section>
+    </div>
+  </div>
+</div>
+<!-- /games:nav -->
 
 <main id="solitaire" data-back="burgundy">
+  <h1 class="game-title">Solitaire</h1>
+
 
   <!-- The one rule of the game, always on screen above the table — same
        reasoning as the Five in a Row page: a rules modal is dismissed once
@@ -272,7 +412,7 @@
 </section>
 
 <footer class="site-footer">
-  <p>Free, easy online games — no download, no sign-up, no time limit.</p>
+  <p><strong>Easy Classics</strong> — free, easy online games. No download, no sign-up, no time limit.</p>
     <nav class="footer-nav" aria-label="Site pages">
     <div class="footer-nav-group">
       <span class="footer-nav-label" id="footer-games-label">Games</span>
@@ -396,5 +536,6 @@
 <div id="sol-toasts" aria-live="polite"></div>
 
 <script type="module" src="./src/main.js"></script>
+<script type="module" src="/nav.js"></script>
 </body>
 </html>

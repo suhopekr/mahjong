@@ -28,7 +28,7 @@ test("main.js never writes a style attribute into markup", () => {
 });
 
 test("head: title, canonical, description, og:image, favicon, shared GA init", () => {
-  assertTrue(body.includes("<title>Word Search — Free Online Puzzles, Big Letters, No Download</title>"));
+  assertTrue(body.includes("<title>Word Search — Free Online Puzzles, Big Letters, No Download | Easy Classics</title>"));
   assertTrue(body.includes('<link rel="canonical" href="https://easymahjongsolitaire.com/word-search/">'));
   assertTrue(/<meta name="description" content="[^"]{40,}">/.test(body));
   assertTrue(body.includes('content="https://easymahjongsolitaire.com/word-search/og-image.png"'));
@@ -52,9 +52,8 @@ test("JSON-LD parses; the FAQ on the page matches the FAQPage block one for one"
   }
 });
 
-test("site shell: header, goal, status, toolbar, ad slots after controls, footer fence, cross-game links, modals, toasts", () => {
+test("site shell: goal, status, toolbar, ad slots after controls, footer fence, cross-game links, modals, toasts", () => {
   assertTrue(/<main id="word-search">/.test(body));
-  assertTrue(/<header class="site-header">\s*<h1>Word Search<\/h1>/.test(body));
   assertTrue(/class="ws-goal"/.test(body) && /class="ws-status" id="ws-status" aria-live="polite"/.test(body));
   assertTrue(/<div class="ws-board" id="ws-board" dir="ltr">/.test(body), "board is dir=ltr");
   assertTrue(/role="toolbar"/.test(body));
@@ -64,7 +63,7 @@ test("site shell: header, goal, status, toolbar, ad slots after controls, footer
   assertEqual((body.match(/class="ad-slot /g) || []).length, 2, "two ad slots");
   assertTrue(html.includes("<!-- games:footer -->") && html.includes("<!-- /games:footer -->"), "footer fence");
   for (const m of body.matchAll(/<a [^>]*data-crossgame-to="[^"]+"[^>]*>/g)) {
-    assertTrue(/data-placement="(footer|win_modal)"/.test(m[0]), "placement on " + m[0]);
+    assertTrue(/data-placement="(footer|win_modal|top_nav|top_nav_brand)"/.test(m[0]), "placement on " + m[0]);
   }
   assertTrue(/data-crossgame-to="mahjong" data-placement="win_modal"/.test(body), "win modal cross-game link");
   assertEqual((body.match(/class="settings-panel"/g) || []).length, 1);
@@ -73,6 +72,33 @@ test("site shell: header, goal, status, toolbar, ad slots after controls, footer
   assertTrue(body.includes('id="ws-toasts"'));
   assertTrue(/<fieldset class="settings-row">\s*<legend class="settings-label" data-i18n="language">/.test(body), "language row is first in settings");
   assertTrue(body.indexOf('id="ws-lang-grid"') < body.indexOf('name="ws-size"'), "language row before size");
+});
+
+// The green per-game banner (.site-header = h1 + .tagline + a cross-game
+// link) is gone; DESIGN.md "Site navigation" replaced it with one bar on
+// every page and a full-screen Games panel behind it. The bar's markup is
+// generated (tools/sync-games.mjs, <!-- games:nav --> fences) so every
+// game link works with JavaScript off; /nav.js only opens and closes it.
+test("top bar: the nav fence, /nav.js, one h1.game-title first in <main>, no .site-header", () => {
+  assertTrue(html.includes("<!-- games:nav -->") && html.includes("<!-- /games:nav -->"), "the nav fence");
+  assertTrue(/<script type="module" src="\/nav\.js"><\/script>/.test(body), "loads /nav.js");
+  assertTrue(!/class="site-header"/.test(body), "no .site-header left");
+  assertTrue(!/class="tagline"/.test(body), "no .tagline left");
+  assertEqual((body.match(/<h1[\s>]/g) || []).length, 1, "exactly one <h1>");
+  assertTrue(/<main id="word-search">\s*<h1 class="game-title">Word Search<\/h1>/.test(body), "h1.game-title is the first thing in <main>");
+  assertTrue(body.indexOf("<h1") < body.indexOf('class="ws-goal"'), "the h1 comes before the goal line");
+  assertTrue(/<nav class="site-nav" id="site-nav"[^>]*data-nav-from="word_search"/.test(body), "the bar names this page's game");
+  assertTrue(/<div class="nav-panel" id="nav-panel" data-open="false">/.test(body), "the panel opens on data-open");
+  // The count comes from games.json, not from a literal: the panel has to
+  // hold EVERY registered game, and a new game must not need an edit here.
+  const registered = JSON.parse(readFileSync(path.join(root, "../games.json"), "utf8")).games.length;
+  assertEqual((body.match(/<a class="game-card"/g) || []).length, registered,
+    `one panel card per game in games.json (${registered})`);
+  assertTrue(/<a class="game-card" href="\/word-search\/" aria-current="page">/.test(body), "this game's card is aria-current");
+  assertTrue(body.includes('class="nav-now" data-i18n="playingNow"'), 'and says "Playing now" in words');
+  assertTrue(/id="nav-lang-grid"/.test(body) &&
+    body.indexOf('class="nav-card-grid"') < body.indexOf('id="nav-lang-section"'),
+    "the language grid is in the panel, after the cards");
 });
 
 test("stylesheet: every selector is .ws-/#ws-/#word-search scoped, no bare element selectors, no site selector redefined", () => {

@@ -103,12 +103,31 @@ function trackEvent(name, params) {
   }
 }
 
-// The one way back to the rest of the site, on the home screen only.
-// Navigation is never delayed to wait on delivery — GA4 sends via
-// sendBeacon, and making someone wait on measurement is the wrong trade.
-document.getElementById("link-crossgame-home")?.addEventListener("click", () => {
-  trackEvent("cross_game_click", { from: "stone_flick", to: "site_home", placement: "home" });
-});
+/**
+ * Every link that leaves for another game on this site.
+ *
+ * There used to be exactly one — "More free games →" on the menu screen —
+ * and it was wired by id. The top bar replaced it with a wordmark and a
+ * panel of game cards (DESIGN.md "Site navigation"), so this is
+ * game.js's wireCrossGameLinks() copied verbatim in shape: the LINK carries
+ * where it goes (data-crossgame-to) and where it was pressed
+ * (data-placement), which is what lets this function never list a game.
+ * tools/sync-games.mjs writes those attributes from games.json.
+ *
+ * Navigation is never delayed to wait on delivery — GA4 sends via
+ * sendBeacon, and making someone wait on measurement is the wrong trade.
+ */
+function wireCrossGameLinks() {
+  for (const a of document.querySelectorAll("a[data-crossgame-to]")) {
+    a.addEventListener("click", () => {
+      trackEvent("cross_game_click", {
+        from: "stone_flick",
+        to: a.dataset.crossgameTo,
+        placement: a.dataset.placement || "unknown",
+      });
+    });
+  }
+}
 
 // Opened here, at the top of module evaluation, and closed after the
 // first screen is built. core/ads.js has always exported both halves and
@@ -161,6 +180,15 @@ const ICONS = {
   // including the part where the path does not go where you pointed it.
   preview:
     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 18.5C6 12 9 8.5 13 8.5"/><path d="M13 8.5c3.4 0 4.8 3 7.5 4" stroke-dasharray="2.6 2.6"/><circle cx="13" cy="8.5" r="1.9" fill="currentColor" stroke="none"/></svg>',
+  // The other games on the site, as four tiles: a grid is the one glyph
+  // that means "a set of things to choose from" without also meaning
+  // "settings" (a gear) or "more of this" (an ellipsis). It is the same
+  // shape the panel it opens actually has.
+  // Stroked, not filled: filled tiles came out heavier than the stroked
+  // restart and sound glyphs beside it, and the odd one out in a row of
+  // controls reads as the one that is switched ON.
+  games:
+    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><rect x="3.6" y="3.6" width="7" height="7" rx="1.8"/><rect x="13.4" y="3.6" width="7" height="7" rx="1.8"/><rect x="3.6" y="13.4" width="7" height="7" rx="1.8"/><rect x="13.4" y="13.4" width="7" height="7" rx="1.8"/></svg>',
 };
 
 const canvas = $("board");
@@ -341,8 +369,38 @@ let aiTimer = null;
 const SCREENS = ["menu", "stages", "settings", "practice", "versus", "themes", "game"];
 let screenStack = ["menu"];
 
+/**
+ * THE SITE BAR TAKES A REAL ROW, SO IT COMES OFF WHILE A MATCH IS UP.
+ *
+ * DESIGN.md §6. Two reasons: the board's geometry is measured in JS from the
+ * live box, and a permanent band along the top edge of a surface you pull a
+ * stone back on is a mis-tap generator.
+ *
+ * The remeasure is the whole reason this is a function rather than one line
+ * at each call site. body[data-nav] changes #app's height by 56px, and
+ * resizeBoard() sizes the canvas AND the hit test from #board-wrap's live
+ * rect — a board measured before the row has gone keeps the old height, and
+ * then where the finger grabs and where the stone is drawn disagree by that
+ * much. The ResizeObserver on #board-wrap would eventually catch it, a frame
+ * or two later; "eventually" is the bug. So: toggle, then remeasure in the
+ * same turn, before anything can paint.
+ *
+ * Only when the bar goes away, because that is the only direction with a
+ * board on screen to measure: on the menu screens #board-wrap is inside a
+ * display:none section and its rect is 0x0.
+ */
+function setNavHidden(hidden) {
+  if ((document.body.dataset.nav === "hidden") === hidden) return;
+  if (hidden) document.body.dataset.nav = "hidden";
+  else delete document.body.dataset.nav;
+  if (hidden) resizeBoard();
+}
+
 function showScreen(name) {
   for (const s of SCREENS) $(`screen-${s}`).classList.toggle("active", s === name);
+  // After the sections have swapped, so the box resizeBoard() measures is
+  // the one the player is about to see.
+  setNavHidden(name === "game");
   if (name === "game") {
     startLoop();
     notifyGameplayStart();
@@ -2376,6 +2434,34 @@ $("btn-preview").onclick = () => {
 };
 $("btn-preview").insertAdjacentHTML("afterbegin", ICONS.preview);
 
+/**
+ * Games, from the game bar — the same panel the site bar opens.
+ *
+ * This game has no ⋯ overlay to hang it in (DESIGN.md §6 assumes one); its
+ * tool group is the equivalent, and it is the only chrome that survives a
+ * match. /nav.js owns opening, closing, the focus trap and the analytics,
+ * and its public surface is the bar's own button — so this presses it rather
+ * than re-implementing any of that. That button is display:none while a
+ * match is up, which click() does not care about but focus does: /nav.js
+ * hands focus back to #nav-games on close and a hidden element cannot take
+ * it. So the one thing left to do here is catch the close and put focus back
+ * on the button the player actually pressed.
+ */
+$("btn-games").insertAdjacentHTML("afterbegin", ICONS.games);
+$("btn-games").onclick = () => {
+  playButtonSound();
+  const panel = $("nav-panel");
+  const games = $("nav-games");
+  if (!panel || !games) return;
+  const back = new MutationObserver(() => {
+    if (panel.dataset.open === "true") return;
+    back.disconnect();
+    $("btn-games").focus();
+  });
+  back.observe(panel, { attributes: true, attributeFilter: ["data-open"] });
+  games.click();
+};
+
 $("btn-buy-preview").onclick = () => {
   playButtonSound();
   buyPreview();
@@ -2393,6 +2479,9 @@ for (const id of ["sound-toggle", "sound-toggle-game"]) {
 previewLeft = getPreviewsHeld();
 applySurround(null);
 renderMenu();
+// The bar's markup is written into the page by tools/sync-games.mjs, so its
+// links are in the document from the first byte.
+wireCrossGameLinks();
 notifyLoadingStop();
 
 // The portal's Data module can hold newer progress than this device's

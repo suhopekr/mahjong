@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <title>Four Ball Billiards — Free Online Billiards Game, No Download</title>
+    <title>Four Ball Billiards — Free Online Billiards Game, No Download | Easy Classics</title>
     <meta name="description" content="Play Four Ball Billiards free online — no download, no sign-up, no time limit. Carom billiards on a table with no pockets: hit both red balls to score. Stages, practice, and a computer opponent.">
     <link rel="canonical" href="https://easymahjongsolitaire.com/four-ball-billiards/">
 
@@ -22,13 +22,28 @@
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%2326707d'/%3E%3Ccircle cx='10' cy='11' r='4.4' fill='%23f2ede0'/%3E%3Ccircle cx='21' cy='9' r='4.4' fill='%23cf2b2b'/%3E%3Ccircle cx='23' cy='21' r='4.4' fill='%23cf2b2b'/%3E%3Ccircle cx='11' cy='23' r='4.4' fill='%23e0b526'/%3E%3C/svg%3E"
     />
+    <!-- Two stylesheets, in this order only.
+
+         1. /style.css — the site's own, for the top bar and the Games panel
+            (DESIGN.md "Site navigation"). It used to be left out on purpose
+            ("the game is a full-viewport layout and the two would fight"),
+            and the bar is what changed that: the bar, the panel and the
+            eleven game cards are one shared implementation and forking 300
+            lines of it into this file would be worse than loading it.
+            The fight is settled by ORDER plus a short override block at the
+            end of ./style.css (search for "the site's top bar"): this file
+            is loaded second, so its own rules win wherever the two disagree,
+            and the four things that leak through anyway (body's mobile
+            padding, the page font, the notch, --ink inside the cream panel)
+            are neutralised there by name.
+         2. ./style.css — this game's own, extracted from the portal build's
+            inline <style>.
+
+         No inline <style> and no inline <script>: the site's
+         Content-Security-Policy is `script-src 'self'; style-src 'self'`,
+         which admits neither. -->
+    <link rel="stylesheet" href="/style.css" />
     <link rel="stylesheet" href="./style.css" />
-    <!-- Site build notes. This page lives at /four-ball-billiards/ on easymahjongsolitaire.com.
-         It keeps its own stylesheet (./style.css, extracted from the portal
-         build's inline <style>) and does NOT load the site's /style.css: the
-         game is a full-viewport layout and the two would fight. No inline
-         <style> and no inline <script>: the site's Content-Security-Policy
-         is `script-src 'self'; style-src 'self'`, which admits neither. -->
 
     <!-- Vercel Web Analytics — served from the deployed domain itself, same
          as every other page on this site. -->
@@ -63,7 +78,160 @@
     </script>
   </head>
   <body>
-    <div id="app">
+    <!-- The site's top bar and its Games panel. Every line between the
+         fences is written by tools/sync-games.mjs from games.json — never by
+         hand — so the eleven game links are real <a>s that work with
+         JavaScript switched off. /nav.js (loaded at the end of the body)
+         only opens, closes and traps focus. -->
+    <!-- games:nav -->
+    <nav class="site-nav" id="site-nav" aria-label="Site" data-nav-from="four_ball_billiards">
+      <div class="site-nav-inner">
+        <a class="nav-brand" href="/" id="link-crossgame-home" data-crossgame-to="mahjong" data-placement="top_nav_brand" dir="ltr">
+          <svg class="nav-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><rect width="24" height="24" rx="6" fill="var(--nav-mark-bg, #0b4a35)"/><circle cx="9" cy="9.5" r="4.2" fill="var(--nav-mark-ink, #f7f2e6)"/><rect x="11" y="11" width="9" height="10" rx="2.2" fill="var(--nav-mark-ink, #f7f2e6)"/></svg><span class="nav-words"><span class="b-easy">Easy</span> <span class="b-classics">Classics</span></span></a>
+        <span class="nav-spacer" aria-hidden="true"></span>
+        <button class="btn nav-btn" id="nav-games" type="button" aria-haspopup="dialog"
+                aria-expanded="false" aria-controls="nav-panel" data-i18n="games">Games</button>
+        <button class="btn nav-btn" id="nav-lang" type="button" aria-haspopup="dialog"
+                aria-expanded="false" aria-controls="nav-panel">English</button>
+      </div>
+    </nav>
+
+    <div class="nav-panel" id="nav-panel" data-open="false">
+      <div class="nav-panel-sheet" id="nav-panel-sheet" role="dialog" aria-modal="true"
+           aria-labelledby="nav-panel-title" tabindex="-1">
+        <div class="nav-panel-head">
+          <h2 id="nav-panel-title" data-i18n="games">Games</h2>
+          <button type="button" class="btn nav-panel-close" id="nav-close" data-i18n="close">Close</button>
+        </div>
+        <div class="nav-panel-body" id="nav-panel-body">
+          <ul class="nav-card-grid">
+            <li>
+              <a class="game-card" href="/" data-crossgame-to="mahjong" data-placement="top_nav">
+                <img class="game-card-thumb" src="/mahjong-thumb.jpg" width="400" height="400"
+                     alt="Mahjong Solitaire board with big tiles laid out in a pattern" decoding="async" loading="lazy">
+                <span class="game-card-body">
+                  <span class="game-card-title">Mahjong Solitaire</span>
+                  <span class="game-card-desc">Match the free tiles in pairs and clear the whole board — no timer.</span>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card" href="/daily.html">
+                <img class="game-card-thumb" src="/daily-thumb.jpg" width="400" height="400"
+                     alt="Today's Mahjong Solitaire board with a small month calendar in the corner, today ringed" decoding="async" loading="lazy">
+                <span class="game-card-body">
+                  <span class="game-card-title">Daily Challenge</span>
+                  <span class="game-card-desc">One fresh Mahjong board every day — the same puzzle for everybody.</span>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card" href="/solitaire/" data-crossgame-to="solitaire" data-placement="top_nav">
+                <img class="game-card-thumb" src="/solitaire-thumb.jpg" width="400" height="400"
+                     alt="Solitaire table with big, easy-to-read cards" decoding="async" loading="lazy">
+                <span class="game-card-body">
+                  <span class="game-card-title">Solitaire</span>
+                  <span class="game-card-desc">The classic card game with big cards — tap a card and it moves by itself.</span>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card" href="/freecell/" data-crossgame-to="freecell" data-placement="top_nav">
+                <img class="game-card-thumb" src="/freecell-thumb.jpg" width="400" height="400"
+                     alt="FreeCell table with eight columns of big, easy-to-read cards" decoding="async" loading="lazy">
+                <span class="game-card-body">
+                  <span class="game-card-title">FreeCell</span>
+                  <span class="game-card-desc">Every deal can be solved — four free cells and a little patience.</span>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card" href="/word-search/" data-crossgame-to="word_search" data-placement="top_nav">
+                <img class="game-card-thumb" src="/word-search-thumb.jpg" width="400" height="400"
+                     alt="Word search grid with large letters and highlighted words" decoding="async" loading="lazy">
+                <span class="game-card-body">
+                  <span class="game-card-title">Word Search</span>
+                  <span class="game-card-desc">Find the hidden words on a big, clear grid — a new puzzle every day.</span>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card" href="/five-in-a-row/" data-crossgame-to="five_in_a_row" data-placement="top_nav">
+                <img class="game-card-thumb" src="/five-in-a-row-thumb.png" width="720" height="720"
+                     alt="Five in a Row board with black and white stones" decoding="async" loading="lazy">
+                <span class="game-card-body">
+                  <span class="game-card-title">Five in a Row</span>
+                  <span class="game-card-desc">Line up five stones on a big, easy-to-see board.</span>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card" href="/backgammon/" data-crossgame-to="backgammon" data-placement="top_nav">
+                <img class="game-card-thumb" src="/backgammon-thumb.jpg" width="400" height="400"
+                     alt="Backgammon board with ivory and burgundy checkers and two dice" decoding="async" loading="lazy">
+                <span class="game-card-body">
+                  <span class="game-card-title">Backgammon</span>
+                  <span class="game-card-desc">Roll the dice and bring your checkers home, against a gentle computer.</span>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card" href="/four-ball-billiards/" aria-current="page">
+                <img class="game-card-thumb" src="/four-ball-billiards-thumb.jpg" width="400" height="400"
+                     alt="Four Ball Billiards table with a white cue ball and two red balls" decoding="async" loading="lazy">
+                <span class="game-card-body">
+                  <span class="game-card-title">Four Ball Billiards</span>
+                  <span class="game-card-desc">Carom billiards on a table with no pockets — hit both reds to score.</span>
+                  <span class="nav-now" data-i18n="playingNow">Playing now</span>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card" href="/eight-ball-pool/" data-crossgame-to="eight_ball_pool" data-placement="top_nav">
+                <img class="game-card-thumb" src="/eight-ball-pool-thumb.jpg" width="400" height="400"
+                     alt="Pool table with the balls racked and the cue ball ready" decoding="async" loading="lazy">
+                <span class="game-card-body">
+                  <span class="game-card-title">8 Ball Pool</span>
+                  <span class="game-card-desc">Line up your shot on a big green table — solids, stripes, then the black.</span>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card" href="/stone-flick/" data-crossgame-to="stone_flick" data-placement="top_nav">
+                <img class="game-card-thumb" src="/stone-flick-thumb.jpg" width="400" height="400"
+                     alt="StoneFlick table with light and dark stones" decoding="async" loading="lazy">
+                <span class="game-card-body">
+                  <span class="game-card-title">StoneFlick</span>
+                  <span class="game-card-desc">Flick your stones across the table and knock the other side's off.</span>
+                </span>
+              </a>
+            </li>
+            <li>
+              <a class="game-card" href="/shuffleboard/" data-crossgame-to="shuffleboard" data-placement="top_nav">
+                <img class="game-card-thumb" src="/shuffleboard-thumb.jpg" width="400" height="400"
+                     alt="Table shuffleboard with red and blue weights on a maple board" decoding="async" loading="lazy">
+                <span class="game-card-body">
+                  <span class="game-card-title">Shuffleboard</span>
+                  <span class="game-card-desc">Slide your weights down a long maple board into the scoring zones.</span>
+                </span>
+              </a>
+            </li>
+          </ul>
+          <section class="nav-lang" id="nav-lang-section" aria-labelledby="nav-lang-title">
+            <h3 id="nav-lang-title" data-i18n="language">Language</h3>
+            <div class="lang-grid" id="nav-lang-grid"></div>
+            <p class="nav-lang-note" id="nav-lang-note" aria-live="polite"></p>
+          </section>
+        </div>
+      </div>
+    </div>
+    <!-- /games:nav -->
+
+    <!-- dir="ltr": /nav.js boots the site's i18n runtime, which sets
+         <html dir="rtl"> for Arabic. The bar and the panel should mirror;
+         the table must not — its layout is in px, same rule as every board
+         on the site. -->
+    <div id="app" dir="ltr">
       <header>
         <span id="stage-name"></span>
         <span id="shots"></span>
@@ -156,6 +324,7 @@
           <button id="retry">Restart this stage</button>
           <button id="to-stages">Stage select</button>
           <button id="to-home">Home</button>
+          <button id="to-games" aria-haspopup="dialog">Games</button>
           <button id="sound">Sound on</button>
           <button id="menu-close" class="quiet">Close</button>
         </div>
@@ -182,7 +351,6 @@
             <button id="btn-tables" class="quiet">Tables</button>
             <button id="home-sound" class="quiet">Sound on</button>
           </div>
-          <a class="site-home-link" href="/" id="link-crossgame-home">More free games →</a>
         </div>
 
         <!-- Stage select. The grid answers "how much is there and how
@@ -251,5 +419,6 @@
       </div>
     </div>
     <script type="module" src="src/main.js"></script>
+    <script type="module" src="/nav.js"></script>
   </body>
 </html>

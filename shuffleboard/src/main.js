@@ -82,12 +82,31 @@ function trackEvent(name, params) {
   }
 }
 
-// The one way back to the rest of the site, on the home screen only.
-// Navigation is never delayed to wait on delivery — GA4 sends via
-// sendBeacon, and making someone wait on measurement is the wrong trade.
-document.getElementById("link-crossgame-home")?.addEventListener("click", () => {
-  trackEvent("cross_game_click", { from: "shuffleboard", to: "site_home", placement: "home" });
-});
+/**
+ * Every link that leaves for another game on this site.
+ *
+ * There used to be exactly one — "More free games →" at the bottom of the ⋯
+ * menu — and it was wired by id. The top bar replaced it with a wordmark and
+ * a panel of game cards (DESIGN.md "Site navigation"), so this is
+ * game.js's wireCrossGameLinks() copied verbatim in shape: the LINK carries
+ * where it goes (data-crossgame-to) and where it was pressed
+ * (data-placement), which is what lets this function never list a game.
+ * tools/sync-games.mjs writes those attributes from games.json.
+ *
+ * Navigation is never delayed to wait on delivery — GA4 sends via
+ * sendBeacon, and making someone wait on measurement is the wrong trade.
+ */
+function wireCrossGameLinks() {
+  for (const a of document.querySelectorAll("a[data-crossgame-to]")) {
+    a.addEventListener("click", () => {
+      trackEvent("cross_game_click", {
+        from: "shuffleboard",
+        to: a.dataset.crossgameTo,
+        placement: a.dataset.placement || "unknown",
+      });
+    });
+  }
+}
 
 // The bar personas. The ladder starts at the bottom on purpose: Daily
 // Five gave every newcomer its hardest AI and they lost in seven moves.
@@ -158,6 +177,36 @@ function resize() {
 window.addEventListener("resize", resize);
 window.addEventListener("orientationchange", resize);
 resize();
+
+/**
+ * THE SITE BAR TAKES A REAL ROW, SO IT COMES OFF WHILE THE BOARD IS LIVE.
+ *
+ * DESIGN.md §6. Two reasons: the board's geometry is measured in JS from
+ * #stage's live box, and a permanent band along the top edge of a surface
+ * you drag a weight on is a mis-tap generator.
+ *
+ * The remeasure is the whole reason this is a function rather than one line
+ * at each call site. body[data-nav] changes #app's height by 56px, and
+ * resize() sizes the canvas AND computes the layout the hit test uses from
+ * #stage's rect — a board measured before the row has gone (or come back)
+ * keeps the old height, and then where the finger grabs and where the weight
+ * is drawn disagree by that much. window's resize event does not fire for a
+ * layout change inside the page, so nothing else would ever correct it. So:
+ * toggle, then remeasure in the same turn, before the next frame paints.
+ *
+ * WHEN IT IS ON SCREEN, for a game whose first screen IS the board: the
+ * front of this game is its cards, so the bar belongs to the home card, the
+ * stage picker, and the arrival screen up to the player's first shot —
+ * nowhere else. In particular NOT on the stage-clear card, which arrives
+ * every couple of minutes; the board growing and shrinking around every
+ * result would be worse than the bar being two taps away in ⋯.
+ */
+function setNavHidden(hidden) {
+  if ((document.body.dataset.nav === "hidden") === hidden) return;
+  if (hidden) document.body.dataset.nav = "hidden";
+  else delete document.body.dataset.nav;
+  resize();
+}
 
 // --- header ----------------------------------------------------------------
 
@@ -296,6 +345,7 @@ function startStage(id, { quiet = false } = {}) {
   mode = "aim";
   $("frame-live").textContent = "";
   setCurrentStageId(st.id);
+  if (!quiet) setNavHidden(true);
   if (!quiet) trackEvent("game_start", { mode: "stage", stage: st.id });
   updateHeader();
   if (!quiet) note(st.hint, 3200);
@@ -306,6 +356,7 @@ function startMatch(bossChapter, { twoPlayer = false, quiet = false } = {}) {
   world = P.createWorld();
   match = R.createMatch(YOU);
   session = { kind: "match", boss: bossChapter, twoPlayer };
+  if (!quiet) setNavHidden(true);
   if (!quiet) trackEvent("game_start", { mode: twoPlayer ? "two_player" : bossChapter !== null ? "boss" : "match", chapter: bossChapter ?? undefined });
   counted = [];
   foulFade = {};
@@ -396,6 +447,10 @@ function showHome() {
     primary,
     onPrimary: () => {
       if (t.kind === "stage") {
+        // The board behind the card was started quietly, so there is no
+        // startStage() here to take the bar's row away — this branch has to
+        // do it itself, and setNavHidden() remeasures in the same turn.
+        setNavHidden(true);
         mode = "aim";
         note(stageById(t.id).hint, 3200);
       } else if (t.kind === "boss") startMatch(t.chapter);
@@ -407,6 +462,9 @@ function showHome() {
     onTertiary: () => startMatch(null),
   });
   mode = "result";
+  // The home card IS this game's home screen — last, because the quiet
+  // startStage above has just hidden the bar for the board behind it.
+  setNavHidden(false);
 }
 
 function openStagePicker() {
@@ -452,11 +510,15 @@ function openStagePicker() {
     list.appendChild(row);
   }
   $("stages-card").hidden = false;
+  setNavHidden(false);
 }
 
 // The picker closes like the menu: any tap on the board dismisses it.
 function closePicker() {
   $("stages-card").hidden = true;
+  // Dismissing the picker without choosing puts the board back in front,
+  // unless the home card is what is under it.
+  setNavHidden($("result-card").hidden);
 }
 
 // --- aim input -------------------------------------------------------------
@@ -536,6 +598,8 @@ function fire(owner, y, angle, power) {
     playedAtAll = true;
     notifyGameplayStart();
   }
+  // A shot is the board going live, whatever card the player arrived on.
+  setNavHidden(true);
   $("frame-live").textContent = "";
   if (owner === YOU && !session?.twoPlayer && getPreviewsHeld() > 0 && aim.preview) {
     setPreviewsHeld(0); // spent on the shot it informed
@@ -877,6 +941,33 @@ $("btn-two").addEventListener("click", () => {
   note("Pass and play — Red shoots first, hand it over between turns.", 3400);
 });
 
+/**
+ * Games — the same panel the bar's own Games button opens. This is the last
+ * item in ⋯ and the heir to the "More free games →" line that used to sit
+ * there: the same destination, the whole list instead of one link.
+ *
+ * /nav.js owns opening, closing, the focus trap and the analytics, and its
+ * public surface is the bar's own button — so this presses it rather than
+ * re-implementing any of that. That button is display:none while the board
+ * is live, which click() does not care about but focus does: /nav.js hands
+ * focus back to #nav-games on close and a hidden element cannot take it. So
+ * the one thing left to do here is catch the close and put focus back on the
+ * menu item the player actually pressed.
+ */
+$("btn-games").addEventListener("click", () => {
+  playButtonSound();
+  const panel = document.getElementById("nav-panel");
+  const games = document.getElementById("nav-games");
+  if (!panel || !games) return;
+  const back = new MutationObserver(() => {
+    if (panel.dataset.open === "true") return;
+    back.disconnect();
+    if (!$("menu").hidden) $("btn-games").focus();
+  });
+  back.observe(panel, { attributes: true, attributeFilter: ["data-open"] });
+  games.click();
+});
+
 // --- frame loop ------------------------------------------------------------
 
 let lastT = performance.now();
@@ -974,6 +1065,11 @@ else {
   resumeCampaign();
   $("first-card").hidden = false;
 }
+// Whichever of those two arrival screens it is, the bar is on it: a page
+// reached from an ad has to show what site it belongs to, and neither of
+// them is a shot in progress. fire() takes it away again.
+setNavHidden(false);
+wireCrossGameLinks();
 storageSynced.then(() => {
   // Inside the portal iframe the save may only exist on the SDK side.
   if (hasSeenBriefing("first-shot")) $("first-card").hidden = true;

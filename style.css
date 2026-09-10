@@ -41,6 +41,18 @@
   --btn-active-bg: var(--felt-dark);
   --btn-active-text: #fdfbf4;
 
+  /* ---- 상단 네비바(.site-nav) — DESIGN.md "Site navigation" ------------
+   * 바 높이는 한 곳에서만 정한다: 48px 컨트롤 + 위아래 4px = 56px(모바일),
+   * 52px + 6px = 64px(768px 이상). 색은 세 개의 --nav-* 변수로만 노출해서
+   * 어두운 standalone 빌드가 이 셋만 덮어쓰면 되도록 한다. */
+  --nav-h: 56px;
+  --nav-bg: var(--paper);
+  --nav-ink: var(--ink);
+  --nav-border: var(--felt-dark);
+  /* 인라인 SVG 마크의 두 색 — 어두운 바에서는 이 둘만 바꾸면 된다. */
+  --nav-mark-bg: var(--felt-dark);
+  --nav-mark-ink: var(--paper);
+
   /* 타일 크기 3단계 — 설정에서 토글, 기본값은 large */
   --unit-normal: 18px;
   --unit-large: 22px;
@@ -94,10 +106,20 @@ a:visited { color: #5c3d99; }
   border: 0;
 }
 
+/* 스킵 링크는 상단 바(.site-nav)보다 위에 있고, 포커스를 받을 때만 보인다.
+ *
+ * 예전에는 left: -9999px로 밀어 두었는데, 아랍어(dir="rtl")에서는 "왼쪽"이
+ * 스크롤되는 방향이라 페이지가 10,000px 넓어지고 폰이 축소해서 그린다.
+ * 게임 세 곳이 각자 [dir="rtl"] 오버라이드로 막고 있었지만, 이제는 상단
+ * 바 때문에 i18n 런타임이 없는 페이지(/, /daily.html, /five-in-a-row/,
+ * About/Privacy/Terms/Contact/Guides)도 rtl이 될 수 있다. 그래서 방향과
+ * 무관한 방법으로 바꾼다: 위로 밀어낸다. 위쪽 오버플로는 어느 방향에서도
+ * 스크롤되지 않는다. */
 .skip-link {
   position: absolute;
-  left: -9999px;
   top: 0;
+  inset-inline-start: 0;
+  transform: translateY(-200%);
   background: var(--accent);
   color: var(--accent-ink);
   padding: 12px 18px;
@@ -106,45 +128,417 @@ a:visited { color: #5c3d99; }
   border-radius: 0 0 8px 0;
 }
 .skip-link:focus {
-  left: 0;
+  transform: translateY(0);
 }
 
-/* ---- 헤더 -------------------------------------------------------------- */
-.site-header {
-  background: linear-gradient(180deg, var(--felt-dark), var(--felt));
-  color: var(--paper);
-  /* 좌우는 세이프 에어리어(노치 등)를 침범하지 않게 max()로 보정 —
-   * 가로 모드에서 특히 중요하다(요구사항 A-2). 상하 패딩은 살짝만
-   * 줄여서(요구사항 4) 보드 쪽에 세로 공간을 더 내준다. */
-  padding: 10px max(clamp(12px, 3vw, 28px), env(safe-area-inset-right))
-           10px max(clamp(12px, 3vw, 28px), env(safe-area-inset-left));
-  text-align: center;
+/* ---- 상단 네비바 + Games 패널 --------------------------------------------
+ * 초록 배너(.site-header = h1 + .tagline + 크로스게임 링크)를 대신하는
+ * 사이트 공통 바. 마크업은 tools/sync-games.mjs가 <!-- games:nav --> 펜스
+ * 안에 써 넣고(JS 없이도 11개 링크가 동작), /nav.js는 열고 닫고 포커스만
+ * 다룬다. 근거와 픽셀 예산은 DESIGN.md "Site navigation" §1~§7.
+ *
+ * 바탕은 크림이다(펠트 그린이 아니다) — 초록 배너를 막 지운 자리에 또
+ * 초록 띠를 두면 배너를 옮긴 것으로 읽힌다. 크림 바 위에서는 두 컨트롤이
+ * 사이트 공통 .btn(아이보리 바탕 + 딥그린, 9.19:1)을 그대로 쓸 수 있어
+ * 새 색 규칙이 하나도 필요하지 않다.
+ *
+ * 768px 미만에서는 스크롤과 함께 위로 사라지고, 768px 이상에서만 sticky.
+ * 667px 폰에서 56px는 영구히 화면의 8.4%이고, 드래그하는 캔버스(풀 큐)
+ * 위에 고정 띠가 있으면 그게 바로 오조작이다. 폰에서 "항상 닿는다"는
+ * 푸터의 Games 열과 승리 모달이 이미 두 번 보장한다.
+ * ------------------------------------------------------------------------- */
+@media (min-width: 768px) {
+  :root { --nav-h: 64px; }
+}
+/* 짧은 화면(가로 모드 폰): 48px 바 + 44px 컨트롤. 48px 미만으로 내려가는
+ * 유일한 자리이고, 대안이 "보드가 안 보인다"인 곳에서만 그렇게 한다. */
+@media (max-height: 500px) and (orientation: landscape) {
+  :root { --nav-h: 48px; }
 }
 
-.site-header h1 {
-  margin: 0;
-  font-size: clamp(19px, 3vw, 26px);
+.site-nav {
+  background: var(--nav-bg);
+  color: var(--nav-ink);
+  border-bottom: 1.5px solid var(--nav-border);
 }
 
-.site-header .tagline {
-  margin: 3px 0 0;
-  font-size: 14px;
-  opacity: 0.9;
+@media (min-width: 768px) {
+  .site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 60; /* 페이지보다 위, 설정 패널(100)·모달(200)보다 아래 */
+    /* 노치는 바가 실제로 화면 위에 고정될 때만 문제가 된다. */
+    padding-top: env(safe-area-inset-top);
+  }
 }
 
-/* 헤더 안의 링크(다른 게임으로 가는 안내)는 페이지 본문 링크 색
- * (#0a5c8a)을 그대로 물려받고 있었다. 헤더는 딥그린 그라디언트라
- * 그 파란색은 대비 1.2:1 — 사실상 안 보인다. 헤더 위에서는 본문 색을
- * 그대로 쓰고 밑줄로 링크임을 알린다(대비 약 9:1). */
-.site-header .tagline a,
-.site-header .tagline a:visited {
-  color: inherit;
+.site-nav-inner {
+  /* .game-shell과 같은 축·같은 최대폭이라 워드마크가 보드와 나란히 선다. */
+  max-width: 1280px;
+  margin-inline: auto;
+  min-height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+  padding-inline: max(clamp(10px, 3vw, 24px), env(safe-area-inset-left))
+                  max(clamp(10px, 3vw, 24px), env(safe-area-inset-right));
+}
+
+/* 남는 공간을 전부 먹는 유일한 아이템 — 좁아지면 0으로 줄고, 그 다음의
+ * 줄어듦은 .nav-brand만 받는다(컨트롤은 flex: 0 0 auto). */
+.nav-spacer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* ---- 워드마크 ------------------------------------------------------------
+ * 텍스트만. 이미지도 웹폰트도 없다. 360px 미만에서 사라지는 것은 마크이고
+ * 글자는 절대 사라지지 않는다 — 65세 이상 방문자가 알아보는 것은 이름이고,
+ * "Easy" 혼자는 브랜드가 아니다. dir="ltr"은 마크업에 있다(아랍어 런 안에서
+ * 브랜드가 뒤집히지 않게).
+ * ------------------------------------------------------------------------- */
+.nav-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding-inline: 2px;
+  min-width: 0; /* 바 안에서 유연한 유일한 텍스트 */
+  overflow: hidden;
+  font-size: clamp(17px, 4.4vw, 22px);
+  letter-spacing: 0.005em;
+  color: var(--felt-dark);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.nav-brand:visited { color: var(--felt-dark); }
+.nav-brand .b-easy { font-weight: 800; }
+.nav-brand .b-classics { font-weight: 500; }
+.nav-brand:hover .b-classics {
   text-decoration: underline;
-  text-underline-offset: 2px;
-  font-weight: 600;
+  text-underline-offset: 3px;
 }
-.site-header .tagline a:hover {
-  text-decoration-thickness: 2px;
+/* 두 단어는 한 덩어리다 — .nav-brand의 gap 8px은 마크와 글자 사이에만
+ * 들어가야 하고, "Easy"와 "Classics" 사이는 보통 낱말 간격이어야 한다.
+ * (처음에는 &nbsp;를 넣었는데 inline-flex 안에서 그 공백이 별도의 플렉스
+ * 아이템이 되어 gap이 양쪽에 두 번 붙었고, 375px에서 "Classi"로 잘렸다.) */
+.nav-words { min-width: 0; }
+
+.nav-mark {
+  width: 24px;
+  height: 24px;
+  flex: 0 0 24px;
+}
+@media (min-width: 768px) {
+  .nav-mark { width: 28px; height: 28px; flex-basis: 28px; }
+}
+/* 마크가 먼저 사라진다(글자는 절대 사라지지 않는다). DESIGN.md는 360px을
+ * 적었지만 실측한 두 버튼이 그 예산(85px)보다 넓어서(Games 90 / English
+ * 100) 375px에서 이미 브랜드가 밀린다 — 폰에서는 마크를 전부 빼는 쪽이
+ * 맞다. 이름은 알아보지만 글리프는 아니라는 근거 그대로다. */
+@media (max-width: 399px) {
+  .nav-mark { display: none; }
+  /* 좁은 화면에서 좌우 패딩만 줄인다 — 높이(48px)와 낱말은 그대로. */
+  .site-nav .nav-btn { padding-inline: 12px; }
+  .site-nav-inner { gap: 6px; }
+}
+/* 320px + 인도네시아어("Permainan" 122px)가 실측상 가장 빡빡한 조합이다.
+ * 여기서 4px이 모자라 브랜드가 1px 잘렸다 — 바깥 여백에서 그 4px을 낸다.
+ * 버튼 사이 간격(6px)은 건드리지 않는다. 오탭이 늘어나므로. */
+@media (max-width: 359px) {
+  .site-nav-inner {
+    padding-inline: max(8px, env(safe-area-inset-left)) max(8px, env(safe-area-inset-right));
+  }
+}
+
+/* ---- 바의 두 버튼 ------------------------------------------------------- */
+/* .btn이 이 블록보다 아래에 정의되어 있어서, 같은 특이도(.nav-btn)로는
+ * min-height 싸움에서 진다 — 바 안쪽으로 한 단계 좁혀서 확실히 이기게 한다. */
+.site-nav .nav-btn {
+  min-height: 48px;
+  padding: 10px 16px;
+  font-size: 17px;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+@media (min-width: 768px) {
+  .site-nav .nav-btn { min-height: 52px; font-size: 18px; padding: 12px 20px; }
+}
+@media (max-height: 500px) and (orientation: landscape) {
+  .site-nav .nav-btn { min-height: 44px; padding: 8px 14px; }
+  .nav-brand { min-height: 44px; }
+}
+
+/* ---- Games 패널 ---------------------------------------------------------
+ * .settings-panel / .modal-overlay와 완전히 같은 관습: data-open 하나로
+ * 열고 닫는다. z-index 160은 모바일 메뉴 시트(120)와 설정(100)보다 위여서
+ * Games가 항상 이기고, 모달(200/210)보다 아래여서 승리 모달을 절대 가리지
+ * 않는다.
+ * ------------------------------------------------------------------------- */
+.nav-panel {
+  position: fixed;
+  inset: 0;
+  z-index: 160;
+  display: none;
+  background: rgba(15, 36, 25, 0.6);
+}
+.nav-panel[data-open="true"] { display: flex; }
+
+.nav-panel-sheet {
+  background: var(--paper);
+  width: 100%;
+  max-width: 1040px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  max-height: 100%;
+}
+@media (min-width: 1040px) {
+  .nav-panel { align-items: center; padding: 24px; }
+  .nav-panel-sheet {
+    border-radius: var(--radius-lg);
+    max-height: calc(100vh - 48px);
+    box-shadow: var(--shadow-md);
+  }
+}
+
+/* 1040px 미만에는 탭할 배경이 아예 없다(시트가 화면 끝까지 찬다) — 그래서
+ * Close는 sticky여야 하고, 카드 11장을 스크롤해도 손이 닿는 곳에 남는다. */
+.nav-panel-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: var(--nav-h);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap; /* 긴 제목 + 긴 Close는 두 줄이 된다, 잘리지 않는다 */
+  background: var(--paper);
+  border-bottom: 1.5px solid var(--felt-dark);
+  padding: 8px max(16px, env(safe-area-inset-right))
+           8px max(16px, env(safe-area-inset-left));
+}
+.nav-panel-head h2 {
+  margin: 0;
+  font-size: 20px;
+}
+.nav-panel .nav-panel-close {
+  margin-inline-start: auto;
+  min-height: 48px;
+  white-space: nowrap;
+}
+
+.nav-panel-body {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 16px max(20px, env(safe-area-inset-right))
+           calc(24px + env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+}
+
+/* 미디어 쿼리가 필요 없다: minmax(280px, 1fr) + 40px 패딩 + 16px 간격이
+ * 616px에서 2열, 912px에서 3열로 저절로 바뀐다. 375px에서는 1열 —
+ * 기존 .game-card(88px 썸네일 + 이름 + 한 줄 설명)를 그대로 쓴다. */
+.nav-card-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* 카드가 행 높이를 채운다(디자인 리뷰).
+ *
+ * 그리드는 <li>를 행 높이만큼 늘려 주지만, 테두리를 그리는 것은 그 안의
+ * <a class="game-card">다. 그래서 설명이 두 줄인 카드와 세 줄인 카드가
+ * 같은 줄에 오면 li는 같은 높이인데 a는 각자 제 내용 높이라, 1280px
+ * 3열에서 같은 줄 카드의 위/아래 선이 최대 27px씩 어긋났다("Playing now"
+ * 한 줄이 더 붙은 카드에서 특히). 65세 이상 사용자에게 카드 목록은 줄이
+ * 맞아야 목록으로 읽힌다.
+ *
+ * 같은 문제를 앞면의 More Free Games 카드도 갖고 있어서(같은 .game-card,
+ * 같은 auto-fill 그리드) 두 그리드를 한 규칙으로 함께 고친다. */
+.nav-card-grid > li,
+.game-card-grid > li {
+  display: flex;
+}
+.nav-card-grid > li > .game-card,
+.game-card-grid > li > .game-card {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* 카드가 행 높이를 채우면, 이제는 카드 "안"의 내용이 뜬다: .game-card는
+ * align-items: center라서 설명이 짧은 카드의 제목이 같은 줄 다른 카드보다
+ * 14px 아래에서 시작했다(1280px 3열에서 실측). 눈이 훑는 것은 제목이므로
+ * 여러 열일 때는 위로 붙인다.
+ *
+ * 616px은 임의의 값이 아니다 — minmax(280px, 1fr) + 40px 패딩 + 16px 간격이
+ * 정확히 그 폭에서 2열이 된다(DESIGN.md §3). 즉 "행이 존재하기 시작하는
+ * 폭"이고, 1열(폰)에서는 카드가 늘어나지 않으므로 출시된 가운데 정렬을
+ * 그대로 둔다. */
+@media (min-width: 616px) {
+  .nav-card-grid .game-card { align-items: flex-start; }
+}
+
+/* 지금 보고 있는 게임: 색만으로 표시하지 않는다 — aria-current + 초록 채움
+ * + "Playing now"라는 말. 링크는 그대로 살려 둔다(화면에 죽은 것이 없게). */
+.nav-card-grid a[aria-current="page"] {
+  border-color: var(--felt);
+  background: #e4f2ea;
+}
+.nav-now {
+  display: inline-block;
+  margin-top: 2px;
+  /* DESIGN.md §3의 스니펫은 14px으로 적었다. 실제로 화면에 놓고 보니
+   * 패널 안에서 가장 작은 글자가 "지금 어느 게임에 있는지"라는 가장 중요한
+   * 상태를 혼자 지고 있었다(제목 20px, 설명 16px, 이 줄 14px). 65세 이상
+   * 사용자에게는 순서가 거꾸로다. 16px으로 올린다 — 제 줄을 혼자 쓰므로
+   * 어떤 카드도 다시 흐르지 않고, 대비는 그대로 8.89:1이다. */
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--felt-dark);
+}
+
+/* ---- 패널 안의 언어 선택 ------------------------------------------------
+ * 권위 있는 14개 버튼 그리드는 카드 "뒤"에 온다. 버튼에 Games라고 적혀
+ * 있으니 그걸 누른 이유가 엄지 밑에 있어야 하고, 14버튼 그리드는 폰에서
+ * 340px여서 위에 두면 게임 1번이 매번 접히는 곳 아래로 밀린다. 발견성은
+ * 바의 Language 버튼(현재 언어의 자국어 이름)이 담당한다.
+ * ------------------------------------------------------------------------- */
+.nav-lang {
+  margin-top: 28px;
+  padding-top: 20px;
+  border-top: 1.5px solid var(--tile-edge);
+}
+.nav-lang h3 {
+  margin: 0 0 10px;
+  font-size: 18px;
+}
+.nav-lang .lang-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+@media (min-width: 480px) {
+  .nav-lang .lang-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (min-width: 780px) {
+  .nav-lang .lang-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+.nav-lang .lang-btn {
+  min-height: 56px;
+  min-width: 0;
+  padding: 10px 8px;
+  font-size: 17px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+/* 현재 언어는 세 가지로 읽힌다: aria-pressed, 앰버 링 + 초록 채움, 그리고
+ * 바의 버튼에 이미 그 이름이 적혀 있다는 사실. */
+.nav-lang .lang-btn[aria-pressed="true"] {
+  box-shadow: 0 0 0 3px var(--accent);
+  border-color: var(--felt);
+  background: #e4f2ea;
+}
+
+/* 새 언어로 "지금 새로 고칩니다"를 알리는 줄. 높이를 미리 잡아 두어
+ * 문장이 들어와도 그리드가 흔들리지 않는다. */
+.nav-lang-note {
+  min-height: 3em;
+  margin: 12px 0 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--felt-dark);
+}
+
+/* 패널이 열려 있는 동안 페이지는 스크롤되지 않는다. */
+body.nav-open { overflow: hidden; }
+
+/* 언어를 바꾸고 새로 고치기까지의 250ms — 패널을 완전히 불투명하게 만들어
+ * 뒤에서 반쯤 다시 그려지는 보드가 보이지 않게 한다. 보이는 것은 단단한
+ * 한 면뿐이고, 그래서 이 잠깐이 고장으로 읽히지 않는다. */
+.nav-panel.nav-panel-switching {
+  background: var(--paper);
+}
+.nav-panel.nav-panel-switching .nav-panel-sheet {
+  max-height: 100%;
+  flex: 1 1 auto;
+}
+
+/* 120ms 페이드. 슬라이드는 쓰지 않는다. */
+@keyframes nav-panel-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.nav-panel[data-open="true"] {
+  animation: nav-panel-in 0.12s ease-out;
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-panel[data-open="true"] { animation: none; }
+}
+
+/* ---- 초록 배너를 대신하는 h1 --------------------------------------------
+ * <main> 안의 첫 요소, 기존 목표 문장 바로 위. 눈에 작지만 읽는 순서에서는
+ * 첫 번째다 — 위계는 보드 우선이고 h1에 남은 일은 SEO와 "내가 뭘 열었는지"
+ * 확인이다. visually-hidden으로 숨기지 않는 이유: 광고에서 들어온 사람은
+ * 자기가 뭘 열었는지 화면에서 봐야 한다. 제목이 둘로 읽히는 위험은 목표
+ * 문장보다 오히려 작게(17px vs 18px), --felt-dark로, 2px 간격으로 붙여서
+ * "이름 + 규칙" 두 줄 한 덩어리로 읽히게 하여 해결한다.
+ * ------------------------------------------------------------------------- */
+.game-title {
+  margin: 10px 0 2px;
+  text-align: center;
+  color: var(--felt-dark);
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+@media (min-width: 768px) {
+  .game-title { font-size: 22px; margin: 14px 0 4px; }
+}
+
+/* ---- 게임이 아닌 페이지의 h1 (.page-title) — 디자인 리뷰에서 갈라놓음 ----
+ *
+ * .game-title이 작고 조용한 근거는 전부 "보드 우선"이다: 화면의 주인공은
+ * 보드이고, h1에 남은 일은 SEO와 방향 확인뿐이다. About/Contact/Privacy/
+ * Terms/Guides에는 보드가 없다. 거기서 h1은 그 페이지의 실제 제목인데,
+ * 병렬 작업 중 .game-title이 그대로 붙어서 이런 상태가 나왔다:
+ *
+ *   Privacy Policy   17px, 가운데, --felt-dark
+ *   본문             18px
+ *   Game data ...    24px (.content h2)
+ *
+ * 페이지 제목이 페이지에서 가장 작은 글자이고, 본문보다도 작다. 게다가
+ * 1280px에서 h1은 뷰포트 가운데인데 본문 칼럼은 820px 왼쪽이라 서로
+ * 아무 관계도 없이 떠 있었다. 그리고 같은 섹션인 /guides/ 목록은 17px
+ * 가운데인데 그 안의 글은 .article-title로 26px 왼쪽이었다 — 한 사이트에
+ * 규칙 없는 두 가지 처리.
+ *
+ * 그래서 규칙을 하나 정한다: 보드가 있는 페이지는 .game-title(작고 조용),
+ * 내용이 곧 페이지인 페이지는 .page-title(그 페이지의 제목답게). 크기
+ * 램프는 이미 옳았던 .article-title에서 그대로 가져오고, 폭과 좌우 여백은
+ * .content와 똑같이 맞춰서 본문 첫 줄과 왼쪽 선이 정확히 떨어지게 한다
+ * (h1은 <main>의 첫 자식이어야 해서 .content 안으로 옮길 수 없다 —
+ * tools/nav-check.mjs가 그 순서를 본다). */
+.page-title,
+.article-title {
+  font-size: clamp(26px, 4vw, 34px);
+  line-height: 1.25;
+}
+.page-title {
+  max-width: 820px;
+  /* 16/24px 위쪽 여백: 바의 초록 선 바로 아래 8px에 붙여 두면 페이지 크롬과
+   * 페이지 내용이 한 덩어리로 읽힌다. 이 페이지들은 어차피 스크롤하는
+   * 글이라 여기서 쓰는 몇 px이 폴드를 바꾸지 않는다. */
+  margin: 16px auto 0;
+  padding-inline: max(clamp(12px, 3vw, 28px), env(safe-area-inset-left))
+                  max(clamp(12px, 3vw, 28px), env(safe-area-inset-right));
+  color: var(--ink);
+}
+@media (min-width: 768px) {
+  .page-title { margin-top: 24px; }
 }
 
 /* ---- 게임 영역 레이아웃 -------------------------------------------------
@@ -494,7 +888,7 @@ body[data-show-free="true"] .tile-btn[data-free="false"] .tile-face {
  * 하나로 표현한다. 헤더/본문/푸터를 숨기고 툴바+보드만 화면 전체를 쓰게
  * 하며, 배경을 펠트 그린으로 통일한다(요구사항 B-5, B-6).
  * ------------------------------------------------------------------------- */
-body.is-fullscreen .site-header,
+body.is-fullscreen .site-nav,
 body.is-fullscreen .content,
 body.is-fullscreen .site-footer,
 body.is-fullscreen .sidebar {
@@ -672,6 +1066,18 @@ body.is-fullscreen .board-viewport {
   font-weight: 500;
   line-height: 1.4;
   color: var(--felt-dark);
+}
+
+/* 카드의 글은 games.json에서 오고, 그 글은 언어와 무관하게 영어다(게임
+ * 이름과 한 줄 설명 — SEO 텍스트와 같은 이유로 번역하지 않는다). 그래서
+ * 아랍어에서 카드 본문만은 LTR이어야 한다: RTL 문단 안의 영어 문장은
+ * 마침표가 줄 맨 앞으로 넘어가서 ".— no timer" 처럼 읽힌다(패널 12장
+ * 전부에서 확인). 카드 자체는 그대로 미러링된다 — .game-card는 gap을 쓰는
+ * flex 행이라 썸네일이 스스로 오른쪽으로 간다. 뒤집히지 않아야 하는 것은
+ * 글 덩어리 하나뿐이다. */
+[dir="rtl"] .game-card-body {
+  direction: ltr;
+  text-align: start;
 }
 
 /* ---- 다른 게임으로 보내는 크로스 링크 -------------------------------------
@@ -1192,15 +1598,8 @@ body.ads-off .sidebar {
   }
 }
 
-/* 보조 페이지(About/Privacy/Contact) 헤더의 "게임으로 돌아가기" 링크 */
-.site-header .back-link {
-  color: inherit;
-  text-decoration: underline;
-}
-.site-header .back-link:hover,
-.site-header .back-link:focus-visible {
-  text-decoration-thickness: 2px;
-}
+/* About/Privacy/Contact의 "게임으로 돌아가기" 링크는 상단 바가 대신한다 —
+ * 그 규칙들은 .site-header와 함께 지웠다. */
 
 /* 보조 페이지 본문에서 자주 쓰는 소제목/목록 여백 살짝 정리 */
 .content h3 {
@@ -1234,14 +1633,6 @@ body.ads-off .sidebar {
    * 여백을 확보한다 — 보드 자체는 JS(recomputeBoardLayout)가 액션바
    * 실측 높이를 빼고 계산하므로 별도 처리가 필요 없다. */
   body { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
-
-  /* 헤더: 타이틀 한 줄만 남기고 부제는 숨겨 세로 공간을 보드에 더 준다. */
-  .site-header {
-    padding: 8px max(clamp(10px, 3vw, 20px), env(safe-area-inset-right))
-             8px max(clamp(10px, 3vw, 20px), env(safe-area-inset-left));
-  }
-  .site-header h1 { font-size: 19px; }
-  .site-header .tagline { display: none; }
 
   .game-shell { padding-top: 8px; gap: 10px; }
 
@@ -1402,13 +1793,8 @@ body.ads-off .sidebar {
  * 상관없이 걸리는데, 어차피 세로 공간이 부족한 상황(작은 창 포함)에서는
  * 헤더를 줄이는 게 항상 도움이 되므로 문제없다. */
 @media (max-height: 500px) and (orientation: landscape) {
-  .site-header {
-    padding: 6px max(clamp(12px, 3vw, 20px), env(safe-area-inset-right))
-             6px max(clamp(12px, 3vw, 20px), env(safe-area-inset-left));
-  }
-  .site-header h1 { font-size: 18px; }
-  .site-header .tagline { display: none; }
   .game-shell { padding-top: 8px; }
+  .game-title { margin: 4px 0 2px; }
   .toolbar { margin-bottom: 8px; }
 }
 
@@ -1448,10 +1834,11 @@ body.ads-off .sidebar {
   margin: 8px 0;
 }
 
+/* 크기 램프는 .page-title과 한곳에서 함께 정한다(위쪽 .page-title 블록) —
+ * 글의 제목과 페이지의 제목은 같은 크기로 읽혀야 한다. 여기서는 여백만.
+ * (.article-title은 .content.article 안에 있어서 좌우 여백을 이미 받는다.) */
 .article-title {
   margin: 8px 0 0;
-  font-size: clamp(26px, 4vw, 34px);
-  line-height: 1.25;
 }
 .article-date {
   margin: 8px 0 0;
@@ -1540,11 +1927,18 @@ body.ads-off .sidebar {
   margin: 8px 0 0;
 }
 
-/* 아티클 헤더의 "목록으로" 링크. .tagline과 달리 모바일에서도 유지된다 —
- * 아티클 페이지에는 보드가 없으니 세로 공간을 아낄 이유가 없고, 이게
- * 유일한 상위 이동 수단이다. */
-.site-header .article-crumb {
-  margin: 0;
+/* 아티클의 "모든 가이드로" 링크. 상단 바는 홈으로만 가므로 가이드 목록으로
+ * 올라가는 유일한 수단이고, 모바일에서도 유지된다(아티클 페이지에는 보드가
+ * 없으니 세로 공간을 아낄 이유가 없다). 예전에는 .site-header 안에 있었다. */
+.article-crumb {
+  margin: 0 0 4px;
+  padding-inline: 4px;
   font-size: 18px;
   font-weight: 600;
+}
+.article-crumb a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding-inline: 4px;
 }

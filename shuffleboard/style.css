@@ -219,10 +219,94 @@ button.ghost {
 }
 #menu button:active { background: rgba(255, 255, 255, 0.08); }
 #menu .who { color: var(--dim); font-size: 12px; padding: 8px 12px 4px; }
-/* Site build: the one way back to the rest of easymahjongsolitaire.com,
-   on the home screen only — never on a gameplay screen. */
-#menu .site-home-link {
-  display: block; padding: 10px 12px 8px; margin-top: 4px;
+/* Site build: the way back to the rest of easymahjongsolitaire.com is the
+   Games panel now, and it is the last item in this menu — a rule, then the
+   one thing that leaves the game. */
+/* A rule above it, and nothing else: the old "More free games →" line was
+   dimmed because it was a footnote, and a dimmed row in a list of taps reads
+   as disabled. This is a menu item like the five above it. */
+#menu button.games {
+  margin-top: 4px;
   border-top: 1px solid rgba(255, 255, 255, 0.09);
-  color: var(--dim); font-size: 13px; text-decoration: underline; text-underline-offset: 3px;
+  border-radius: 0 0 8px 8px;
 }
+
+/* ==== the site's top bar and its Games panel ==============================
+ * DESIGN.md "Site navigation" §6. The bar's own rules, the panel's and the
+ * eleven game cards' all live in /style.css, which this page now loads
+ * FIRST; everything below is the standalone build's share of the work.
+ *
+ * There is no scroll here (html, body { overflow: hidden }), so the bar
+ * cannot scroll away the way it does on a site-shell phone page. It takes a
+ * real row instead and the game gets what is left — as a FLEX COLUMN, not as
+ * calc(100vh - var(--nav-h)): this page has already lost pixels to 100vh on
+ * iOS once, and the notch padding makes that arithmetic wrong twice.
+ * ------------------------------------------------------------------------- */
+body { display: flex; flex-direction: column; }
+/* was height: 100%. position: relative because #menu-btn and #menu are
+ * absolutely positioned and used to resolve against the viewport — with a
+ * row above them, "top: 6px" would put the ⋯ on top of the bar. */
+#app { flex: 1 1 auto; height: auto; min-height: 0; position: relative; }
+.site-nav {
+  flex: 0 0 auto;
+  align-self: stretch;          /* body centres its children here */
+  /* The bar pays for the notch now. Capped the way the rest of the series
+   * caps it: in a webview that draws its own toolbar over the inset, the
+   * page otherwise pays for the notch twice. */
+  padding-top: min(env(safe-area-inset-top, 0px), 24px);
+}
+/* Only the three --nav-* values change for a dark page — that is the whole
+ * point of exposing them (see /style.css :root). The MARK is deliberately
+ * left alone: it is a deep-green tile with two cream shapes on every other
+ * page of the site, a 65+ visitor recognises it as the same badge, and
+ * re-tinting it per game would make one brand look like three. */
+.site-nav {
+  --nav-bg: #1e1811;
+  --nav-ink: var(--ink);
+  --nav-border: rgba(240, 233, 221, 0.25);
+}
+/* The two controls are the site's own .btn, restated for a dark field: the
+ * ivory-on-deep-green fill would be a second bright band across the top. */
+.site-nav .btn {
+  background: rgba(240, 233, 221, 0.08);
+  color: var(--ink);
+  border-color: rgba(240, 233, 221, 0.45);
+  box-shadow: none;
+}
+.site-nav .btn:hover { background: rgba(240, 233, 221, 0.16); }
+.site-nav .btn:active {
+  background: rgba(240, 233, 221, 0.24);
+  color: var(--ink);
+  transform: translateY(1px);
+}
+.site-nav .nav-brand,
+.site-nav .nav-brand:visited { color: var(--ink); }
+
+/* IT HIDES DURING PLAY. Set by src/main.js when a table screen opens and
+ * cleared on the way back to home / stage select, because the canvas geometry
+ * is measured in JS and a permanent band above a surface you drag on is a
+ * mis-tap hazard. Every toggle is followed by this game's own remeasure in
+ * the same frame — see main.js. Mid-game the panel is still one tap away
+ * from the game's own menu. */
+body[data-nav="hidden"] .site-nav { display: none; }
+
+/* The panel is the site's cream sheet, and this file redefines --ink (and
+ * --accent) for a dark table — so both go back to /style.css's values for
+ * the length of the panel, or its text is near-white on cream. */
+.nav-panel {
+  --ink: #0f2419;
+  --accent: #f2b705;
+  /* Not only for the rules that name --ink: the panel head's <h2> and the
+   * language heading have no colour of their own and inherit it from body,
+   * which on this page is near-white. Without this the word "Games" was
+   * invisible on its own cream sheet. */
+  color: var(--ink);
+}
+/* …and #app must not pay for it a second time while the bar is on screen
+ * (its own top padding is the notch plus 8px of air). */
+body:not([data-nav="hidden"]) #app { padding-top: 8px; }
+
+/* /style.css's mobile block puts 64px of bottom padding on the page body for the
+ * phone action bar it owns. There is no action bar here and no scroll to
+ * absorb it. */
+html, body { padding: 0; }

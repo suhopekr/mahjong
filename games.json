@@ -7,6 +7,12 @@
       "name": "Mahjong Solitaire",
       "path": "/",
       "ga": "mahjong",
+      "card": {
+        "thumb": "/mahjong-thumb.jpg",
+        "size": 400,
+        "alt": "Mahjong Solitaire board with big tiles laid out in a pattern",
+        "desc": "Match the free tiles in pairs and clear the whole board — no timer."
+      },
       "sitemap": { "changefreq": "monthly", "priority": "1.0" },
       "check": { "play": null, "shell": "site" }
     },
@@ -16,6 +22,12 @@
       "path": "/daily.html",
       "ga": "mahjong",
       "track": false,
+      "card": {
+        "thumb": "/daily-thumb.jpg",
+        "size": 400,
+        "alt": "Today's Mahjong Solitaire board with a small month calendar in the corner, today ringed",
+        "desc": "One fresh Mahjong board every day — the same puzzle for everybody."
+      },
       "sitemap": { "changefreq": "daily", "priority": "0.9" },
       "check": { "play": null, "shell": "site" }
     },

@@ -16,6 +16,23 @@ import { test, assertTrue, assertEqual, readPage } from "./harness.js";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const html = readPage(root);
 
+/**
+ * The page minus the site's top bar and Games panel.
+ *
+ * Everything between the <!-- games:nav --> fences is written by
+ * tools/sync-games.mjs from games.json: it is the site's own chrome, and it
+ * describes the OTHER ten games — including a "white cue ball" and a "cue
+ * ball ready" in two card alt texts. The rules below are about the words
+ * THIS game chose, so they are asked of the page without it.
+ */
+function ownWords(page) {
+  const a = page.indexOf("<!-- games:nav -->");
+  const b = page.indexOf("<!-- /games:nav -->");
+  if (a === -1 || b === -1) return page;
+  return page.slice(0, a) + page.slice(b);
+}
+const own = ownWords(html);
+
 function sourceFiles() {
   const out = [];
   for (const dir of ["src", "src/core", "src/game"]) {
@@ -49,7 +66,7 @@ test("nothing promises online, ranking or accounts", () => {
   // Site build: <head> carries the site's search copy ("play … free
   // online"), which is about where the game runs, not a promise of online
   // play. The game's own words are everything from <body> on.
-  assertTrue(!words.test(html.slice(html.indexOf("<body"))), "index.html");
+  assertTrue(!words.test(own.slice(own.indexOf("<body>"))), "index.html");
   for (const f of sourceFiles()) {
     const code = stripComments(readFileSync(f, "utf8"));
     // Strings only would be nicer; identifiers don't render, but keeping
@@ -63,7 +80,7 @@ test("the deck game is not promised either", () => {
   // the cruise-ship floor game; a player who reads them will expect the
   // wrong sport — the same expectation-miss as pool players finding a
   // table with no pockets.
-  const visible = html.replace(/<!--[\s\S]*?-->/g, "");
+  const visible = own.replace(/<!--[\s\S]*?-->/g, "");
   assertTrue(!/\b(deck|cue)\b/i.test(visible), "index.html speaks table shuffleboard");
 });
 

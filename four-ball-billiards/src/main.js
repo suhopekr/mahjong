@@ -72,12 +72,31 @@ function trackEvent(name, params) {
   }
 }
 
-// The one way back to the rest of the site, on the home screen only.
-// Navigation is never delayed to wait on delivery — GA4 sends via
-// sendBeacon, and making someone wait on measurement is the wrong trade.
-document.getElementById("link-crossgame-home")?.addEventListener("click", () => {
-  trackEvent("cross_game_click", { from: "four_ball_billiards", to: "site_home", placement: "home" });
-});
+/**
+ * Every link that leaves for another game on this site.
+ *
+ * There used to be exactly one — "More free games →" on the home screen —
+ * and it was wired by id. The top bar replaced it with a wordmark and a
+ * panel of eleven cards (DESIGN.md "Site navigation"), so this is
+ * game.js's wireCrossGameLinks() copied verbatim in shape: the LINK carries
+ * where it goes (data-crossgame-to) and where it was pressed
+ * (data-placement), which is what lets this function never list a game.
+ * tools/sync-games.mjs writes those attributes from games.json.
+ *
+ * Navigation is never delayed to wait on delivery — GA4 sends via
+ * sendBeacon, and making someone wait on measurement is the wrong trade.
+ */
+function wireCrossGameLinks() {
+  for (const a of document.querySelectorAll("a[data-crossgame-to]")) {
+    a.addEventListener("click", () => {
+      trackEvent("cross_game_click", {
+        from: "four_ball_billiards",
+        to: a.dataset.crossgameTo,
+        placement: a.dataset.placement || "unknown",
+      });
+    });
+  }
+}
 
 const canvas = document.getElementById("table");
 const ctx = canvas.getContext("2d");
@@ -118,6 +137,7 @@ const el = {
   btnAgain: document.getElementById("btn-again"),
   menu: document.getElementById("menu"),
   menuOpen: document.getElementById("menu-open"),
+  toGames: document.getElementById("to-games"),
   menuClose: document.getElementById("menu-close"),
   preview: document.getElementById("preview"),
   undo: document.getElementById("undo"),
@@ -175,6 +195,30 @@ let previewCache = null;
 // a row on the same stage is stuck.
 const OFFER_MIN_MISSES = 3;
 const OFFER_COOLDOWN_MS = 120_000;
+/**
+ * THE FIRST MINUTE, WHICH IS THE ONE THE PORTAL SCORES.
+ *
+ * CrazyGames counts conversion as "still playing a minute later": 59% on
+ * desktop and 35% on a phone, against 80% for a game that is working. A
+ * probe of the gestures a new player actually arrives with (tools/qa/
+ * fourball_fixes_qa.py here; qa-first-touch.mjs upstream) found five of
+ * the eight producing NOTHING — tapping the cue ball, flicking it at the
+ * reds, pulling back from it, tapping the cloth, dragging the cloth. No
+ * cue movement, no sound, and the demo card did not even go away,
+ * because wakeUp() only ran from inside the three control branches.
+ * Three taps into a game that answers none of them is a game that looks
+ * broken, and on a phone the status line that explains the controls is
+ * display:none. On this site it matters more than it did on the portal:
+ * the audience here is 65+.
+ *
+ * So a press anywhere aims now, and the first one says what to do next.
+ * These two count that: the line is worth showing to someone who has
+ * never fired a shot, and worth nothing to anyone else.
+ */
+let firedEver = false;
+let aimHintsShown = 0;
+const AIM_HINTS = 2;
+
 let missStreak = 0;
 let missStreakStage = null;
 let lastOfferAt = -Infinity;
@@ -436,6 +480,29 @@ const MAX_CAMPAIGN_STARS = STAGES.length * 3 * DIFFICULTIES;
  * scrim is a gradient and not a wash — the table has to be visibly alive
  * behind the words.
  */
+/**
+ * THE SITE BAR TAKES A REAL ROW, SO IT COMES OFF WHILE THE TABLE IS UP.
+ *
+ * DESIGN.md §6. Two reasons: the table's geometry is measured in JS from the
+ * live box, and a permanent band along the top edge of a surface you drag a
+ * cue on is a mis-tap generator.
+ *
+ * The remeasure is the whole reason this is a function rather than one line
+ * at each call site. body[data-nav] changes #app's height by 56px; the
+ * canvas is sized from clientWidth/clientHeight (render.prepareCanvas), so a
+ * frame drawn before the row has gone — or come back — is drawn at the old
+ * height, and then the aim the finger sets and the cue on screen disagree by
+ * that much. draw() is this game's remeasure: it calls prepareCanvas(),
+ * recomputes the layout from what it gets and repaints. Called here, in the
+ * same turn as the toggle, so nothing can paint in between.
+ */
+function setNavHidden(hidden) {
+  if ((document.body.dataset.nav === "hidden") === hidden) return;
+  if (hidden) document.body.dataset.nav = "hidden";
+  else delete document.body.dataset.nav;
+  draw();
+}
+
 function showScreen(name) {
   state.screen = name;
   const playing = name === "play";
@@ -474,6 +541,18 @@ function showScreen(name) {
   // and restart have nothing to act on once the table is behind a menu.
   paintUndoButton();
   paintStatus();
+  // The bar belongs to the front screens: home, stage select, tables, setup.
+  //
+  // LAST, and that ordering is the whole point. setNavHidden() remeasures the
+  // table in the same turn, and the table's box is not final until everything
+  // above this line has run: `.front` coming off puts the header row BACK
+  // (#app.front has one row and no header), which is another 42px out of the
+  // board. Called at the top of this function instead, the canvas was
+  // measured 42px too tall — its bitmap came out at 2.14 device pixels per
+  // CSS pixel instead of 2 — and every frame until the next one was drawn
+  // stretched. tools/qa/standalone_nav_qa.py reads the canvas in the same
+  // JavaScript task as the click, which is how that was caught.
+  setNavHidden(playing);
 }
 
 function paintHome() {
@@ -1388,6 +1467,29 @@ function playNewSounds() {
 }
 
 /**
+ * Take hold of the shot: the cue follows this hand until it lets go.
+ *
+ * Shared by the stick and by every other press on the table, which is
+ * the whole of the change — and it carries the one line a player who has
+ * never fired a shot needs, because a game that answers a touch by
+ * turning the cue a few degrees has still not said what the bar is for.
+ */
+function startAim(pos) {
+  wakeUp();
+  state.pressAt = { x: pos.x, y: pos.y };
+  state.travelled = 0;
+  state.aimRef = null;
+  state.dragging = true;
+  if (!firedEver && aimHintsShown < AIM_HINTS) {
+    aimHintsShown++;
+    // The player has just dragged, so telling them to drag is telling
+    // them what they already did. The bar is the part they cannot guess.
+    setBanner("Pull the bar to shoot", 2400);
+  }
+  paintStatus();
+}
+
+/**
  * Turn the cue by however far the hand holding it has turned.
  *
  * Relative, one to one, around the ball. See layout.angleAround() for why
@@ -1467,12 +1569,7 @@ attachPointerHandlers(canvas, {
     // the fader, while a fader that swallowed the stick would leave the
     // player no way to aim at all.
     if (LAY.withinCue(state.layout, cueBall(), state.aim.angle, state.aim.power, pos.x, pos.y)) {
-      wakeUp();
-      state.pressAt = { x: pos.x, y: pos.y };
-      state.travelled = 0;
-      state.aimRef = null;
-      state.dragging = true;
-      paintStatus();
+      startAim(pos);
       return;
     }
     if (hit === "lane") {
@@ -1488,6 +1585,22 @@ attachPointerHandlers(canvas, {
       paintStatus();
       return;
     }
+    // AND ANYTHING ELSE AIMS.
+    //
+    // This branch used to not exist: a press that was not the dial, the
+    // arrows, the stick or the bar fell out of onDown having done
+    // nothing at all. The stick is 36px wide and lies wherever the aim
+    // points, so "aim" was a target a new player had to find before the
+    // game would answer them — and the two most natural things to try on
+    // a billiard table, touching the ball and dragging the cloth, were
+    // both silence.
+    //
+    // steerAim() is relative, so starting the drag out here needs no new
+    // maths and no new feel: the cue turns by however far the hand swings
+    // around the ball, exactly as it does when the hand is on the stick.
+    // The stick keeps its own branch above because it still outranks the
+    // bar, which this one must not.
+    startAim(pos);
   },
   onMove(pos, meta) {
     if (state.phase !== "aim" || !meta.pressed) return;
@@ -1645,6 +1758,7 @@ window.addEventListener("keydown", (e) => {
 });
 
 function fire(shot) {
+  firedEver = true;
   // The one place that guards this, rather than each of the three call
   // sites. Every path in was already checking, but a shot fired while the
   // table is still rolling — or while an ad is up, which the requirements
@@ -2282,6 +2396,30 @@ el.toHome.addEventListener("click", () => {
   closeMenu();
   goHome();
 });
+
+/**
+ * Games, from the ⋯ menu — the same panel the bar opens.
+ *
+ * /nav.js owns opening, closing, the focus trap and the analytics; its
+ * public surface is the bar's own button, so this presses it rather than
+ * re-implementing any of that. The button is display:none while the table is
+ * up, which a click() does not care about but focus does — /nav.js hands
+ * focus back to #nav-games on close and a hidden element cannot take it. So
+ * the one thing left to do here is catch the close and put focus back on the
+ * menu item the player actually pressed.
+ */
+el.toGames.addEventListener("click", () => {
+  const panel = document.getElementById("nav-panel");
+  const games = document.getElementById("nav-games");
+  if (!panel || !games) return;
+  const back = new MutationObserver(() => {
+    if (panel.dataset.open === "true") return;
+    back.disconnect();
+    if (!el.menu.hidden) el.toGames.focus();
+  });
+  back.observe(panel, { attributes: true, attributeFilter: ["data-open"] });
+  games.click();
+});
 /**
  * Start this stage again from its own deal.
  *
@@ -2357,6 +2495,10 @@ R.applyTheme(getTheme());
 const boot = getContinuePoint();
 loadStage(Math.min(STAGES.length, boot.id) - 1, boot.level);
 goHome();
+// After the bar's markup is in the document (it is written into the page by
+// tools/sync-games.mjs, so it is there from the first byte) and after the
+// first screen has decided whether the bar is on it.
+wireCrossGameLinks();
 requestAnimationFrame(frame);
 
 /**

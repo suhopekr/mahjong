@@ -416,3 +416,31 @@ test("the way out is the first thing in the header", () => {
     assertTrue(/class="back"/.test(head), `${id} should carry the back treatment`);
   }
 });
+
+test("a press anywhere on the table takes hold of the shot", () => {
+  // What the portal's conversion number was measuring. A press that was
+  // not the dial, the arrows, the stick or the bar used to fall out of
+  // onDown having done nothing: no cue, no sound, and the demo card
+  // still sitting there, because wakeUp() only ran inside those
+  // branches. Touching the ball and dragging the cloth — the two things
+  // anyone tries on a billiard table first — were both silence.
+  //
+  // tools/qa/fourball_fixes_qa.py is the live proof; this is the cheap
+  // guard that the branch does not quietly go away again.
+  const main = readFileSync(path.join(root, "src/main.js"), "utf8");
+  const down = main.slice(main.indexOf("  onDown(pos) {"), main.indexOf("  onMove(pos, meta) {"));
+  // The LAST thing onDown does is start an aim: that is what makes it a
+  // fallback rather than one more target to find.
+  const tail = down.trimEnd().split("\n").slice(-2).join("\n");
+  assertTrue(/startAim\(pos\);/.test(tail), `onDown must end by starting an aim, ends with: ${tail.trim()}`);
+  // The stick still outranks the bar, and the bar still outranks the
+  // cloth — order is the whole design of this handler.
+  const cue = down.indexOf("withinCue");
+  const lane = down.indexOf('hit === "lane"');
+  const fallback = down.lastIndexOf("startAim(pos)");
+  assertTrue(cue > 0 && lane > cue && fallback > lane, "cue, then bar, then everything else");
+  // And the first press says what the bar is for, once, to someone who
+  // has never fired a shot.
+  const aim = main.slice(main.indexOf("function startAim("), main.indexOf("function steerAim("));
+  assertTrue(/firedEver/.test(aim) && /setBanner\(/.test(aim), "the first aim must name the next step");
+});
