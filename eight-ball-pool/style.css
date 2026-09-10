@@ -322,6 +322,20 @@
   font-weight: 600;
   line-height: 1.2;
 }
+/* Four labels in one row at 390px is about 83px each, and German's
+ * "Einstellungen" is one unbreakable 98px word — it pushed the page 7px
+ * sideways, which the responsive rules forbid outright. `overflow-wrap` on
+ * the button does not reach it: .btn is inline-flex, so its text is an
+ * anonymous flex item and the property has nothing to apply to. Rather
+ * than break a word mid-syllable or shrink the type below 17px, the row
+ * wraps to two — which DESIGN.md already prefers ("a long label is allowed
+ * to wrap to two lines rather than shrink its type") and which every other
+ * game's toolbar already does at this width. English is unaffected: its
+ * four labels fit one row and `flex-basis: auto` keeps them there. */
+@media (max-width: 559px) {
+  .pool-controls { flex-wrap: wrap; }
+  .pool-controls .btn { flex: 1 1 calc(50% - 12px); }
+}
 @media (min-width: 560px) {
   .pool-controls .btn { white-space: nowrap; font-size: 18px; padding: 10px 18px; }
   .pool-shot {

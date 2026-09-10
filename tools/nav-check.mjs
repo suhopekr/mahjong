@@ -103,6 +103,12 @@ ok(existsSync(path.join(root, "nav.js")), "/nav.js exists");
   for (const key of ["games", "close", "language", "playingNow", "languageReload"]) {
     ok(common.includes(key + ":"), `/i18n/common.js has the bar's "${key}"`);
   }
+  // The footer is the bar's opposite number — same words on every page, so
+  // the same table. "games" above is the Games COLUMN's label as well as
+  // the bar's button: one word, one key, on purpose.
+  for (const key of ["footerTagline", "siteLinks", "about", "privacyPolicy", "terms", "contact"]) {
+    ok(common.includes(key + ":"), `/i18n/common.js has the footer's "${key}"`);
+  }
 }
 
 // --- every page -------------------------------------------------------------
@@ -125,6 +131,30 @@ for (const file of htmlFiles(root)) {
   ok(!/class="tagline"/.test(html), "no .tagline left");
 
   ok(/<script type="module" src="\/nav\.js"><\/script>/.test(html), "loads /nav.js as a module");
+
+  // The footer, where it exists (the standalone builds have none): its
+  // tagline, its two column labels and its four Site links are the same
+  // strings on every page, and every one of them is keyed to
+  // /i18n/common.js. The Games column's links are generated markup and
+  // carry data-i18n-content out of /i18n/games.js (tools/i18n-check.mjs).
+  if (/<footer class="site-footer">/.test(html)) {
+    const foot = html.slice(html.indexOf('<footer class="site-footer">'));
+    ok(/<strong>Easy Classics<\/strong> — <span data-i18n="footerTagline">/.test(foot),
+      "the tagline is keyed and the brand is not inside the key");
+    ok(/id="footer-games-label" data-i18n="games"/.test(foot), 'the Games column label is keyed');
+    ok(/id="footer-site-label" data-i18n="siteLinks"/.test(foot), 'the Site column label is keyed');
+    for (const [href, key] of [["/about.html", "about"], ["/privacy.html", "privacyPolicy"],
+      ["/terms.html", "terms"], ["/contact.html", "contact"]]) {
+      // On its own page the link is a self link carrying aria-current, so
+      // the attribute order differs — the key is what matters.
+      if (!foot.includes(`href="${href}"`)) continue;
+      ok(new RegExp(`<a href="${href.replace(/[./]/g, "\\$&")}"[^>]*data-i18n="${key}"`).test(foot),
+        `the ${href} link is keyed "${key}"`);
+    }
+    const gameLinks = [...foot.matchAll(/<a href="[^"]*"[^>]*data-i18n-content="(game\.[^"]+)"/g)];
+    ok(gameLinks.length === GAMES.length,
+      `every footer game link carries its name key (${gameLinks.length} of ${GAMES.length})`);
+  }
 
   if (!STANDALONE.has(name)) {
     // Exactly one h1, and it is the first heading in the reading order.
@@ -263,7 +293,10 @@ for (const name of expected) ok(seen.has(name), `${name} carries the bar`);
 {
   // The front page is the page that ranks; its h1 is not the brand.
   const index = strip(readFileSync(path.join(root, "index.html"), "utf8"));
-  ok(index.includes('<h1 class="game-title">Free Mahjong Solitaire</h1>'),
+  // The h1 now carries data-i18n-content="h1" (its words are chrome and
+  // translate; the <title> and the JSON-LD stay English) — the words are
+  // what this asserts, not the attribute list.
+  ok(/<h1 class="game-title"[^>]*>Free Mahjong Solitaire<\/h1>/.test(index),
     'the front page h1 is still "Free Mahjong Solitaire"');
   ok(/"@type":\s*"WebSite"/.test(index) && /"name":\s*"Easy Classics"/.test(index) && /alternateName/.test(index),
     "the front page carries WebSite JSON-LD naming the brand");

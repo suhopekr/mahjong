@@ -54,7 +54,11 @@ site. Copy its shape:
    Settings, min-height 56px), the two ad-slot divs, `.content` intro + How
    to Play + FAQ (`.faq-item` h3/p pairs matching the JSON-LD one for one),
    the footer with the games fence, a `.settings-panel`, `.modal-overlay`
-   modals, a toast container.
+   modals, a toast container. Every block in `.content` carries a
+   `data-i18n-content` key and the section declares
+   `data-i18n-lang data-i18n-module="/<slug>/src/i18n/content.js"` — see
+   `/i18n/TRANSLATING.md` for the key scheme; the `h1` is
+   `data-i18n-content="game.<key>.name"`.
 2. `/<slug>/style.css` — loaded after `/style.css`; every selector `.xx-`
    prefixed or scoped under `#<slug>`; never redefines a site selector; no
    bare element selectors; colours from the site `:root` custom properties.
@@ -62,7 +66,9 @@ site. Copy its shape:
    `src/main.js` rendering/input/undo/save/settings/GA;
    `src/core/storage.js` the only file touching localStorage, keys
    `<camelSlug>.v1.save|settings|stats`; `src/core/audio.js` procedural
-   Web Audio (copy the tone()/unlock code).
+   Web Audio (copy the tone()/unlock code); `src/i18n/strings.js` the
+   game's own words and `src/i18n/content.js` the article's translations
+   (`export const content = {};` — no `en` key, ever).
 4. `test/` — `harness.js` + `run.js` (copy from any game), a rules suite,
    and a `page.test.js` checking the CSP rules, JSON-LD ↔ FAQ, the footer
    fence and the stylesheet scoping.
@@ -116,9 +122,41 @@ live in `/i18n/common.js`, a game's own in `<slug>/src/i18n/strings.js`
   language. `i18n.onChange()` re-renders anything the game draws itself.
 - Settings' first row is the language grid (`i18n.renderPicker`).
 - Arabic sets `<html dir="rtl">`; boards carry `dir="ltr"` because their
-  layout is in px. The `.content` article and the JSON-LD stay English —
-  that is the SEO text.
+  layout is in px.
 - Each game's `test/strings.test.js` enforces key parity across languages.
+  A shared key that exists in English only is listed in `common.js`'s
+  `PENDING` array, which exempts it from parity until it is filled in —
+  and `tools/i18n-check.mjs` fails if a key stays on that list after every
+  language has it.
+
+The long-form text a visitor reads (the `.content` article — intro, How to
+Play, every FAQ pair, the section headings, the `h1`) works the OTHER way
+round, because it is the SEO copy and a crawler sets no `localStorage`:
+
+- **English lives in the markup, only there.** The block carries
+  `data-i18n-content="introP1"`, and a translation REPLACES it — no `en`
+  dictionary, so there is no second copy to drift from what Google reads.
+- Translations sit in `<slug>/src/i18n/content.js` (game pages) or
+  `/i18n/pages/<page>.js` (index, daily, about, contact), with **no `en`
+  key**, declared in the markup as
+  `<section class="content" lang="en" dir="ltr" data-i18n-lang
+  data-i18n-module="/…/content.js">`. `/nav.js` registers it — it is the
+  one module every page loads — and `/i18n/i18n.js` `import()`s it only
+  when the language is not English, so an English visitor fetches nothing
+  extra. A module that fails to load leaves the page in English.
+- A language in a content module must carry EVERY key that page uses; half
+  a page translated fails the build rather than shipping.
+- Game names and card descriptions are chrome and translate too, out of
+  `/i18n/games.js` — whose `en` block `tools/sync-games.mjs` generates from
+  `games.json`, so the registry stays the one list. The generator also
+  writes the `data-i18n-content` attributes onto the footer links and the
+  card/panel markup.
+- `<title>`, `<meta>` and the JSON-LD stay English. `privacy.html` and
+  `terms.html` stay English entirely — a mistranslated policy misstates
+  what data the site collects; each says so at the top of the file.
+- `/i18n/TRANSLATING.md` is the translator's guide: the mechanism, the key
+  scheme, the tone, and the exact list of files and keys.
+  `node tools/i18n-check.mjs --keys` prints that list live.
 
 ## Ads (not live yet)
 

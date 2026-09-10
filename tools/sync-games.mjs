@@ -16,6 +16,13 @@
 //                                                     Games panel (DESIGN.md
 //                                                     "Site navigation")
 //
+// …and one block that is not HTML: the `en` half of /i18n/games.js, between
+// `// games:i18n:en` line comments. The game names and card descriptions are
+// UI chrome that has to translate (the footer link, the panel card, the front
+// page card, a game page's h1), so they need a dictionary — but games.json is
+// still the ONE registry, so the English side of that dictionary is written
+// from here rather than typed twice.
+//
 // A page without a fence is left alone (the standalone game pages have no
 // site footer — they carry a single "More free games" link instead).
 //
@@ -41,6 +48,13 @@ function urlOf(file) {
   return "/" + rel;
 }
 
+/* The two content keys a game owns. The registry `key` field is the stable
+ * half — a name can be reworded, a description rewritten, and a translator's
+ * file still lines up. Hyphens and all: these are quoted properties in
+ * /i18n/games.js, never identifiers. */
+const nameKey = (g) => `game.${g.key}.name`;
+const descKey = (g) => `game.${g.key}.desc`;
+
 function footerBlock(pageUrl, indent) {
   return GAMES.map((g) => {
     const current = g.path === pageUrl;
@@ -49,7 +63,7 @@ function footerBlock(pageUrl, indent) {
     const attrs = current
       ? ` aria-current="page"`
       : g.track === false ? "" : ` data-crossgame-to="${g.ga}" data-placement="footer"`;
-    return `${indent}<a href="${g.path}"${attrs}>${g.name}</a>`;
+    return `${indent}<a href="${g.path}"${attrs} data-i18n-content="${nameKey(g)}">${g.name}</a>`;
   }).join("\n");
 }
 
@@ -65,8 +79,8 @@ function cardsBlock(pageUrl, indent) {
       `${indent}    <img class="game-card-thumb" src="${c.thumb}" width="${c.size}" height="${c.size}"`,
       `${indent}         alt="${c.alt}" decoding="async" loading="lazy">`,
       `${indent}    <span class="game-card-body">`,
-      `${indent}      <span class="game-card-title">${g.name}</span>`,
-      `${indent}      <span class="game-card-desc">${c.desc}</span>`,
+      `${indent}      <span class="game-card-title" data-i18n-content="${nameKey(g)}">${g.name}</span>`,
+      `${indent}      <span class="game-card-desc" data-i18n-content="${descKey(g)}">${c.desc}</span>`,
       `${indent}    </span>`,
       `${indent}  </a>`,
       `${indent}</li>`,
@@ -128,8 +142,8 @@ function navBlock(pageUrl, indent) {
       `${i(4)}    <img class="game-card-thumb" src="${c.thumb}" width="${c.size}" height="${c.size}"`,
       `${i(4)}         alt="${c.alt}" decoding="async" loading="lazy">`,
       `${i(4)}    <span class="game-card-body">`,
-      `${i(4)}      <span class="game-card-title">${g.name}</span>`,
-      `${i(4)}      <span class="game-card-desc">${c.desc}</span>`,
+      `${i(4)}      <span class="game-card-title" data-i18n-content="${nameKey(g)}">${g.name}</span>`,
+      `${i(4)}      <span class="game-card-desc" data-i18n-content="${descKey(g)}">${c.desc}</span>`,
       current ? `${i(4)}      <span class="nav-now" data-i18n="playingNow">Playing now</span>` : null,
       `${i(4)}    </span>`,
       `${i(4)}  </a>`,
@@ -177,6 +191,31 @@ function navBlock(pageUrl, indent) {
   ].join("\n");
 }
 
+/* --- /i18n/games.js, the `en` block ----------------------------------------
+ * Same idea as the HTML fences, in a .js file, so the line comments are JS
+ * comments rather than HTML ones (a module may not contain <!-- --). Only the
+ * `en` object is generated: every other language in that file is a
+ * translator's work and is never touched from here. */
+function gameI18nEn(indent) {
+  const rows = GAMES.flatMap((g) => [
+    `${indent}  "${nameKey(g)}": ${JSON.stringify(g.name)},`,
+    `${indent}  "${descKey(g)}": ${JSON.stringify(g.card.desc)},`,
+  ]);
+  return [
+    `${indent}en: {`,
+    ...rows,
+    `${indent}},`,
+  ].join("\n");
+}
+
+function replaceJsFence(text, name, makeBody) {
+  const re = new RegExp(`^([ \\t]*)// games:${name}([^\\n]*)\\n[\\s\\S]*?^[ \\t]*// /games:${name}`, "m");
+  const m = text.match(re);
+  if (!m) return null;
+  const indent = m[1];
+  return text.replace(re, `${indent}// games:${name}${m[2]}\n${makeBody(indent)}\n${indent}// /games:${name}`);
+}
+
 // --- fence replacement ------------------------------------------------------
 
 /** Replace the body of `<!-- games:NAME -->…<!-- /games:NAME -->`. The
@@ -203,6 +242,19 @@ function* htmlFiles(dir) {
 // --- run --------------------------------------------------------------------
 
 let touched = 0, stale = [];
+{
+  const file = path.join(root, "i18n/games.js");
+  const before = readFileSync(file, "utf8");
+  const after = replaceJsFence(before, "i18n:en", gameI18nEn);
+  if (after === null) {
+    console.error("i18n/games.js has lost its `// games:i18n:en` fence — restore it before syncing.");
+    process.exit(1);
+  }
+  if (after !== before) {
+    if (check) stale.push("i18n/games.js");
+    else { writeFileSync(file, after); touched++; console.log("updated", "i18n/games.js"); }
+  }
+}
 for (const file of htmlFiles(root)) {
   const before = readFileSync(file, "utf8");
   let after = before;

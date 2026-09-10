@@ -2,6 +2,18 @@
 // translator fills the other 13 languages (same keys, same order). Keys a
 // game does not use are harmless. Game-specific phrases live in
 // <game>/src/i18n/strings.js and override these.
+//
+// These are SHORT UI WORDS, so English lives here as well as in the markup
+// and the two must agree — every game's page.test.js asserts that the text
+// under a data-i18n is exactly the English in this table. That is the
+// opposite of the long-form page copy, which lives ONLY in the HTML and is
+// replaced through data-i18n-content (/i18n/i18n.js, /i18n/TRANSLATING.md).
+//
+// A key listed in PENDING (bottom of this file) exists in `en` and in no
+// other language yet. The runtime already falls back to English for it, so
+// the site is correct meanwhile — but it is a to-do list, not a resting
+// place, and the parity test makes it one: a key stays in PENDING only
+// while at least one language is still missing it.
 export const common = {
   en: {
     hint: "Hint",
@@ -33,6 +45,18 @@ export const common = {
     skipToBoard: "Skip to the board",
     advertisement: "Advertisement",
     winsInARow: ({ n }) => `That's ${n} wins in a row.`,
+
+    // ---- the site footer, identical on every page ----------------------
+    // The brand "Easy Classics" is NOT here and never gets translated: it
+    // stays in the markup as <strong>, and only the words after the dash
+    // are this string. "Games" above is the Games column's label as well
+    // as the top bar's button — one word, one key, deliberately.
+    footerTagline: "free, easy online games. No download, no sign-up, no time limit.",
+    siteLinks: "Site",
+    about: "About",
+    privacyPolicy: "Privacy Policy",
+    terms: "Terms",
+    contact: "Contact",
   },
 
   es: {
@@ -65,6 +89,14 @@ export const common = {
     skipToBoard: "Ir al tablero",
     advertisement: "Publicidad",
     winsInARow: ({ n }) => `Llevas ${n} victorias seguidas.`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "juegos en línea gratis y fáciles. Sin descargas, sin registro, sin límite de tiempo.",
+    siteLinks: "Sitio",
+    about: "Acerca de",
+    privacyPolicy: "Privacidad",
+    terms: "Términos",
+    contact: "Contacto",
   },
 
   pt: {
@@ -97,6 +129,14 @@ export const common = {
     skipToBoard: "Ir para o tabuleiro",
     advertisement: "Publicidade",
     winsInARow: ({ n }) => `São ${n} vitórias seguidas.`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "jogos online grátis e fáceis. Sem download, sem cadastro, sem limite de tempo.",
+    siteLinks: "Site",
+    about: "Sobre",
+    privacyPolicy: "Privacidade",
+    terms: "Termos",
+    contact: "Contato",
   },
 
   fr: {
@@ -129,6 +169,14 @@ export const common = {
     skipToBoard: "Aller au plateau",
     advertisement: "Publicité",
     winsInARow: ({ n }) => `Cela fait ${n} victoires de suite.`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "des jeux en ligne gratuits et faciles. Sans téléchargement, sans inscription, sans limite de temps.",
+    siteLinks: "Le site",
+    about: "À propos",
+    privacyPolicy: "Confidentialité",
+    terms: "Conditions",
+    contact: "Contact",
   },
 
   it: {
@@ -161,6 +209,14 @@ export const common = {
     skipToBoard: "Vai al tavolo",
     advertisement: "Pubblicità",
     winsInARow: ({ n }) => `Sono ${n} vittorie di fila.`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "giochi online gratuiti e facili. Senza download, senza registrazione, senza limiti di tempo.",
+    siteLinks: "Sito",
+    about: "Chi siamo",
+    privacyPolicy: "Privacy",
+    terms: "Termini",
+    contact: "Contatti",
   },
 
   de: {
@@ -193,6 +249,14 @@ export const common = {
     skipToBoard: "Zum Spielfeld springen",
     advertisement: "Anzeige",
     winsInARow: ({ n }) => `Das sind ${n} Siege in Folge.`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "kostenlose, einfache Onlinespiele. Kein Download, keine Anmeldung, kein Zeitlimit.",
+    siteLinks: "Seite",
+    about: "Über uns",
+    privacyPolicy: "Datenschutz",
+    terms: "Nutzungsbedingungen",
+    contact: "Kontakt",
   },
 
   ru: {
@@ -225,6 +289,14 @@ export const common = {
     skipToBoard: "Перейти к столу",
     advertisement: "Реклама",
     winsInARow: ({ n }) => `Побед подряд: ${n}.`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "бесплатные и простые онлайн-игры. Без загрузки, без регистрации, без ограничения времени.",
+    siteLinks: "Сайт",
+    about: "О сайте",
+    privacyPolicy: "Конфиденциальность",
+    terms: "Условия",
+    contact: "Контакты",
   },
 
   tr: {
@@ -257,6 +329,14 @@ export const common = {
     skipToBoard: "Masaya geç",
     advertisement: "Reklam",
     winsInARow: ({ n }) => `Üst üste ${n} galibiyet oldu.`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "ücretsiz ve kolay çevrimiçi oyunlar. İndirme yok, kayıt yok, süre sınırı yok.",
+    siteLinks: "Site",
+    about: "Hakkında",
+    privacyPolicy: "Gizlilik",
+    terms: "Koşullar",
+    contact: "İletişim",
   },
 
   id: {
@@ -289,6 +369,14 @@ export const common = {
     skipToBoard: "Langsung ke papan",
     advertisement: "Iklan",
     winsInARow: ({ n }) => `Itu ${n} kemenangan berturut-turut.`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "permainan online gratis yang mudah. Tanpa unduh, tanpa daftar, tanpa batas waktu.",
+    siteLinks: "Situs",
+    about: "Tentang",
+    privacyPolicy: "Privasi",
+    terms: "Ketentuan",
+    contact: "Kontak",
   },
 
   ko: {
@@ -321,6 +409,14 @@ export const common = {
     skipToBoard: "게임판으로 바로 가기",
     advertisement: "광고",
     winsInARow: ({ n }) => `${n}연승이에요.`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "무료로 쉽게 즐기는 온라인 게임. 설치도, 가입도, 시간 제한도 없어요.",
+    siteLinks: "사이트",
+    about: "소개",
+    privacyPolicy: "개인정보 처리방침",
+    terms: "이용약관",
+    contact: "문의",
   },
 
   ja: {
@@ -353,6 +449,14 @@ export const common = {
     skipToBoard: "盤面へ移動",
     advertisement: "広告",
     winsInARow: ({ n }) => `${n}連勝です。`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "無料でかんたんなオンラインゲーム。ダウンロード不要、登録不要、時間制限なし。",
+    siteLinks: "サイト",
+    about: "サイトについて",
+    privacyPolicy: "プライバシー",
+    terms: "利用規約",
+    contact: "お問い合わせ",
   },
 
   zh: {
@@ -385,6 +489,14 @@ export const common = {
     skipToBoard: "跳到牌桌",
     advertisement: "广告",
     winsInARow: ({ n }) => `已经连胜 ${n} 局。`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "免费又好上手的在线游戏。无需下载，无需注册，没有时间限制。",
+    siteLinks: "网站",
+    about: "关于",
+    privacyPolicy: "隐私政策",
+    terms: "使用条款",
+    contact: "联系我们",
   },
 
   "zh-Hant": {
@@ -417,6 +529,14 @@ export const common = {
     skipToBoard: "跳到牌桌",
     advertisement: "廣告",
     winsInARow: ({ n }) => `已經連勝 ${n} 局。`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "免費又好上手的線上遊戲。免下載、免註冊、沒有時間限制。",
+    siteLinks: "網站",
+    about: "關於",
+    privacyPolicy: "隱私權政策",
+    terms: "使用條款",
+    contact: "聯絡我們",
   },
 
   ar: {
@@ -449,5 +569,28 @@ export const common = {
     skipToBoard: "انتقل إلى الطاولة",
     advertisement: "إعلان",
     winsInARow: ({ n }) => `عدد مرات الفوز على التوالي: ${n}.`,
+
+    // ---- the site footer, identical on every page ----------------------
+    footerTagline: "ألعاب مجانية وسهلة على الإنترنت. بلا تنزيل، بلا تسجيل، بلا حدّ زمني.",
+    siteLinks: "الموقع",
+    about: "عن الموقع",
+    privacyPolicy: "سياسة الخصوصية",
+    terms: "الشروط",
+    contact: "اتصل بنا",
   },
 };
+
+/** Keys that `en` has and the other 13 languages do not — yet.
+ *
+ *  Adding a key here is how a new shared string ships before it is
+ *  translated: the lookup chain falls back to English, so nothing breaks,
+ *  and the footer reads in English on a Korean page rather than blank.
+ *  Every game's test/strings.test.js exempts exactly these keys from the
+ *  "every language has the English key set" rule — and asserts the other
+ *  direction too: a key that IS translated everywhere must be taken off
+ *  this list, so it cannot quietly become a permanent excuse.
+ *
+ *  TRANSLATORS: fill a key in for your language, then delete it from this
+ *  list once all 13 have it. See /i18n/TRANSLATING.md.
+ */
+export const PENDING = [];

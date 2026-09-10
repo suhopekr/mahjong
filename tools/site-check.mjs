@@ -23,6 +23,10 @@
 //     and carries no "More free games" line any more
 //   - card thumbnails exist and are small; every card path is a real page
 //   - the top bar and the Games panel (tools/nav-check.mjs)
+//   - the translations (tools/i18n-check.mjs): every block a visitor reads
+//     is keyed, every content module is complete for the languages it
+//     declares, no English is duplicated into a dictionary, and
+//     privacy.html / terms.html translate nothing
 //
 // BROWSER (Playwright, Chromium, phone + desktop viewport, under the
 // vercel.json headers so the CSP is real):
@@ -166,6 +170,14 @@ section("navigation (tools/nav-check.mjs)");
 {
   const r = spawnSync(process.execPath, [path.join(here, "nav-check.mjs")], { encoding: "utf8" });
   if (!ok(r.status === 0, "the top bar and the Games panel are in place on every page")) {
+    console.log("    " + (r.stdout + r.stderr).trim().replace(/\n/g, "\n    "));
+  }
+}
+
+section("languages (tools/i18n-check.mjs)");
+{
+  const r = spawnSync(process.execPath, [path.join(here, "i18n-check.mjs")], { encoding: "utf8" });
+  if (!ok(r.status === 0, "every page's long-form text is keyed, and every content module is complete")) {
     console.log("    " + (r.stdout + r.stderr).trim().replace(/\n/g, "\n    "));
   }
 }

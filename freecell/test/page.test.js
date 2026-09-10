@@ -44,7 +44,7 @@ test("JSON-LD parses; the FAQ on the page matches the FAQPage block one for one"
   assertEqual(app.url, "https://easymahjongsolitaire.com/freecell/");
   const faq = blocks.find((b) => b["@type"] === "FAQPage");
   const questions = faq.mainEntity.map((q) => q.name);
-  const onPage = [...body.matchAll(/<div class="faq-item">\s*<h3>([^<]+)<\/h3>\s*<p>([\s\S]*?)<\/p>/g)];
+  const onPage = [...body.matchAll(/<div class="faq-item">\s*<h3[^>]*>([\s\S]*?)<\/h3>\s*<p[^>]*>([\s\S]*?)<\/p>/g)];
   assertEqual(onPage.map((m) => m[1].trim()), questions, "same questions in the same order");
   faq.mainEntity.forEach((q, i) => {
     const onPageAnswer = onPage[i][2].replace(/\s+/g, " ").trim();
@@ -63,7 +63,7 @@ test("site shell: footer fence, cross-game links carry placement, one settings s
   assertTrue(/<main id="freecell"/.test(body));
   assertTrue(/role="toolbar"/.test(body));
   const adIdx = body.indexOf('class="ad-slot');
-  assertTrue(adIdx > body.indexOf('class="fc-controls"') && adIdx < body.indexOf('<section class="content">'), "ad slots between controls and content");
+  assertTrue(adIdx > body.indexOf('class="fc-controls"') && adIdx < body.indexOf('<section class="content"'), "ad slots between controls and content");
   assertTrue(body.includes('<div class="lang-grid" id="fc-lang-grid"></div>'), "language grid in settings");
   const settingsIdx = body.indexOf('id="fc-settings-panel"');
   assertTrue(body.indexOf('data-i18n="language"', settingsIdx) < body.indexOf('data-i18n="tapLegend"', settingsIdx), "Language is the first settings row");
@@ -80,7 +80,7 @@ test("top bar: the nav fence, /nav.js, one h1.game-title first in <main>, no .si
   assertTrue(!/class="site-header"/.test(body), "no .site-header left");
   assertTrue(!/class="tagline"/.test(body), "no .tagline left");
   assertEqual((body.match(/<h1[\s>]/g) || []).length, 1, "exactly one <h1>");
-  assertTrue(/<main id="freecell"[^>]*>\s*<h1 class="game-title">FreeCell<\/h1>/.test(body), "h1.game-title is the first thing in <main>");
+  assertTrue(/<main id="freecell"[^>]*>\s*<h1 class="game-title"[^>]*>FreeCell<\/h1>/.test(body), "h1.game-title is the first thing in <main>");
   assertTrue(body.indexOf("<h1") < body.indexOf('class="fc-goal"'), "the h1 comes before the goal line");
   assertTrue(/<nav class="site-nav" id="site-nav"[^>]*data-nav-from="freecell"/.test(body), "the bar names this page's game");
   assertTrue(/<div class="nav-panel" id="nav-panel" data-open="false">/.test(body), "the panel opens on data-open");
@@ -146,4 +146,55 @@ test("the ads shim exposes the three hooks and main.js uses them", async () => {
   assertEqual(await ads.requestRewardedHint(), "granted");
   assertTrue(js.includes('showInterstitial("game_over")') && js.includes("requestRewardedHint()"));
   assertTrue(js.includes('trackEvent("game_start"') && js.includes('trackEvent("game_win"') && js.includes('"cross_game_click"'));
+});
+
+// ---- long-form content (/i18n/TRANSLATING.md) --------------------------
+//
+// The .content article is the SEO copy, so its English stays in the markup
+// and a translation REPLACES it — data-i18n-content, not data-i18n. The
+// rules that apply to every page on the site are in tools/i18n-check.mjs
+// (it also covers the pages that have no suite of their own); what is here
+// is this page: every block a reader reads is keyed, the article declares
+// the module those keys live in, and that module is complete for whatever
+// languages it declares.
+test("i18n: every block of the .content article is keyed, and nothing in it is left as unkeyed prose", () => {
+  const at = body.indexOf('<section class="content"');
+  const article = body.slice(at, body.indexOf("</section>", at));
+  assertTrue(/data-i18n-module="\/freecell\/src\/i18n\/content\.js"/.test(article),
+    "the article declares /freecell/src/i18n/content.js");
+  assertTrue(/data-i18n-lang/.test(article), "…and data-i18n-lang, so its lang/dir follow the translation");
+  assertTrue(/<section class="content" lang="en" dir="ltr"/.test(article),
+    "…while shipping as lang=en dir=ltr, which is what a crawler gets");
+  // Every heading, paragraph and list item a visitor reads.
+  const unkeyed = [...article.matchAll(/<(h2|h3|p|li)((?:\s[^>]*)?)>/g)]
+    .filter((m) => !/data-i18n-content="/.test(m[2]))
+    .map((m) => m[0]);
+  assertEqual(unkeyed, [], "unkeyed blocks in the article");
+  // The h1 is chrome, and translates out of the shared /i18n/games.js so
+  // the name matches the footer link and the Games panel card. The <title>,
+  // the <meta> tags and the JSON-LD stay English deliberately.
+  assertTrue(body.includes('<h1 class="game-title" data-i18n-content="game.freecell.name">FreeCell</h1>'), "the h1 is keyed to the shared game name");
+  assertTrue(!/<title>[^<]*data-i18n/.test(body) && !/<meta[^>]*data-i18n/.test(body),
+    "the head is untouched by i18n");
+  const keys = [...article.matchAll(/data-i18n-content="([^"]+)"/g)].map((m) => m[1]);
+  assertEqual(keys.filter((k, i) => keys.indexOf(k) !== i), [], "a key is used once per page");
+});
+
+test("i18n: src/i18n/content.js holds no English, and every language in it is complete", async () => {
+  const { content } = await import("../src/i18n/content.js");
+  const { LANG_CODES } = await import("../../i18n/i18n.js");
+  assertTrue(!("en" in content),
+    "no `en` block — the English is the markup, and a copy of it here would drift from what ranks");
+  const at = body.indexOf('<section class="content"');
+  const article = body.slice(at, body.indexOf("</section>", at));
+  const wanted = [...article.matchAll(/data-i18n-content="([^"]+)"/g)].map((m) => m[1]);
+  assertTrue(wanted.length > 10, `the article is really keyed (${wanted.length} keys)`);
+  for (const [code, dict] of Object.entries(content)) {
+    assertTrue(LANG_CODES.includes(code), `"${code}" is one of the site's languages`);
+    // All or nothing: a page half in FreeCell's language and half in English
+    // is worse than a page in English, so a partial language fails here
+    // rather than shipping.
+    assertEqual(wanted.filter((k) => !(k in dict)), [], `${code} is missing keys`);
+    assertEqual(Object.keys(dict).filter((k) => !wanted.includes(k)), [], `${code} has keys the page does not use`);
+  }
 });

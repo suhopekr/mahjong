@@ -11,11 +11,38 @@
 //   to the Games button, renders the 14-language grid, translates the bar's
 //   own four strings, marks the current game's card, and sends the analytics.
 //
+// It is also where the page's LONG-FORM translations are switched on, and
+// this is the only module on the site that is in a position to do it: about,
+// contact, privacy, terms and /guides/ have no game runtime at all, so /nav.js
+// is the one script every page loads. It hands the runtime two things and
+// then forgets about them (/i18n/i18n.js, /i18n/TRANSLATING.md):
+//
+//   /i18n/games.js                the game names and card descriptions, which
+//                                 are chrome here — the footer links and the
+//                                 panel cards this file's fence generated
+//   [data-i18n-module]            whatever the page's own .content declared
+//
+// Both are fetched only when the active language is not English, so an
+// English visitor's page is byte for byte the page it was before.
+//
 // CSP (vercel.json: script-src 'self'; style-src 'self'): no inline style
 // attribute is ever written here — the only styling this file does is toggle
 // classes and data-open, exactly like .settings-panel and .modal-overlay.
 import { createI18n, LANGUAGES } from "/i18n/i18n.js";
 import { common } from "/i18n/common.js";
+
+/* The i18n instance lives out here, above the guard: the long-form content
+ * translation below has to run on a page whether or not the bar's markup
+ * came out right, and it is the only translation some pages get at all. */
+const i18n = createI18n({ common });
+
+/* The page's content modules. The URL is declared in the markup, on the
+ * block it belongs to (<section class="content" data-i18n-module="…">), so
+ * a page carries its own answer and nothing here has a list of pages.
+ * /i18n/games.js is unconditional — every page's footer and Games panel
+ * name every game. Nothing is fetched in English. */
+i18n.useContent("/i18n/games.js",
+  [...document.querySelectorAll("[data-i18n-module]")].map((el) => el.dataset.i18nModule));
 
 const nav = document.getElementById("site-nav");
 const panel = document.getElementById("nav-panel");
@@ -47,11 +74,33 @@ if (nav && panel && sheet && btnGames) {
    * dictionary, so a document-wide pass would rewrite a game's own
    * data-i18n="goal" to the literal word "goal". On a game page the game's
    * own i18n instance walks the whole document and picks these keys up from
-   * common anyway, so the bar ends up translated either way. */
-  const i18n = createI18n({ common });
+   * common anyway, so the bar ends up translated either way.
+   *
+   * data-i18n-CONTENT is the exception and is always document-wide, whatever
+   * root is passed: those keys are page-scoped and REPLACE a block only when
+   * the active language has a translation for them, so a pass that has never
+   * heard of a key leaves the authored English exactly where it is instead of
+   * blanking it. applyStatic() takes care of that itself.
+   *
+   * THE FOOTER IS THE THIRD ROOT, and it is not an afterthought — it is the
+   * one part of the shell that the sentence above got wrong. "The game's own
+   * instance walks the whole document" is true of a game page and false of
+   * /, /daily.html, /about.html and /contact.html: those run on game.js,
+   * a legacy non-module script with no i18n at all, so nothing ever walked
+   * their footer and it stayed in English in all thirteen languages while
+   * the bar above it and the article between them were translated.
+   *
+   * Passing it here is safe for the same reason a document-wide pass is not:
+   * every data-i18n key in the footer (footerTagline, siteLinks, about,
+   * privacyPolicy, terms, contact, games) lives in /i18n/common.js, which is
+   * the only dictionary this instance has. Checked, not assumed — outside
+   * the bar and the footer those four pages carry no data-i18n at all. On a
+   * game page the footer is now translated twice, which costs one more walk
+   * of seven elements and is idempotent. */
   function applyOwn() {
     i18n.applyStatic(nav);
     i18n.applyStatic(panel);
+    for (const footer of document.querySelectorAll(".site-footer")) i18n.applyStatic(footer);
     syncLangButton();
   }
 
