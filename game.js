@@ -2324,6 +2324,28 @@
     return (vp.height > vp.width) ? 'portrait' : 'turtle';
   }
 
+  function savedLayoutOf(saved) {
+    return (saved && saved.layoutId && LAYOUTS[saved.layoutId]) ? saved.layoutId : 'turtle';
+  }
+
+  /** 저장된 판을 이 화면에 맞는 레이아웃으로 새로 깔아야 하는가.
+   *
+   * 레이아웃(가로 거북이 / 세로 타워)은 새 게임을 시작하는 "그 순간"의 화면
+   * 방향으로 정해지고, 판 자체가 그 레이아웃의 칸 배치다 — 도중에 바꿀 수
+   * 없다(바꾸면 다른 판이다). 그래서 폰에서 만든 세로 타워를 데스크톱에서
+   * 열면 넓은 화면 가운데에 좁은 탑이 서고(높이에 맞춰 커질 만큼 커진
+   * 뒤라 더 키울 것도 없다), 반대 경우도 마찬가지다. "이어할까요?" 모달이
+   * 있던 동안에는 그 화면에서 New Game을 누르는 것으로 사람이 직접
+   * 해결하고 있었는데, 모달을 없앤 뒤로는 손쓸 방법이 사라졌다.
+   *
+   * 한 수도 두지 않은 판에는 지킬 것이 없다 — 그 경우에만 이 화면에 맞는
+   * 레이아웃으로 다시 깐다. 이미 진행한 판은 방향이 어긋나도 무조건 그대로
+   * 되살린다: 화면에 덜 맞게 보이는 것보다 진행을 잃는 게 훨씬 나쁘다. */
+  function shouldRedealForScreen(saved) {
+    if (savedLayoutOf(saved) === pickLayoutForNewGame()) return false;
+    return !(saved && Array.isArray(saved.history) && saved.history.length > 0);
+  }
+
   function startNewGame() {
     clearPendingStuckTimeout();
     modalStuckMode = null;
@@ -2437,7 +2459,10 @@
     if (saved && saved.dateStr === today && Array.isArray(saved.tiles)) {
       var g = getSlotGraph(saved.layoutId && LAYOUTS[saved.layoutId] ? saved.layoutId : 'turtle');
       var looksValid = saved.tiles.length === g.n && !saved.tiles.every(function (t) { return t == null; });
-      if (looksValid) {
+      // 오늘 판이라도 이 화면에 안 맞는 레이아웃이면, 아직 한 수도 두지
+      // 않았을 때만 오늘 시드로 다시 깐다(shouldRedealForScreen 참고 —
+      // 시드는 같으니 여전히 "오늘의 판"이다).
+      if (looksValid && !shouldRedealForScreen(saved)) {
         clearPendingStuckTimeout();
         modalStuckMode = null;
         consecutiveAutoShuffles = 0;
@@ -3001,11 +3026,14 @@
     // 아직 graph가 없다(startNewGame/resumeSavedGame에서만 채워짐) —
     // 저장된 판 자신의 layoutId 기준으로 길이를 따로 확인한다.
     var saved = loadSavedGame();
-    var savedLayoutId = (saved && saved.layoutId && LAYOUTS[saved.layoutId]) ? saved.layoutId : 'turtle';
-    var savedGraphN = getSlotGraph(savedLayoutId).n;
-    if (saved && Array.isArray(saved.tiles) && saved.tiles.length === savedGraphN && !saved.tiles.every(function (t) { return t == null; })) {
+    var savedGraphN = getSlotGraph(savedLayoutOf(saved)).n;
+    var savedLooksValid = saved && Array.isArray(saved.tiles)
+      && saved.tiles.length === savedGraphN
+      && !saved.tiles.every(function (t) { return t == null; });
+    if (savedLooksValid && !shouldRedealForScreen(saved)) {
       resumeSavedGame(saved, false);
     } else {
+      if (savedLooksValid) clearSavedGame(); // 손대지 않은 판, 이 화면에 안 맞음
       startNewGame();
     }
   }

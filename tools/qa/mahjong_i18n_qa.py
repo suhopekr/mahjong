@@ -224,7 +224,35 @@ def main():
             check(after == 140, f"resume: the saved board came back, not a new one (got {after})")
             check(not page.is_disabled("#btn-undo-mobile"),
                   "resume: the move history came back with it (Undo is live)")
+            phone_state = ctx.storage_state()
             ctx.close()
+
+            # The layout (wide turtle / tall tower) is fixed when a board is
+            # dealt and cannot be reflowed, so a save carries its shape from
+            # screen to screen. An UNTOUCHED board is re-dealt to fit the
+            # screen it is opened on; a board with moves in it is restored
+            # whatever the shape, because losing progress is far worse than
+            # looking a little wrong.
+            def layout_at(state, w, h):
+                c = browser.new_context(viewport={"width": w, "height": h}, storage_state=state)
+                pg = c.new_page()
+                pg.goto(f"http://localhost:{PORT}/", wait_until="load")
+                pg.wait_for_timeout(800)
+                got = (pg.evaluate("() => JSON.parse(localStorage.getItem('mahjongSolitaire.v1.save') || '{}').layoutId"),
+                       pg.eval_on_selector_all(".tile-btn", "n => n.length"))
+                c.close()
+                return got
+
+            fresh = browser.new_context(viewport={"width": 375, "height": 667})
+            pg = fresh.new_page()
+            pg.goto(f"http://localhost:{PORT}/", wait_until="load"); pg.wait_for_timeout(700)
+            untouched = fresh.storage_state()
+            check(layout_at(untouched, 375, 667)[0] == "portrait", "layout: a phone deals the tall board")
+            fresh.close()
+            check(layout_at(untouched, 1280, 800) == ("turtle", 144),
+                  "layout: an untouched phone board is re-dealt wide on a desktop")
+            check(layout_at(phone_state, 1280, 800) == ("portrait", 140),
+                  "layout: a board with moves in it keeps its shape and its progress")
 
             # 2. the switch itself: Settings' grid must change the language
             #    and survive the reload it triggers.

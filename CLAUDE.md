@@ -25,7 +25,12 @@ be 65+ women in the ad data): big targets, words on buttons, no timers.
   `#modal-newgame-confirm` still guards a game in progress. The one overlay
   a returning player can land on is the Paused screen they themselves left
   the game in (`shouldRestorePaused`, which honours `pausedByUser` and
-  ignores automatic tab-switch pauses).
+  ignores automatic tab-switch pauses). The layout (wide turtle / tall
+  tower) is fixed when a board is dealt and cannot be reflowed, so a save
+  carries its shape between screens: `shouldRedealForScreen()` re-deals an
+  UNTOUCHED board to fit the screen it is opened on, and restores a board
+  with moves in it whatever the shape — losing progress is worse than
+  looking a little wrong.
 - No ad SDK on this site. The games ported from the CrazyGames builds keep
   their `src/core/ads.js` **as a shim** (every export a no-op,
   `requestRewardedHint()` resolves `"granted"` at once — previews are free).
