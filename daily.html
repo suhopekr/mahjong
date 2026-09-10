@@ -446,19 +446,6 @@
   </div>
 </div>
 
-<!-- 데일리는 "이어하기?"를 묻지 않지만(bootstrapDailyMode가 조용히 처리),
-     game.js가 공통으로 이 엘리먼트들의 존재를 기대하므로 마크업은 유지한다
-     — dailyMode에서는 이 모달을 여는 코드 경로 자체를 타지 않는다. -->
-<div class="modal-overlay" id="modal-resume" data-open="false">
-  <div class="modal-box" role="alertdialog" aria-modal="true" aria-labelledby="resume-title">
-    <h2 id="resume-title" data-i18n="welcomeBack">Welcome back</h2>
-    <p data-i18n="resumeBody">You have a game in progress. Continue where you left off, or start a new game?</p>
-    <div class="modal-actions">
-      <button type="button" class="btn btn-accent" id="btn-resume-continue" data-i18n="continueGame">Continue</button>
-      <button type="button" class="btn btn-ghost" id="btn-resume-newgame" data-i18n="newGame">New Game</button>
-    </div>
-  </div>
-</div>
 
 <!-- 일시정지 오버레이 — Pause 버튼/Space·P 키/탭 백그라운드 전환 시 뜬다.
      다른 모달과 같은 modal-overlay 틀을 쓰되(CrazyGames 빌드에서 기존

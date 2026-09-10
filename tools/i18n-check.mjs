@@ -431,6 +431,28 @@ section("Mahjong (game.js) strings");
   ok(literals.length === 0, `game.js: says nothing in English directly (${literals.join(" | ")})`);
   const announces = [...gamejs.matchAll(/announce\((['"])([^'"]+)\1\)/g)].map((m) => m[2]);
   ok(announces.length === 0, `game.js: announces nothing in English directly (${announces.join(" | ")})`);
+
+  // The two checks above look at the places a string is USED, and that is
+  // how a real one got through: `', selected'` was glued onto a tile's
+  // aria-label in an expression neither pattern watches, so every one of 144
+  // tile buttons read its state in English in all fourteen languages. This
+  // looks at the strings THEMSELVES instead — any literal in the file that
+  // is two or more English words is a sentence, and a sentence belongs in
+  // /i18n/mahjong.js whatever it is being glued to.
+  const NOT_UI = new Set([
+    "use strict",              // the directive
+    "empty slot at index ",    // runSelfTest, console only, never on screen
+    "multiset mismatch: ",
+  ]);
+  const prose = [...gamejs
+    .replace(/\/\*[\s\S]*?\*\//g, "")     // block comments
+    .replace(/^\s*\/\/.*$/gm, "")           // whole-line comments
+    .replace(/\/\/[^\n'"]*$/gm, "")         // trailing comments
+    .matchAll(/(['"])((?:,\s*)?[A-Za-z][A-Za-z]*(?: [a-z]+){1,}[^'"]*)\1/g)]
+    .map((m) => m[2])
+    .filter((v) => !NOT_UI.has(v));
+  ok(prose.length === 0,
+    `game.js: no English sentence is written in the file at all (${prose.join(" | ")})`);
 }
 
 console.log(`\n${pass} passed, ${fail} failed`);

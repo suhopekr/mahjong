@@ -215,10 +215,10 @@ a:visited { color: #5c3d99; }
 .nav-brand:visited { color: var(--felt-dark); }
 .nav-brand .b-easy { font-weight: 800; }
 .nav-brand .b-classics { font-weight: 500; }
-.nav-brand:hover .b-classics {
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
+/* 호버에 밑줄을 넣었다가 뺐다. 워드마크가 집으로 가는 링크라는 것은 웹의
+ * 관습이고 커서가 이미 그렇게 말한다 — 그 위에 밑줄까지 켜면 브랜드가
+ * 호버할 때마다 모양이 바뀌는 물건이 된다. 키보드 사용자는 잃는 것이
+ * 없다: :focus-visible 링은 전역 규칙이라 그대로 남는다. */
 /* 두 단어는 한 덩어리다 — .nav-brand의 gap 8px은 마크와 글자 사이에만
  * 들어가야 하고, "Easy"와 "Classics" 사이는 보통 낱말 간격이어야 한다.
  * (처음에는 &nbsp;를 넣었는데 inline-flex 안에서 그 공백이 별도의 플렉스
@@ -309,15 +309,22 @@ a:visited { color: #5c3d99; }
   position: sticky;
   top: 0;
   z-index: 1;
-  min-height: var(--nav-h);
   display: flex;
   align-items: center;
   gap: 12px;
   flex-wrap: wrap; /* 긴 제목 + 긴 Close는 두 줄이 된다, 잘리지 않는다 */
   background: var(--paper);
   border-bottom: 1.5px solid var(--felt-dark);
-  padding: 8px max(16px, env(safe-area-inset-right))
-           8px max(16px, env(safe-area-inset-left));
+  /* 높이는 패딩이 정한다 — min-height를 쓰면 안 된다. 예전에는
+   * min-height: var(--nav-h)가 있었는데, 폰에서 그 값이 56px이라 8 + 48(Close)
+   * + 8 = 64px보다 작았다. 그러면 플렉스 줄이 콘텐츠 박스를 8px 넘쳐서
+   * 아래쪽 패딩을 그만큼 먹고, Close 위에는 8px이 있는데 아래에는 0px이
+   * 남는다. 데스크톱(--nav-h: 64px)에서는 우연히 딱 맞아서 안 보였다.
+   *
+   * 좌우는 20px — .nav-panel-body와 같은 값이어야 "Games"가 그 아래 카드
+   * 왼쪽 선과 한 줄에 선다. 16px이었을 때 4px 어긋나 있었다. */
+  padding: 8px max(20px, env(safe-area-inset-right))
+           8px max(20px, env(safe-area-inset-left));
 }
 .nav-panel-head h2 {
   margin: 0;

@@ -16,6 +16,16 @@ be 65+ women in the ad data): big targets, words on buttons, no timers.
   calls its own `trackEvent()` which adds `game_name` and checks that
   `window.gtag` exists first. Events: `game_start`, `game_win`,
   `cross_game_click {from, to, placement}`.
+- **Nothing opens on top of the board by itself.** `/` and `/daily.html`
+  resume a saved game silently — there is no "Welcome back — Continue / New
+  game" prompt any more. That question had one answer, and this is the page
+  ad traffic lands on, so a dialog between the visitor and the board is the
+  most expensive thing on it. New Game is in the toolbar and the phone's
+  menu sheet for anyone who wants a fresh board, and
+  `#modal-newgame-confirm` still guards a game in progress. The one overlay
+  a returning player can land on is the Paused screen they themselves left
+  the game in (`shouldRestorePaused`, which honours `pausedByUser` and
+  ignores automatic tab-switch pauses).
 - No ad SDK on this site. The games ported from the CrazyGames builds keep
   their `src/core/ads.js` **as a shim** (every export a no-op,
   `requestRewardedHint()` resolves `"granted"` at once — previews are free).
@@ -135,7 +145,10 @@ tiles from it, so a live swap would leave half a board in each language.
 - Nothing a player reads is written in main.js — it is all `i18n.t(key)`.
   The status line keeps its key so it can re-speak itself in the new
   language. `i18n.onChange()` re-renders anything the game draws itself.
-- Settings' first row is the language grid (`i18n.renderPicker`).
+- Settings carries the language grid too (`i18n.renderPicker`): first row in
+  the six module games, LAST row on the Mahjong pages — fourteen 56px
+  buttons are seven rows on a phone, and at the top they push Tile size,
+  which is what people open the panel for, off the first screen.
 - Arabic sets `<html dir="rtl">`; boards carry `dir="ltr"` because their
   layout is in px.
 - Each game's `test/strings.test.js` enforces key parity across languages.

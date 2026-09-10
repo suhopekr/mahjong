@@ -108,16 +108,14 @@ def main():
                     page.wait_for_timeout(700)
                     label = f"{lang} {page_path}"
 
-                    # A saved game means the "Welcome back" modal is the
-                    # FIRST thing a returning player sees, so read it here
-                    # before dismissing it — it is the one modal that opens
-                    # by itself and the one most likely to be missed.
-                    if page.get_attribute("#modal-resume", "data-open") == "true":
-                        resume = page.inner_text("#modal-resume")
-                        check("welcomeBack" not in resume and "resumeBody" not in resume,
-                              f"{label}: the Welcome back modal is translated")
-                        page.click("#btn-resume-newgame")
-                        page.wait_for_timeout(400)
+                    # Nothing may open by itself in front of the board. A
+                    # saved game is resumed silently, so the only overlay a
+                    # returning player can land on is the Paused screen they
+                    # themselves left the game in.
+                    opened = page.eval_on_selector_all(
+                        '.modal-overlay[data-open="true"]', "ns => ns.map(n => n.id)")
+                    check(opened in ([], ["modal-pause"]),
+                          f"{label}: no modal opens on top of the board ({opened})")
 
                     check(not errors, f"{label}: no page error ({errors[:1]})")
                     check(page.eval_on_selector_all("#board .tile, #board .mj-tile, #board > *", "n => n.length") >= 100,
@@ -190,6 +188,43 @@ def main():
                             page.locator(".daily-calendar-section").screenshot(
                                 path=str(OUT / f"{lang}-calendar.png"))
                     ctx.close()
+
+            # The main page no longer ASKS whether to resume, so the thing
+            # that has to be true instead is that it actually resumes. Play
+            # two pairs, reload, and the board must come back with those four
+            # tiles still gone and Undo still live — otherwise "no modal" has
+            # quietly become "your game is thrown away on every visit".
+            ctx = browser.new_context(viewport={"width": 375, "height": 667})
+            page = ctx.new_page()
+            page.goto(f"http://localhost:{PORT}/", wait_until="load")
+            page.wait_for_timeout(600)
+            before = page.eval_on_selector_all(".tile-btn", "n => n.length")
+            check(before == 144, f"resume: a fresh board has 144 tiles (got {before})")
+            for _ in range(2):
+                page.click("#btn-hint-mobile")
+                page.wait_for_timeout(250)
+                # Both slots up front, then click each by its own index —
+                # asking for "the first hinted tile" twice clicks the SAME
+                # tile, which just deselects it.
+                slots = page.eval_on_selector_all(
+                    '.tile-btn[data-hint="true"]', "ns => ns.map(n => n.dataset.slot)")
+                if len(slots) < 2:
+                    break
+                for slot in slots[:2]:
+                    page.click(f'.tile-btn[data-slot="{slot}"]')
+                    page.wait_for_timeout(200)
+                page.wait_for_timeout(300)
+            played = page.eval_on_selector_all(".tile-btn", "n => n.length")
+            check(played == 140, f"resume: two pairs were actually taken (got {played})")
+            page.reload(wait_until="load")
+            page.wait_for_timeout(800)
+            opened = page.eval_on_selector_all('.modal-overlay[data-open="true"]', "ns => ns.map(n => n.id)")
+            check(opened == [], f"resume: nothing is asked on the way back in ({opened})")
+            after = page.eval_on_selector_all(".tile-btn", "n => n.length")
+            check(after == 140, f"resume: the saved board came back, not a new one (got {after})")
+            check(not page.is_disabled("#btn-undo-mobile"),
+                  "resume: the move history came back with it (Undo is live)")
+            ctx.close()
 
             # 2. the switch itself: Settings' grid must change the language
             #    and survive the reload it triggers.

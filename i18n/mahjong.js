@@ -5,8 +5,7 @@
 // reads on those two pages was already translated — the top bar, the footer,
 // the article below the board — and the board in the middle of it stayed in
 // English in all thirteen languages: "Pairs: 7", "Time: 00:03", Undo, Hint,
-// Menu, and the "Welcome back" modal that is the FIRST thing a returning
-// player sees. This file is that gap closed.
+// Menu, Settings top to bottom, every modal. This file is that gap closed.
 //
 // It is the same shape as any game's src/i18n/strings.js — { en: {...}, ko:
 // {...} } — and is handed to createI18n() by /mahjong-i18n.js, the small
@@ -136,9 +135,6 @@ export const mahjong = {
     todaysDaily: "Today's Daily Challenge",
     tryFiveInARow: "Try our other free game — Five in a Row",
 
-    welcomeBack: "Welcome back",
-    resumeBody: "You have a game in progress. Continue where you left off, or start a new game?",
-    continueGame: "Continue",
     paused: "Paused",
 
     // ---- the Daily calendar ---------------------------------------------
@@ -189,6 +185,13 @@ export const mahjong = {
     tileDragonWhite: "White Dragon",
     tileFlower: "Flower tile, matches any flower",
     tileSeason: "Season tile, matches any season",
+    // Every tile button's aria-label is its name plus its state, so a
+    // screen-reader user knows what can be tapped without tapping it.
+    // Comma-space is the pause in most languages; CJK uses 、.
+    tileAria: ({ name, state }) => `${name}, ${state}`,
+    stateSelected: "selected",
+    stateSelectable: "selectable",
+    stateLocked: "locked",
   },
 
   es: {
@@ -285,9 +288,6 @@ export const mahjong = {
     todaysDaily: "El Desafío Diario de hoy",
     tryFiveInARow: "Pruebe nuestro otro juego gratis — Cinco en Línea",
 
-    welcomeBack: "Hola de nuevo",
-    resumeBody: "Hay un juego a medias. ¿Seguir donde lo dejó o empezar un juego nuevo?",
-    continueGame: "Continuar",
     paused: "En pausa",
 
     thisMonth: "Este mes",
@@ -331,6 +331,10 @@ export const mahjong = {
     tileDragonWhite: "Dragón Blanco",
     tileFlower: "Ficha de flor, hace pareja con cualquier flor",
     tileSeason: "Ficha de estación, hace pareja con cualquier estación",
+    tileAria: ({ name, state }) => `${name}, ${state}`,
+    stateSelected: "seleccionada",
+    stateSelectable: "disponible",
+    stateLocked: "bloqueada",
   },
 
   pt: {
@@ -427,9 +431,6 @@ export const mahjong = {
     todaysDaily: "O Desafio Diário de hoje",
     tryFiveInARow: "Experimente nosso outro jogo grátis — Cinco em Linha",
 
-    welcomeBack: "Olá de novo",
-    resumeBody: "Você tem um jogo pela metade. Continuar de onde parou ou começar um novo jogo?",
-    continueGame: "Continuar",
     paused: "Em pausa",
 
     thisMonth: "Este mês",
@@ -473,6 +474,10 @@ export const mahjong = {
     tileDragonWhite: "Dragão Branco",
     tileFlower: "Peça de flor, forma par com qualquer flor",
     tileSeason: "Peça de estação, forma par com qualquer estação",
+    tileAria: ({ name, state }) => `${name}, ${state}`,
+    stateSelected: "selecionada",
+    stateSelectable: "disponível",
+    stateLocked: "bloqueada",
   },
 
   fr: {
@@ -569,9 +574,6 @@ export const mahjong = {
     todaysDaily: "Le Défi du Jour d'aujourd'hui",
     tryFiveInARow: "Essayez notre autre jeu gratuit — Cinq en Ligne",
 
-    welcomeBack: "Bon retour",
-    resumeBody: "Une partie est en cours. Continuer là où vous l'avez laissée, ou commencer une nouvelle partie ?",
-    continueGame: "Continuer",
     paused: "En pause",
 
     thisMonth: "Ce mois-ci",
@@ -615,6 +617,10 @@ export const mahjong = {
     tileDragonWhite: "Dragon Blanc",
     tileFlower: "Tuile fleur, s'associe avec n'importe quelle fleur",
     tileSeason: "Tuile saison, s'associe avec n'importe quelle saison",
+    tileAria: ({ name, state }) => `${name}, ${state}`,
+    stateSelected: "sélectionnée",
+    stateSelectable: "disponible",
+    stateLocked: "bloquée",
   },
 
   it: {
@@ -711,9 +717,6 @@ export const mahjong = {
     todaysDaily: "La Sfida del Giorno di oggi",
     tryFiveInARow: "Prova il nostro altro gioco gratuito — Cinque in Fila",
 
-    welcomeBack: "Ciao di nuovo",
-    resumeBody: "C'è una partita a metà. Continuare da dove l'hai lasciata o iniziare una nuova partita?",
-    continueGame: "Continua",
     paused: "In pausa",
 
     thisMonth: "Questo mese",
@@ -757,6 +760,10 @@ export const mahjong = {
     tileDragonWhite: "Drago Bianco",
     tileFlower: "Tessera fiore, si abbina a qualsiasi fiore",
     tileSeason: "Tessera stagione, si abbina a qualsiasi stagione",
+    tileAria: ({ name, state }) => `${name}, ${state}`,
+    stateSelected: "selezionata",
+    stateSelectable: "disponibile",
+    stateLocked: "bloccata",
   },
 
   de: {
@@ -853,9 +860,6 @@ export const mahjong = {
     todaysDaily: "Die heutige Tagesaufgabe",
     tryFiveInARow: "Probieren Sie unser anderes Gratis-Spiel — Fünf in einer Reihe",
 
-    welcomeBack: "Willkommen zurück",
-    resumeBody: "Sie haben ein laufendes Spiel. Dort weitermachen, wo Sie aufgehört haben, oder ein neues Spiel beginnen?",
-    continueGame: "Weiterspielen",
     paused: "Pausiert",
 
     thisMonth: "Dieser Monat",
@@ -899,6 +903,10 @@ export const mahjong = {
     tileDragonWhite: "Weißer Drache",
     tileFlower: "Blumenstein, passt zu jeder Blume",
     tileSeason: "Jahreszeitenstein, passt zu jeder Jahreszeit",
+    tileAria: ({ name, state }) => `${name}, ${state}`,
+    stateSelected: "ausgewählt",
+    stateSelectable: "verfügbar",
+    stateLocked: "gesperrt",
   },
 
   ru: {
@@ -995,9 +1003,6 @@ export const mahjong = {
     todaysDaily: "Сегодняшняя задача дня",
     tryFiveInARow: "Попробуйте нашу другую бесплатную игру — Пять в ряд",
 
-    welcomeBack: "С возвращением",
-    resumeBody: "У вас есть незаконченная игра. Продолжить с того места, где вы остановились, или начать новую игру?",
-    continueGame: "Продолжить",
     paused: "Пауза",
 
     thisMonth: "Этот месяц",
@@ -1041,6 +1046,10 @@ export const mahjong = {
     tileDragonWhite: "Белый дракон",
     tileFlower: "Кость-цветок, подходит к любому цветку",
     tileSeason: "Кость — время года, подходит к любому времени года",
+    tileAria: ({ name, state }) => `${name}, ${state}`,
+    stateSelected: "выбрана",
+    stateSelectable: "доступна",
+    stateLocked: "заблокирована",
   },
 
   tr: {
@@ -1137,9 +1146,6 @@ export const mahjong = {
     todaysDaily: "Bugünün Bulmacası",
     tryFiveInARow: "Diğer ücretsiz oyunumuzu deneyin — Beş Taş",
 
-    welcomeBack: "Tekrar hoş geldiniz",
-    resumeBody: "Yarım kalmış bir oyununuz var. Bıraktığınız yerden devam etmek mi istersiniz, yoksa yeni bir oyun mu?",
-    continueGame: "Devam et",
     paused: "Duraklatıldı",
 
     thisMonth: "Bu ay",
@@ -1183,6 +1189,10 @@ export const mahjong = {
     tileDragonWhite: "Beyaz Ejder",
     tileFlower: "Çiçek taşı, her çiçekle eşleşir",
     tileSeason: "Mevsim taşı, her mevsimle eşleşir",
+    tileAria: ({ name, state }) => `${name}, ${state}`,
+    stateSelected: "seçildi",
+    stateSelectable: "seçilebilir",
+    stateLocked: "kilitli",
   },
 
   id: {
@@ -1279,9 +1289,6 @@ export const mahjong = {
     todaysDaily: "Tantangan Harian hari ini",
     tryFiveInARow: "Coba permainan gratis kami yang lain — Lima Sederet",
 
-    welcomeBack: "Selamat datang kembali",
-    resumeBody: "Anda punya permainan yang belum selesai. Lanjutkan dari tempat Anda berhenti, atau mulai permainan baru?",
-    continueGame: "Lanjutkan",
     paused: "Dijeda",
 
     thisMonth: "Bulan Ini",
@@ -1325,6 +1332,10 @@ export const mahjong = {
     tileDragonWhite: "Naga Putih",
     tileFlower: "Batu bunga, berpasangan dengan bunga apa saja",
     tileSeason: "Batu musim, berpasangan dengan musim apa saja",
+    tileAria: ({ name, state }) => `${name}, ${state}`,
+    stateSelected: "dipilih",
+    stateSelectable: "bisa dipilih",
+    stateLocked: "terkunci",
   },
 
   ko: {
@@ -1421,9 +1432,6 @@ export const mahjong = {
     todaysDaily: "오늘의 도전",
     tryFiveInARow: "다른 무료 게임도 해 보세요 — 오목",
 
-    welcomeBack: "다시 오셨네요",
-    resumeBody: "하던 게임이 있어요. 이어서 하실래요, 아니면 새 게임을 시작할까요?",
-    continueGame: "이어서 하기",
     paused: "멈춰 있어요",
 
     thisMonth: "이번 달",
@@ -1467,6 +1475,10 @@ export const mahjong = {
     tileDragonWhite: "백, 흰 패",
     tileFlower: "꽃 패, 어떤 꽃 패와도 짝이 돼요",
     tileSeason: "계절 패, 어떤 계절 패와도 짝이 돼요",
+    tileAria: ({ name, state }) => `${name}, ${state}`,
+    stateSelected: "선택됨",
+    stateSelectable: "선택 가능",
+    stateLocked: "잠김",
   },
 
   ja: {
@@ -1563,9 +1575,6 @@ export const mahjong = {
     todaysDaily: "今日の一局",
     tryFiveInARow: "もうひとつの無料ゲームもどうぞ — 五目並べ",
 
-    welcomeBack: "おかえりなさい",
-    resumeBody: "途中のゲームがあります。続きから遊びますか？ それとも新しいゲームを始めますか？",
-    continueGame: "続ける",
     paused: "一時停止中",
 
     thisMonth: "今月",
@@ -1609,6 +1618,10 @@ export const mahjong = {
     tileDragonWhite: "ハク、白い牌",
     tileFlower: "花牌、どの花牌とも組になります",
     tileSeason: "季節牌、どの季節牌とも組になります",
+    tileAria: ({ name, state }) => `${name}、${state}`,
+    stateSelected: "選択中",
+    stateSelectable: "選択できます",
+    stateLocked: "取れません",
   },
 
   zh: {
@@ -1705,9 +1718,6 @@ export const mahjong = {
     todaysDaily: "今天的每日一局",
     tryFiveInARow: "试试我们的另一个免费游戏 — 五子棋",
 
-    welcomeBack: "欢迎回来",
-    resumeBody: "您有一局还没打完。要接着上次的地方继续，还是开始新的一局？",
-    continueGame: "继续这局",
     paused: "已暂停",
 
     thisMonth: "本月",
@@ -1751,6 +1761,10 @@ export const mahjong = {
     tileDragonWhite: "白板",
     tileFlower: "花牌，和任意一张花牌都能配",
     tileSeason: "季节牌，和任意一张季节牌都能配",
+    tileAria: ({ name, state }) => `${name}、${state}`,
+    stateSelected: "已选中",
+    stateSelectable: "可选",
+    stateLocked: "锁定",
   },
 
   "zh-Hant": {
@@ -1847,9 +1861,6 @@ export const mahjong = {
     todaysDaily: "今天的每日一局",
     tryFiveInARow: "試試我們的另一個免費遊戲 — 五子棋",
 
-    welcomeBack: "歡迎回來",
-    resumeBody: "您有一局還沒打完。要接著上次的地方繼續，還是開始新的一局？",
-    continueGame: "繼續這局",
     paused: "已暫停",
 
     thisMonth: "本月",
@@ -1893,6 +1904,10 @@ export const mahjong = {
     tileDragonWhite: "白板",
     tileFlower: "花牌，和任何一張花牌都能配",
     tileSeason: "季節牌，和任何一張季節牌都能配",
+    tileAria: ({ name, state }) => `${name}、${state}`,
+    stateSelected: "已選取",
+    stateSelectable: "可選",
+    stateLocked: "鎖住",
   },
 
   ar: {
@@ -1989,9 +2004,6 @@ export const mahjong = {
     todaysDaily: "تحدي اليوم",
     tryFiveInARow: "جرّب لعبتنا المجانية الأخرى — خمسة على التوالي",
 
-    welcomeBack: "أهلًا بعودتك",
-    resumeBody: "لديك لعبة لم تكتمل. هل تتابع من حيث توقفت أم تبدأ لعبة جديدة؟",
-    continueGame: "متابعة",
     paused: "متوقفة مؤقتًا",
 
     thisMonth: "هذا الشهر",
@@ -2035,5 +2047,9 @@ export const mahjong = {
     tileDragonWhite: "التنين الأبيض",
     tileFlower: "قطعة زهرة، تطابق أي زهرة",
     tileSeason: "قطعة فصل، تطابق أي فصل",
+    tileAria: ({ name, state }) => `${name}، ${state}`,
+    stateSelected: "محددة",
+    stateSelectable: "متاحة",
+    stateLocked: "مقفلة",
   },
 };

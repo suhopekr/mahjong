@@ -1556,7 +1556,10 @@
     btn.dataset.hint = hinted ? 'true' : 'false';
     btn.tabIndex = free ? 0 : -1;
     btn.disabled = !free;
-    var label = MahjongTiles.tileAriaName(def) + (selected ? ', selected' : (free ? ', selectable' : ', locked'));
+    var label = t('tileAria', {
+      name: MahjongTiles.tileAriaName(def),
+      state: t(selected ? 'stateSelected' : (free ? 'stateSelectable' : 'stateLocked')),
+    });
     btn.setAttribute('aria-label', label);
   }
 
@@ -1818,7 +1821,6 @@
   var state = null;
   var timerIntervalId = null;
   var audioCtx = null;
-  var pendingResume = null;
   // 사용자가 직접(버튼/Space·P) 또는 자동으로(탭 백그라운드 전환) 건
   // 일시정지 상태. 사이트/CrazyGames 빌드 공통 — CrazyGames 빌드에서는
   // 아래 modalPause가 다른 모달들과 똑같이 .modal-overlay라서
@@ -2013,7 +2015,7 @@
   }
 
   // ---- 모달 제어 ----------------------------------------------------------
-  var modalWin, modalStuck, modalResume, modalNewGameConfirm, settingsPanel;
+  var modalWin, modalStuck, modalNewGameConfirm, settingsPanel;
   var stuckTitleEl, stuckMessageEl, stuckActionsEl;
   var modalPause, pauseElapsedEl, btnPauseResumeEl;
   function openModal(el) { el.dataset.open = 'true'; }
@@ -2026,14 +2028,13 @@
   // 절대 섞이지 않는다(currentElapsedMs가 timerPaused면 스냅샷값만 반환).
   function canPause() {
     if (!state || isPaused) return false;
-    // "일시정지"라는 개념 자체가 성립하지 않는 화면(승리/완전히 막힘/새
-    // 게임 확인/이어하기 여부를 묻는 중)에서는 걸지 않는다. 설정 패널·
+    // "일시정지"라는 개념 자체가 성립하지 않는 화면(승리/완전히 막힘/
+    // 새 게임 확인)에서는 걸지 않는다. 설정 패널·
     // 모바일 메뉴는 막지 않는다 — 그걸 열어둔 채로 탭을 벗어나도(요구사항
     // 3) 타이머가 계속 흐르면 안 되기 때문에 일시정지는 걸려야 한다.
     if (modalWin.dataset.open === 'true') return false;
     if (modalStuck.dataset.open === 'true') return false;
     if (modalNewGameConfirm.dataset.open === 'true') return false;
-    if (modalResume.dataset.open === 'true') return false;
     return true;
   }
 
@@ -2115,12 +2116,13 @@
    * judgement drift the moment one of them is touched.
    *
    * @param {object} saved
-   * @param {boolean} userAskedToContinue - true on the "Welcome back"
-   *   path, where the player has just pressed Continue. That press is an
-   *   explicit "resume", so it outranks whatever the save says; re-opening
-   *   the Paused modal there would ignore the button they just pressed.
-   *   The daily page restores silently with no press at all, so it passes
-   *   false and honours the save.
+   * @param {boolean} userAskedToContinue - true when the player has just
+   *   pressed something that means "resume": that press outranks whatever
+   *   the save says, because re-opening the Paused screen would ignore the
+   *   button they just pressed. No path passes true today — both pages now
+   *   restore silently at boot and therefore honour the save — but the
+   *   parameter stays because it is the whole reason this judgement is one
+   *   function instead of two, and the next resume affordance will need it.
    */
   function shouldRestorePaused(saved, userAskedToContinue) {
     if (userAskedToContinue) return false;
@@ -2307,12 +2309,11 @@
   }
 
   // ---- 게임 동작 ------------------------------------------------------------
-  // silent===true 일 때만 "이어하기 여부를 묻기 전 배경에 깔아둘 보드"를
-  // 준비만 하는 특수 경로로 취급한다(통계 미집계·알림 없음). 이 함수는
-  // addEventListener('click', startNewGame)처럼 리스너로 직접 등록되기도
-  // 하는데, 그 경우 브라우저가 첫 인자로 (참인) Event 객체를 넘기므로
-  // `!silent` 같은 느슨한 체크를 쓰면 버튼 클릭이 항상 "silent" 취급되는
-  // 버그가 생긴다 — 반드시 엄격 비교(=== true)로 판별해야 한다.
+  // 예전에는 silent 인자가 있었다 — "이어할까요?" 모달 뒤에 깔아 둘 보드를
+  // 통계·알림 없이 만드는 경로였다. 그 모달이 없어지면서 호출부가 하나도
+  // 남지 않았고, 리스너로 직접 등록되는 함수에 첫 인자가 있으면 브라우저가
+  // Event 객체를 넣어 주기 때문에(그래서 `=== true` 비교가 필요했다) 남겨
+  // 둘 이유가 없는 함정이었다. 지금은 이 함수의 모든 호출이 진짜 시작이다.
   // 새 게임을 시작하는 "그 순간"의 화면 방향으로 레이아웃을 고른다 — 세로가
   // 더 길면(휴대폰 세로 포함) 세로 전용 타워 레이아웃을, 그 외(가로/
   // 데스크톱)에는 기존 거북이 레이아웃을 쓴다. 게임 도중 회전은 여기를
@@ -2323,8 +2324,7 @@
     return (vp.height > vp.width) ? 'portrait' : 'turtle';
   }
 
-  function startNewGame(silent) {
-    var isSilent = silent === true;
+  function startNewGame() {
     clearPendingStuckTimeout();
     modalStuckMode = null;
     isPaused = false;
@@ -2338,7 +2338,6 @@
     autoShuffleCountThisGame = 0;
     closeModal(modalWin);
     closeModal(modalStuck);
-    closeModal(modalResume);
     closeModal(modalNewGameConfirm);
     // 데일리 모드에서는 매번 다른 무작위 판 대신, "오늘 날짜"에서 뽑은
     // 결정적 시드로 판을 만든다 — 같은 날짜를 보내는 사람은 모두 같은
@@ -2356,19 +2355,12 @@
     graph = getSlotGraph(state.layoutId);
     hintSlots.clear();
     fullRender();
-    if (!isSilent) {
-      stats.gamesPlayed++;
-      saveStats();
-    }
+    stats.gamesPlayed++;
+    saveStats();
     afterStateChange();
     startTimerLoop();
-    if (!isSilent) {
-      // silent 호출(이어하기 프롬프트 배경용 임시 보드)은 사용자가 실제로
-      // "시작"한 게 아니라서 계측 제외 — game_start 대비 game_win 비율로
-      // 이탈률을 어림잡을 때 이 임시 보드가 분모를 부풀리면 안 되므로.
-      trackEvent('game_start', { layout: state.layoutId, mode: dailyMode ? 'daily' : 'normal' });
-      announce(t(dailyMode ? 'announceDailyStart' : 'announceNewGame'));
-    }
+    trackEvent('game_start', { layout: state.layoutId, mode: dailyMode ? 'daily' : 'normal' });
+    announce(t(dailyMode ? 'announceDailyStart' : 'announceNewGame'));
   }
 
   // 새 게임 버튼/N 단축키의 실제 진입점. 이동을 1회 이상 한, 아직 안 끝난
@@ -2384,7 +2376,7 @@
     if (keepBtn) keepBtn.focus();
   }
 
-  function resumeSavedGame(saved) {
+  function resumeSavedGame(saved, userAskedToContinue) {
     clearPendingStuckTimeout();
     modalStuckMode = null;
     consecutiveAutoShuffles = 0;
@@ -2410,23 +2402,16 @@
     hintSlots.clear();
     fullRender();
     updateStatusStrip();
-    // 이 함수는 오직 "Welcome back" 모달의 Continue 클릭에서만 호출된다 —
-    // 즉 호출된다는 것 자체가 사용자가 명시적으로 재개 의사를 밝혔다는
-    // 뜻이라, 저장본이 뭐라고 하든 Paused 화면을 다시 열지 않는다. 그러면
-    // 방금 누른 "Continue"를 무시하고 한 번 더 일시정지를 강제하는 이중
-    // 게이팅이 되기 때문이다(과거 버그로 리포트됨).
+    // 일시정지 복원 여부는 shouldRestorePaused() 한 곳에서만 판단한다 —
+    // bootstrapDailyMode()도 같은 함수를 쓴다. 예전에 이 판단이 두 벌로
+    // 존재했을 때, 한쪽만 고쳐지고 다른 쪽에 같은 버그가 남았다.
     //
-    // 갱신(이번 수정): 그 판단이 이제 이 함수 안에 흩어져 있지 않고
-    // shouldRestorePaused()라는 한 함수에 있으며, bootstrapDailyMode()도
-    // 같은 함수를 쓴다. 지난번에는 이 경로만 고쳐지고 데일리 경로에는 같은
-    // 분기가 그대로 남아 있었는데, 판단이 두 벌로 존재하면 한쪽만 고쳐지는
-    // 건 시간 문제였다. 차이는 userAskedToContinue 인자 하나로 표현된다.
-    // 이 분기는 오늘 기준 도달하지 않는다 — userAskedToContinue=true면
-    // shouldRestorePaused()가 항상 false를 돌려주기 때문이다. 그럼에도
-    // 두 호출부가 같은 모양을 갖도록 남겨둔다: 정책이 바뀔 때 고칠 곳이
-    // 판정 함수 한 곳으로 유지되고, 이 경로만 다른 방식으로 분기하다가
-    // 다시 어긋나는 일이 생기지 않는다.
-    if (shouldRestorePaused(saved, true)) {
+    // 지금은 두 호출부 모두 userAskedToContinue=false다: "이어할까요?"를
+    // 묻는 모달이 없어졌으니 명시적인 재개 클릭이라는 것 자체가 없다.
+    // 그래서 저장본의 pausedByUser를 존중한다 — 자기가 눌러서 멈춰 둔
+    // 판은 멈춘 채로 돌아오는 게 맞고, 탭을 옮겼다 온 자동 일시정지는
+    // 그 필드를 세우지 않으므로 여기서 걸리지 않는다.
+    if (shouldRestorePaused(saved, userAskedToContinue === true)) {
       pausedByUser = true;
       enterPausedState(true);
     } else {
@@ -2724,7 +2709,6 @@
     undoBtn = document.getElementById('btn-undo');
     modalWin = document.getElementById('modal-win');
     modalStuck = document.getElementById('modal-stuck');
-    modalResume = document.getElementById('modal-resume');
     modalNewGameConfirm = document.getElementById('modal-newgame-confirm');
     settingsPanel = document.getElementById('settings-panel');
     stuckTitleEl = document.getElementById('stuck-title');
@@ -2849,16 +2833,6 @@
     // 거치지만 그때는 modalStuckMode가 'giveup'이라 아무 일도 하지 않는다.
     modalStuck.addEventListener('click', skipStuckWaitIfPending);
     document.getElementById('btn-win-newgame').addEventListener('click', startNewGame);
-    document.getElementById('btn-resume-continue').addEventListener('click', function () {
-      closeModal(modalResume);
-      if (pendingResume) { resumeSavedGame(pendingResume); pendingResume = null; }
-    });
-    document.getElementById('btn-resume-newgame').addEventListener('click', function () {
-      closeModal(modalResume);
-      pendingResume = null;
-      clearSavedGame();
-      startNewGame();
-    });
 
     document.querySelectorAll('input[name="tile-size"]').forEach(function (input) {
       input.addEventListener('change', function () {
@@ -3013,20 +2987,24 @@
       return;
     }
 
-    // 이어하기 프롬프트: 저장된 게임이 있으면 먼저 물어보고, 없으면 바로 새 게임.
-    // saved 데이터는 미리 변수에 담아둔다 — startNewGame()이 뒤에서 즉시
-    // localStorage 저장을 덮어쓰므로, 이후 "이어하기"는 저장소를 다시 읽지
-    // 않고 이 캡처된 값을 그대로 사용해야 한다.
+    // 저장된 판이 있으면 묻지 않고 그대로 이어간다 — 데일리와 같은
+    // 방식이다(bootstrapDailyMode).
+    //
+    // 예전에는 "Welcome back — Continue / New game" 모달이 먼저 떴다.
+    // 그런데 그 질문은 답이 하나뿐인 질문이었다: 진행 중인 판이 있으면
+    // 사람은 그걸 이어서 한다. 그리고 이 페이지는 광고를 타고 들어오는
+    // 첫 화면이라, 보드에 닿기 전에 놓인 대화상자 하나가 가장 비싼 방해물
+    // 이다. New Game은 툴바와 폰 하단 시트에 늘 있으니 새 판을 원하는
+    // 사람은 스스로 누를 수 있고, 그때는 진행 중인 판을 덮어쓸지 묻는
+    // 확인 모달(modal-newgame-confirm)이 여전히 지켜 준다.
+    //
+    // 아직 graph가 없다(startNewGame/resumeSavedGame에서만 채워짐) —
+    // 저장된 판 자신의 layoutId 기준으로 길이를 따로 확인한다.
     var saved = loadSavedGame();
-    // 아직 게임을 시작하기 전이라 graph가 없다(위 startNewGame/resumeSavedGame
-    // 에서만 채워짐) — 저장된 판 자신의 layoutId 기준으로 길이를 따로 확인한다.
     var savedLayoutId = (saved && saved.layoutId && LAYOUTS[saved.layoutId]) ? saved.layoutId : 'turtle';
     var savedGraphN = getSlotGraph(savedLayoutId).n;
     if (saved && Array.isArray(saved.tiles) && saved.tiles.length === savedGraphN && !saved.tiles.every(function (t) { return t == null; })) {
-      pendingResume = saved;
-      startNewGame(true); // 뒤에 깔릴 새 보드를 우선 준비(모달이 덮음) — 통계에는 집계 안 함
-      stopTimerLoop();
-      openModal(modalResume);
+      resumeSavedGame(saved, false);
     } else {
       startNewGame();
     }

@@ -232,7 +232,7 @@ language block each). Counts are as of this writing —
 | --- | --- | --- |
 | `/i18n/common.js` | 6 keys still English-only: `footerTagline`, `siteLinks`, `about`, `privacyPolicy`, `terms`, `contact` | Add each to all 13 non-English blocks, then **delete it from the `PENDING` array** at the bottom of the file. The tests require a key to leave `PENDING` once every language has it. The other 29 keys are already translated — leave them. |
 | `/i18n/games.js` | 24: `game.<key>.name` and `game.<key>.desc` for `mahjong`, `daily`, `solitaire`, `freecell`, `word-search`, `five-in-a-row`, `dots-and-boxes`, `backgammon`, `four-ball-billiards`, `eight-ball-pool`, `stone-flick`, `shuffleboard` | Add a language block **after** `en`. Never edit `en`. All 24 or none. |
-| `/i18n/mahjong.js` | 125, all of them | The two pages that run on `game.js`: the toolbar and the phone's action bar, Settings, the six badges, the backup code, the "add to home screen" hints, every modal, the Daily calendar, and the sentences a screen reader reads. Add a language block **after** `en`; never edit `en`. Three shapes of value live in here and each must keep its shape — see below. |
+| `/i18n/mahjong.js` | 126, all of them | The two pages that run on `game.js`: the toolbar and the phone's action bar, Settings, the six badges, the backup code, the "add to home screen" hints, every modal, the Daily calendar, and the sentences a screen reader reads. Add a language block **after** `en`; never edit `en`. Three shapes of value live in here and each must keep its shape — see below. |
 
 ### One file per page
 
