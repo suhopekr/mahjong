@@ -18,9 +18,11 @@
 //     inline <script> except JSON-LD — the CSP in vercel.json admits none
 //   - no script/stylesheet from a host the CSP does not allow
 //   - JSON-LD parses; WebApplication.url matches the page
-//   - a site-shell page has the footer fence; a standalone game page has
-//     the one "More free games" link back (#link-crossgame-home)
+//   - a site-shell page has the footer fence; a standalone game page links
+//     home from the top bar's wordmark (#link-crossgame-home, DESIGN.md §2)
+//     and carries no "More free games" line any more
 //   - card thumbnails exist and are small; every card path is a real page
+//   - the top bar and the Games panel (tools/nav-check.mjs)
 //
 // BROWSER (Playwright, Chromium, phone + desktop viewport, under the
 // vercel.json headers so the CSP is real):
@@ -29,15 +31,15 @@
 //   - pressing the registered "play" control (or just loading, for games
 //     that boot straight onto a board) produces exactly one game_start
 //     carrying that page's game_name
-//   - the cross-game links on site-shell pages report cross_game_click with
-//     the right `to` and `placement`, and the standalone home link reports
-//     from/to the right way round
+//   - the cross-game links report cross_game_click with the right `to` and
+//     `placement`, on site-shell pages and from the standalone builds'
+//     wordmark alike
 //   - the footer names every game, in games.json order
 import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { startServer, root } from "./serve.mjs";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -111,9 +113,10 @@ for (const g of GAMES) {
 
   // JSON-LD
   const lds = [...html.matchAll(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/g)];
-  // A game's landing page carries JSON-LD; a secondary page of a game (the
-  // daily board) need not, but whatever it does carry must parse.
-  if (g.card || g.check?.shell === "standalone" || g.path === "/") ok(lds.length >= 1, "has JSON-LD");
+  // A game's landing page carries JSON-LD; a secondary page of the same game
+  // (the daily board, track: false) need not, but whatever it does carry must
+  // parse.
+  if (g.track !== false) ok(lds.length >= 1, "has JSON-LD");
   for (const m of lds) {
     let data = null;
     try { data = JSON.parse(m[1]); } catch (e) { ok(false, "JSON-LD parses: " + e.message); continue; }
@@ -122,8 +125,15 @@ for (const g of GAMES) {
 
   // shell
   if (g.check?.shell === "standalone") {
-    ok(html.includes('id="link-crossgame-home"') && /href="\/"[^>]*id="link-crossgame-home"|id="link-crossgame-home"[^>]*href="\/"/.test(html),
-      'standalone page links home: <a href="/" id="link-crossgame-home">');
+    // The one way home used to be a "More free games →" link on the game's
+    // own home screen. The top bar's wordmark is its heir — same id, same
+    // href, same event, better placement (DESIGN.md §2) — so this still
+    // checks that a standalone page links home, at the address it now
+    // lives at, and that the old line is really gone rather than doubled.
+    ok(/<a class="nav-brand" href="\/" id="link-crossgame-home"/.test(html),
+      'standalone page links home from the bar: <a class="nav-brand" href="/" id="link-crossgame-home">');
+    ok(!/More free games/.test(html), 'no "More free games" line left over');
+    ok(/<script type="module" src="\/nav\.js"><\/script>/.test(html), "loads /nav.js as a module");
     ok(!/<!-- games:footer -->/.test(raw), "standalone page has no site footer fence (it has no site footer)");
     ok(!/sdk\.crazygames\.com/.test(html), "no CrazyGames SDK");
   } else {
@@ -137,8 +147,12 @@ for (const g of GAMES) {
     const thumb = path.join(root, g.card.thumb);
     ok(existsSync(thumb), `card thumb exists: ${g.card.thumb}`);
     if (existsSync(thumb)) ok(statSync(thumb).size < 150 * 1024, `card thumb under 150 KB (${Math.round(statSync(thumb).size / 1024)} KB)`);
-    const index = stripComments(readFileSync(path.join(root, "index.html"), "utf8"));
-    ok(index.includes(`<a class="game-card" href="${g.path}"`), "front page has its card");
+    // Every game has a card now (the Games panel needs eleven), but the
+    // front page's own card is not on the front page.
+    if (g.path !== "/") {
+      const index = stripComments(readFileSync(path.join(root, "index.html"), "utf8"));
+      ok(index.includes(`<a class="game-card" href="${g.path}"`), "front page has its card");
+    }
   }
 
   // sitemap
@@ -148,9 +162,80 @@ for (const g of GAMES) {
   }
 }
 
+section("navigation (tools/nav-check.mjs)");
+{
+  const r = spawnSync(process.execPath, [path.join(here, "nav-check.mjs")], { encoding: "utf8" });
+  if (!ok(r.status === 0, "the top bar and the Games panel are in place on every page")) {
+    console.log("    " + (r.stdout + r.stderr).trim().replace(/\n/g, "\n    "));
+  }
+}
+
 section("game unit suites are present");
 for (const g of GAMES.filter((x) => x.check?.shell === "standalone")) {
   ok(existsSync(path.join(fileOf(g.path), "..", "test", "run.js")), `${g.name}: test/run.js`);
+}
+
+// --- the harness itself -----------------------------------------------------
+//
+// WHY THIS IS A SITE CHECK AND NOT A TEST IN ONE GAME.
+//
+// test/harness.js is copied between games, not shared, so a guard living
+// inside one game's suite proves nothing about the other eight. It was
+// copied while it was wrong: `test()` called fn() and counted a pass the
+// moment it RETURNED, which for an `async () =>` test is the moment it
+// STARTS. Eleven tests across four games (solitaire, freecell,
+// word-search and eight-ball-pool page.test.js) were printing ok without
+// their assertions ever being awaited, and the totals those suites
+// reported counted them.
+//
+// A harness cannot check itself with its own counters, so this drives
+// each game's copy directly: four tests, two of which throw, one of each
+// pair async, and the run has to come back saying two ok and two FAIL.
+// The async failure is the whole point — under the old harness it was an
+// ok line plus an unhandled rejection nobody read.
+section("every game's test harness awaits an async test");
+// Every game that HAS a harness, not just the standalone ones: the four
+// suites this bug was actually hiding tests in are all site-shell games,
+// so the filter the section above uses would have missed every one of
+// them.
+for (const g of GAMES) {
+  const harness = path.join(fileOf(g.path), "..", "test", "harness.js");
+  if (!existsSync(harness)) continue;
+  // A fresh module instance per game, so its pass/fail counters are its
+  // own and nothing here touches the counters a real run would use.
+  const h = await import(`${pathToFileURL(harness).href}?site-check=${encodeURIComponent(g.name)}`);
+  ok(typeof h.drain === "function", `${g.name}: harness exports drain() for run.js to await`);
+  const lines = [];
+  const escaped = [];
+  const realLog = console.log;
+  // A harness that does not await gets its rejection back as an
+  // unhandled one, which would take this process down mid-section. Held
+  // here so it is reported as the failure it is instead.
+  const onEscape = (err) => escaped.push(err);
+  process.on("unhandledRejection", onEscape);
+  console.log = (...a) => lines.push(a.join(" "));
+  try {
+    h.test("sync pass", () => {});
+    h.test("sync fail", () => { throw new Error("sync boom"); });
+    h.test("async pass", async () => { await Promise.resolve(); });
+    h.test("async fail", async () => { await Promise.resolve(); throw new Error("async boom"); });
+    if (typeof h.drain === "function") await h.drain();
+    // Two turns of the microtask queue: long enough for an un-awaited
+    // test's rejection to have escaped, so the assertions below see it.
+    await new Promise((r) => setTimeout(r, 0));
+  } finally {
+    console.log = realLog;
+    process.off("unhandledRejection", onEscape);
+  }
+  const said = (needle) => lines.some((l) => l.includes(needle));
+  ok(said("ok - sync pass") && said("ok - async pass"), `${g.name}: a passing test still passes`);
+  ok(said("FAIL - sync fail") && said("sync boom"), `${g.name}: a sync failure is reported with its message`);
+  ok(
+    said("FAIL - async fail") && said("async boom"),
+    `${g.name}: an async failure is counted as a failure, not printed as ok`
+  );
+  ok(!said("ok - async fail"), `${g.name}: an async failure is never also reported ok`);
+  ok(escaped.length === 0, `${g.name}: an async failure never escapes as an unhandled rejection`);
 }
 
 // --- browser ----------------------------------------------------------------
@@ -199,16 +284,35 @@ if (!staticOnly) {
             `exactly one game_start with game_name=${g.ga} (got ${JSON.stringify(starts)})`);
 
           if (g.check?.shell === "standalone") {
-            // The home link: present, reports the right direction, then really navigates.
-            const report = await page.evaluate((ga) => {
+            // The wordmark, heir to the old home link: present, reports the
+            // right direction and placement, then really navigates. Clicked
+            // through the element rather than the mouse because by this point
+            // the "play" control has been pressed and the bar has given its
+            // row back to the table — which is the behaviour under test in
+            // tools/qa/standalone_nav_qa.py, not a reason to skip this.
+            const report = await page.evaluate(() => {
               const el = document.getElementById("link-crossgame-home");
               if (!el) return "missing";
               el.addEventListener("click", (e) => e.preventDefault(), { once: true });
               el.click();
               const ev = (window.dataLayer || []).filter((a) => a[0] === "event" && a[1] === "cross_game_click").pop();
               return ev ? JSON.stringify(ev[2]) : "no event";
-            }, g.ga);
-            ok(report.includes(`"from":"${g.ga}"`) && report.includes('"to":"site_home"'), `home link reports from=${g.ga} to=site_home (${report})`);
+            });
+            ok(report.includes(`"from":"${g.ga}"`) && report.includes('"to":"mahjong"') &&
+               report.includes('"placement":"top_nav_brand"'),
+              `the wordmark reports from=${g.ga} to=mahjong placement=top_nav_brand (${report})`);
+            // The panel's cards are the rest of the site from here, and they
+            // are wired by the game's own copy of wireCrossGameLinks().
+            const card = await page.evaluate(() => {
+              const el = document.querySelector('.nav-card-grid a[data-crossgame-to]');
+              if (!el) return "no panel card";
+              el.addEventListener("click", (e) => e.preventDefault(), { once: true });
+              el.click();
+              const ev = (window.dataLayer || []).filter((a) => a[0] === "event" && a[1] === "cross_game_click").pop();
+              return ev ? { to: ev[2].to, placement: ev[2].placement, expected: el.dataset.crossgameTo } : "no event";
+            });
+            ok(typeof card === "object" && card.to === card.expected && card.placement === "top_nav",
+              `a panel card reports to=${card.expected} placement=top_nav (${JSON.stringify(card)})`);
           } else {
             const links = await page.evaluate(() => [...document.querySelectorAll("a[data-crossgame-to]")].map((el) => ({
               to: el.dataset.crossgameTo, placement: el.dataset.placement, href: el.getAttribute("href") })));

@@ -12,16 +12,44 @@
 let passCount = 0;
 let failCount = 0;
 
+/**
+ * Tests run one at a time, in the order they were declared, and an ASYNC
+ * one is awaited before the next begins.
+ *
+ * It did not used to be, and that was not a style question. `test()` used
+ * to call fn() and count a pass the moment it RETURNED, so an async test
+ * was counted as passing while it was still running: its assertions
+ * landed later as unhandled rejections that killed the process after the
+ * summary had already printed "0 failed", or never surfaced at all.
+ * No test body in this game is async today — campaign.test.js awaits its
+ * fixtures at module top level instead, which import() already waits
+ * for. The fix lands here anyway: the harness is copied between games,
+ * and the first async test anyone writes in it would otherwise have
+ * printed ok without running.
+ *
+ * A promise chain rather than a queue drained at the end, so the console
+ * output stays in declaration order; test/run.js awaits drain() between
+ * files to keep each suite's block together.
+ */
+let chain = Promise.resolve();
+
 export function test(name, fn) {
-  try {
-    fn();
-    passCount++;
-    console.log(`  ok - ${name}`);
-  } catch (err) {
-    failCount++;
-    console.log(`  FAIL - ${name}`);
-    console.log(`    ${err.message}`);
-  }
+  chain = chain.then(async () => {
+    try {
+      await fn();
+      passCount++;
+      console.log(`  ok - ${name}`);
+    } catch (err) {
+      failCount++;
+      console.log(`  FAIL - ${name}`);
+      console.log(`    ${err.message}`);
+    }
+  });
+}
+
+/** Everything declared so far, finished. */
+export function drain() {
+  return chain;
 }
 
 export function assertEqual(actual, expected, msg = "") {
@@ -75,7 +103,8 @@ function deepEqual(a, b) {
   return false;
 }
 
-export function summary() {
+export async function summary() {
+  await chain;
   console.log(`\n${passCount} passed, ${failCount} failed`);
   if (failCount > 0) process.exitCode = 1;
 }

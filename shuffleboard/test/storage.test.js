@@ -61,9 +61,10 @@ test("sound toggles and persists in memory", () => {
 });
 
 test("storage's campaign whitelists agree with game/stages.js", () => {
-  // Static imports, not an async body: the harness runs tests
-  // synchronously, and an async test that fails would report ok first
-  // and explode later.
+  // Static imports rather than an async body. That used to be forced:
+  // the harness counted a pass the moment fn() RETURNED, so an async
+  // test that failed reported ok and exploded later. test/harness.js
+  // awaits now, so this is only a preference — one less moving part.
   assertEqual(S.MAX_STAGE_ID, LAST_STAGE_ID);
   assertEqual(S.CHAPTER_IDS, CHAPTERS.map((c) => c.id));
 });

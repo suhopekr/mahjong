@@ -130,8 +130,10 @@ test("cloneWorld is independent of the original", () => {
 });
 
 test("the bought preview replays exactly what the real shot does", () => {
-  // Static import, not an async body — the harness runs tests
-  // synchronously, and an async one that failed would report ok first.
+  // Static import rather than an async body. That used to be forced:
+  // the harness counted a pass the moment fn() RETURNED, so an async
+  // test that failed reported ok and exploded later. test/harness.js
+  // awaits now, so this is only a preference — one less moving part.
   const w = P.createWorld();
   P.shoot(w, 1, 0.3, 0.02, P.powerFor(2.0));
   P.simulateToRest(w);
