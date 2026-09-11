@@ -357,9 +357,146 @@ export function pocketAt(world, b) {
  * survives collisions and rails and is the thing a good player is really
  * steering.
  *
+ * `rot` is the ball's ORIENTATION: where its own painted surface has got
+ * to, as opposed to how fast it is turning. See the block on orientation
+ * below for why a ball needs both.
+ *
  * @typedef {{id:string, x:number, y:number, vx:number, vy:number,
- *            wx:number, wy:number, wz:number, color:string}} Ball
+ *            wx:number, wy:number, wz:number, rot:number[], color:string}} Ball
  */
+
+// ---------------------------------------------------------------------
+// Orientation
+// ---------------------------------------------------------------------
+
+/**
+ * WHY THE ANGULAR VELOCITY WAS NOT ENOUGH.
+ *
+ * Everything above steers the ball with (wx, wy, wz) and never asks where
+ * the ball's own markings have ended up, because nothing in the RULES
+ * cares: a cut angle is the same whether the 9 is facing the camera or
+ * the cloth. The renderer cares, and it is the whole difference between
+ * a ball that rolls and a ball that slides. A ball drawn with its number
+ * permanently facing the viewer is a disc being dragged across the cloth,
+ * and every player sees it immediately even if they cannot name it.
+ *
+ * So the ball carries an ORIENTATION as well: a 3x3 rotation matrix that
+ * takes a direction in the ball's own frame (where the number's disc sits
+ * on local +z and the stripe is a band about local y) to the table frame
+ * (x along the table, y across it, z up out of the cloth — the same frame
+ * the angular velocity is written in). It starts as the identity, which
+ * is a ball racked with its number facing straight up, and each substep
+ * it is advanced by the turn the angular velocity implies.
+ *
+ * ROW-MAJOR nine numbers, [m00 m01 m02, m10 m11 m12, m20 m21 m22]. A flat
+ * array rather than nested ones because this is multiplied a few thousand
+ * times a shot and the allocation of three inner arrays per ball per
+ * substep would dominate the cost of the multiply.
+ */
+export function identityOrientation() {
+  return [1, 0, 0, 0, 1, 0, 0, 0, 1];
+}
+
+/** A ball put back on the cloth by hand — spotted, or replaced after a
+ * scratch — is a ball the referee has just picked up, so it gets a fresh
+ * orientation exactly as it gets a fresh (zero) velocity. */
+export function resetOrientation(b) {
+  b.rot = identityOrientation();
+  b.rotAge = 0;
+}
+
+/** How many substeps of matrix products we allow before pulling the
+ * matrix back onto the rotation group. Each individual product is exact
+ * to a rounding error, so the drift is tiny and slow; re-orthonormalising
+ * every substep would be pure waste, and never doing it would let a long
+ * rack of shots shear the ball's surface. A few hundred is far inside the
+ * safe range and costs about forty flops when it fires. */
+const REORTHO_EVERY = 256;
+
+/**
+ * R <- dR(omega * dt) * R.
+ *
+ * dR is built with the FULL Rodrigues rotation, not the small-angle
+ * approximation that usually stands in for it, and that is deliberate:
+ * at a 3 m/s break the ball turns 100 radians a second, so a 1/600s
+ * substep is a third of a radian — nowhere near small. The first-order
+ * form would both under-rotate every fast ball and push the matrix off
+ * the rotation group on every single step, which is the classic way this
+ * ends up as a slowly-growing shear.
+ *
+ * The product is dR on the LEFT because the turn happens about an axis
+ * fixed in the TABLE (the angular velocity is a table-frame vector), not
+ * about an axis painted on the ball.
+ */
+function advanceOrientation(b, dt) {
+  const wx = b.wx;
+  const wy = b.wy;
+  const wz = b.wz;
+  const w2 = wx * wx + wy * wy + wz * wz;
+  if (w2 === 0) return;
+  const w = Math.sqrt(w2);
+  const th = w * dt;
+  const ax = wx / w;
+  const ay = wy / w;
+  const az = wz / w;
+  const c = Math.cos(th);
+  const s = Math.sin(th);
+  const t = 1 - c;
+
+  const d00 = t * ax * ax + c;
+  const d01 = t * ax * ay - s * az;
+  const d02 = t * ax * az + s * ay;
+  const d10 = t * ax * ay + s * az;
+  const d11 = t * ay * ay + c;
+  const d12 = t * ay * az - s * ax;
+  const d20 = t * ax * az - s * ay;
+  const d21 = t * ay * az + s * ax;
+  const d22 = t * az * az + c;
+
+  const m = b.rot;
+  const a0 = m[0], a1 = m[1], a2 = m[2];
+  const a3 = m[3], a4 = m[4], a5 = m[5];
+  const a6 = m[6], a7 = m[7], a8 = m[8];
+
+  m[0] = d00 * a0 + d01 * a3 + d02 * a6;
+  m[1] = d00 * a1 + d01 * a4 + d02 * a7;
+  m[2] = d00 * a2 + d01 * a5 + d02 * a8;
+  m[3] = d10 * a0 + d11 * a3 + d12 * a6;
+  m[4] = d10 * a1 + d11 * a4 + d12 * a7;
+  m[5] = d10 * a2 + d11 * a5 + d12 * a8;
+  m[6] = d20 * a0 + d21 * a3 + d22 * a6;
+  m[7] = d20 * a1 + d21 * a4 + d22 * a7;
+  m[8] = d20 * a2 + d21 * a5 + d22 * a8;
+
+  if (++b.rotAge >= REORTHO_EVERY) {
+    b.rotAge = 0;
+    orthonormalize(m);
+  }
+}
+
+/** Gram-Schmidt, in place. Row 0 is normalised, row 1 has its row-0
+ * component removed and is normalised, and row 2 is simply their cross
+ * product — which is a right-handed frame by construction, so this can
+ * never quietly turn the ball inside out the way normalising all three
+ * rows independently can. */
+export function orthonormalize(m) {
+  let k = 1 / Math.hypot(m[0], m[1], m[2]);
+  m[0] *= k;
+  m[1] *= k;
+  m[2] *= k;
+  const d = m[3] * m[0] + m[4] * m[1] + m[5] * m[2];
+  m[3] -= d * m[0];
+  m[4] -= d * m[1];
+  m[5] -= d * m[2];
+  k = 1 / Math.hypot(m[3], m[4], m[5]);
+  m[3] *= k;
+  m[4] *= k;
+  m[5] *= k;
+  m[6] = m[1] * m[5] - m[2] * m[4];
+  m[7] = m[2] * m[3] - m[0] * m[5];
+  m[8] = m[0] * m[4] - m[1] * m[3];
+  return m;
+}
 
 /**
  * @param {{balls: Array<{id:string,x:number,y:number,color?:string}>,
@@ -380,6 +517,12 @@ export function createWorld({ balls, length = TABLE_LENGTH, width = TABLE_WIDTH 
       wx: 0,
       wy: 0,
       wz: 0,
+      /** Orientation, ball frame -> table frame. A new rack is sixteen
+       * balls with their numbers facing straight up. */
+      rot: identityOrientation(),
+      /** Substeps since this matrix was last pulled back onto the
+       * rotation group; see REORTHO_EVERY. */
+      rotAge: 0,
       color: b.color || "white",
       /** Off the table. A pocketed ball keeps its record (the tray
        * draws it) but takes no part in the simulation. */
@@ -402,7 +545,13 @@ export function cloneWorld(world) {
     width: world.width,
     pockets: world.pockets,
     cushions: world.cushions,
-    balls: world.balls.map((b) => ({ ...b })),
+    // The spread copies every scalar, but `rot` is an ARRAY, and a
+    // shallow copy would hand the clone the original's matrix to write
+    // through. The AI runs hundreds of clones to pick a shot and the
+    // preview runs one every time the aim moves, so without the slice()
+    // every ball on the real table would spin while the player was
+    // merely thinking about a shot.
+    balls: world.balls.map((b) => ({ ...b, rot: b.rot.slice() })),
     events: world.events.map((e) => ({ ...e })),
     time: world.time,
   };
@@ -942,6 +1091,15 @@ export function stepWorld(world, dt) {
         if (b.pocketed) continue;
         b.x += b.vx * best;
         b.y += b.vy * best;
+        // The orientation is advanced on exactly the same slices of time
+        // as the position, and with the same velocities, which is what
+        // makes rolling without slipping come out EXACTLY right: while
+        // the ball rolls, applyCloth has already set wy = vx/R, so the
+        // angle turned over this slice is (vx/R)*best and the distance
+        // covered is vx*best. Rotate on a different clock from the one
+        // the centre moves on and the number creeps forward or backward
+        // relative to the cloth — a subtle, permanent skid.
+        advanceOrientation(b, best);
       }
       t += best;
       world.time += best;
@@ -971,6 +1129,7 @@ export function stepWorld(world, dt) {
         if (b.pocketed) continue;
         b.x += b.vx * rest;
         b.y += b.vy * rest;
+        advanceOrientation(b, rest);
       }
       world.time += rest;
     }

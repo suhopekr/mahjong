@@ -236,6 +236,7 @@ export function applyShot(game, events, opts = {}) {
     cue.x = spot.x;
     cue.y = spot.y;
     cue.vx = cue.vy = cue.wx = cue.wy = cue.wz = 0;
+    P.resetOrientation(cue);
   }
   if (outcome.over) {
     game.over = true;
@@ -269,6 +270,9 @@ export function placeCue(game, x, y) {
   cue.x = x;
   cue.y = y;
   cue.vx = cue.vy = cue.wx = cue.wy = cue.wz = 0;
+  // Ball in hand is the referee lifting the ball and setting it down, so
+  // its markings start over too — the same reason its spin is cleared.
+  P.resetOrientation(cue);
   cue.pocketed = false;
   return true;
 }

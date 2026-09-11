@@ -275,61 +275,75 @@
   <!-- The one rule of the game, always on screen above the table. -->
   <p class="pool-goal" id="pool-goal" data-i18n="goal" data-i18n-html>Pot <strong>all seven of your balls</strong>, then the black <strong>8</strong>.</p>
 
-  <!-- One line of facts: who is on which group and how many are left. It
-       sits ABOVE the status line rather than below it, because the status
-       line pins to the top of the window and anything under it would
-       slide beneath it and show as a half-cut sliver. -->
-  <p class="pool-plate" id="pool-plate">
-    <span class="pool-chip" id="pool-chip-0"></span>
-    <span class="pool-chip" id="pool-chip-1"></span>
-  </p>
-
-  <!-- Board and shot controls travel together: on a tall table (a portrait
-       phone) the shot row is sticky to the bottom of THIS block, so the
-       power bar and the Take the shot button are on screen whatever the
-       page is scrolled to, and stop being sticky the moment the block
-       ends. -->
+  <!-- Board, shot controls and toolbar travel together in one block, so
+       the sticky rules below have an end and so the wide layout can lay
+       them out side by side. On a phone .pool-info and .pool-table-col are
+       display:contents — they add no box at all and the stack is exactly
+       what it was: facts, status, table, shot row, toolbar. -->
   <div class="pool-play" id="pool-play">
 
-    <!-- What just happened / what to do next. aria-live so a screen reader
-         says it without hunting; two lines of height reserved so the table
-         never moves when the message changes. It lives inside the play
-         block and pins to the top of the window while the table is on
-         screen, so a player who scrolls the header away to see the whole
-         cloth still has the sentence that tells them what to do. -->
-    <p class="pool-status" id="pool-status" aria-live="polite"></p>
+    <!-- The two lines above the cloth. On a wide screen they share one
+         row (style.css, the 900px block); stacked everywhere else. -->
+    <div class="pool-info" id="pool-info">
 
-    <!-- The table. Sizes are set by main.js from the measured width and
-         the height left on screen. dir="ltr" because everything on it is
-         drawn in px from the left — the table never mirrors when the rest
-         of the page turns right-to-left for Arabic. -->
-    <div class="pool-board" id="pool-board" dir="ltr" tabindex="-1" aria-label="Pool table" data-i18n-attr="aria-label:tableLabel">
-      <canvas class="pool-canvas" id="pool-canvas" tabindex="0" aria-label="Pool table: drag to aim" data-i18n-attr="aria-label:canvasLabel"></canvas>
+      <!-- One line of facts: who is on which group and how many are left.
+           It comes BEFORE the status line rather than after it, because on
+           a phone the status line pins to the top of the window and
+           anything under it would slide beneath it and show as a half-cut
+           sliver. -->
+      <p class="pool-plate" id="pool-plate">
+        <span class="pool-chip" id="pool-chip-0"></span>
+        <span class="pool-chip" id="pool-chip-1"></span>
+      </p>
+
+      <!-- What just happened / what to do next. aria-live so a screen
+           reader says it without hunting; two lines of height reserved so
+           the table never moves when the message changes. It pins to the
+           top of the window while the table is on screen, so a player who
+           scrolls the header away to see the whole cloth still has the
+           sentence that tells them what to do. -->
+      <p class="pool-status" id="pool-status" aria-live="polite"></p>
     </div>
 
-    <div class="pool-shot" id="pool-shot">
-      <span class="pool-power-word" id="pool-power-word">Medium</span>
-      <input class="pool-power" id="pool-power" type="range" min="0" max="100" step="1" value="50"
-             aria-label="How hard to hit" data-i18n-attr="aria-label:powerLabel">
-      <button type="button" class="btn btn-accent pool-shoot" id="pool-shoot" data-i18n="takeShot">Take the shot</button>
-      <!-- Side spin, hidden unless Settings turns it on. -->
-      <fieldset class="pool-spin" id="pool-spin" hidden>
-        <legend class="pool-spin-legend" data-i18n="spinLegend">Side spin</legend>
-        <div class="segmented" id="pool-spin-group">
-          <label><input type="radio" name="pool-spin" value="-1"><span data-i18n="spinLeft">Left</span></label>
-          <label><input type="radio" name="pool-spin" value="0" checked><span data-i18n="spinNone">Middle</span></label>
-          <label><input type="radio" name="pool-spin" value="1"><span data-i18n="spinRight">Right</span></label>
-        </div>
-      </fieldset>
-    </div>
-  </div>
+    <!-- The table and the shot row are one column: on a wide screen the
+         toolbar stands beside THIS, not beneath the whole play block, so
+         the four buttons cost the cloth no height at all. -->
+    <div class="pool-table-col" id="pool-table-col">
 
-  <!-- Always on screen, never behind a menu; a word on every button. -->
-  <div class="pool-controls" role="toolbar" aria-label="Game controls" data-i18n-attr="aria-label:controlsLabel">
-    <button type="button" class="btn" id="pool-hint-btn" data-i18n="hint">Hint</button>
-    <button type="button" class="btn" id="pool-undo-btn" disabled data-i18n="undo">Undo</button>
-    <button type="button" class="btn" id="pool-new-btn" data-i18n="newGame">New game</button>
-    <button type="button" class="btn" id="pool-settings-btn" aria-haspopup="dialog" data-i18n="settings">Settings</button>
+      <!-- The table. Sizes are set by main.js from the width this column
+           is given and the height left on screen. dir="ltr" because
+           everything on it is drawn in px from the left — the table never
+           mirrors when the rest of the page turns right-to-left. -->
+      <div class="pool-board" id="pool-board" dir="ltr" tabindex="-1" aria-label="Pool table" data-i18n-attr="aria-label:tableLabel">
+        <canvas class="pool-canvas" id="pool-canvas" tabindex="0" aria-label="Pool table: drag to aim" data-i18n-attr="aria-label:canvasLabel"></canvas>
+      </div>
+
+      <div class="pool-shot" id="pool-shot">
+        <span class="pool-power-word" id="pool-power-word">Medium</span>
+        <input class="pool-power" id="pool-power" type="range" min="0" max="100" step="1" value="50"
+               aria-label="How hard to hit" data-i18n-attr="aria-label:powerLabel">
+        <button type="button" class="btn btn-accent pool-shoot" id="pool-shoot" data-i18n="takeShot">Take the shot</button>
+        <!-- Side spin, hidden unless Settings turns it on. -->
+        <fieldset class="pool-spin" id="pool-spin" hidden>
+          <legend class="pool-spin-legend" data-i18n="spinLegend">Side spin</legend>
+          <div class="segmented" id="pool-spin-group">
+            <label><input type="radio" name="pool-spin" value="-1"><span data-i18n="spinLeft">Left</span></label>
+            <label><input type="radio" name="pool-spin" value="0" checked><span data-i18n="spinNone">Middle</span></label>
+            <label><input type="radio" name="pool-spin" value="1"><span data-i18n="spinRight">Right</span></label>
+          </div>
+        </fieldset>
+      </div>
+    </div>
+
+    <!-- Always on screen, never behind a menu; a word on every button.
+         Under the shot row on a phone, a column beside the table from
+         1024px up. -->
+    <div class="pool-controls" role="toolbar" aria-label="Game controls" data-i18n-attr="aria-label:controlsLabel">
+      <button type="button" class="btn" id="pool-hint-btn" data-i18n="hint">Hint</button>
+      <button type="button" class="btn" id="pool-undo-btn" disabled data-i18n="undo">Undo</button>
+      <button type="button" class="btn" id="pool-new-btn" data-i18n="newGame">New game</button>
+      <button type="button" class="btn" id="pool-settings-btn" aria-haspopup="dialog" data-i18n="settings">Settings</button>
+    </div>
   </div>
 
   <!-- AD SLOT: adsense (mobile inline 320x100) -->

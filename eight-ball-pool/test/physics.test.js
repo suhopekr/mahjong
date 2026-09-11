@@ -192,3 +192,131 @@ test("energy never increases across a full break, substep by substep", () => {
     if (P.isAtRest(w)) break;
   }
 });
+
+// --- orientation ---------------------------------------------------------
+// The renderer paints a ball's number and stripe through `rot`, so these
+// pin the four properties the picture depends on: a fresh rack faces up,
+// rolling turns by exactly the angle the travel implies, the matrix stays
+// a rotation over a long run, and pure english turns the ball about the
+// vertical without tipping the number off the top.
+
+/** Is this nine-number matrix a rotation? Rows orthonormal, determinant
+ * +1 (a determinant of -1 is a reflection, which would turn the ball's
+ * markings into their mirror images without ever failing an orthogonality
+ * check). */
+function rotationError(m) {
+  let worst = 0;
+  const row = (i) => [m[i * 3], m[i * 3 + 1], m[i * 3 + 2]];
+  for (let i = 0; i < 3; i++) {
+    for (let j = 0; j < 3; j++) {
+      const a = row(i);
+      const b = row(j);
+      const dot = a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
+      worst = Math.max(worst, Math.abs(dot - (i === j ? 1 : 0)));
+    }
+  }
+  const det =
+    m[0] * (m[4] * m[8] - m[5] * m[7]) -
+    m[1] * (m[3] * m[8] - m[5] * m[6]) +
+    m[2] * (m[3] * m[7] - m[4] * m[6]);
+  return Math.max(worst, Math.abs(det - 1));
+}
+
+test("a new world racks every ball with its number facing straight up", () => {
+  const w = worldWith([
+    { id: "cue", x: L * 0.25, y: W / 2 },
+    { id: "8", x: L * 0.75, y: W / 2 },
+  ]);
+  for (const b of w.balls) {
+    assertEqual(b.rot, [1, 0, 0, 0, 1, 0, 0, 0, 1], `${b.id} starts upright`);
+  }
+});
+
+test("rolling in +x turns the ball about +y by exactly distance / R", () => {
+  // +y in the TABLE frame, which has z pointing up out of the cloth. Read
+  // the picture on screen instead, where y points down, and the same turn
+  // is about -y. The relation under both names is the no-slip condition:
+  // the contact point must stand still, so vx - R*wy = 0.
+  const w = worldWith([{ id: "cue", x: L * 0.2, y: W / 2 }]);
+  const b = P.getBall(w, "cue");
+  const x0 = b.x;
+  // Natural roll from the first instant: wy = vx/R is the no-slip state,
+  // so nothing here is skidding and the whole journey is pure rolling.
+  b.vx = 1.2;
+  b.wy = b.vx / R;
+  // Stepped for a fixed time rather than run to rest, so the ball never
+  // reaches the far cushion — a rebound would be a second, opposite turn
+  // and the total angle would no longer be the total distance.
+  for (let i = 0; i < 240; i++) P.stepWorld(w, P.SUB_DT);
+  const dist = b.x - x0;
+  assertTrue(dist > 0.2, `it actually travelled (${dist.toFixed(3)}m)`);
+
+  // The turn should be about the +y axis by theta = dist / R. Check the
+  // matrix against the rotation that angle names, not just its trace, so
+  // a turn about the wrong axis or the wrong way round cannot pass.
+  const th = dist / R;
+  const c = Math.cos(th);
+  const s = Math.sin(th);
+  const want = [c, 0, s, 0, 1, 0, -s, 0, c];
+  for (let i = 0; i < 9; i++) {
+    assertTrue(
+      Math.abs(b.rot[i] - want[i]) < 1e-6,
+      `element ${i}: expected ${want[i].toFixed(6)}, got ${b.rot[i].toFixed(6)} (theta=${th.toFixed(3)})`
+    );
+  }
+  // And the sense of it: the mark that started on top has moved FORWARD,
+  // toward +x, which is what "rolling" means and what "sliding" does not.
+  const topAfter = [b.rot[2], b.rot[5], b.rot[8]];
+  assertTrue(Math.abs(topAfter[1]) < 1e-9, "the roll axis stayed put");
+  assertEqual(Math.abs(Math.hypot(...topAfter) - 1) < 1e-9, true, "still a unit vector");
+});
+
+test("the orientation stays a rotation matrix over a long, messy run", () => {
+  const balls = [{ id: "cue", x: L * 0.2, y: W * 0.3 }];
+  for (let i = 1; i <= 6; i++) {
+    balls.push({ id: String(i), x: L * (0.5 + i * 0.05), y: W * (0.3 + (i % 3) * 0.18) });
+  }
+  const w = worldWith(balls);
+  // Ten hard shots in a row: cushions, ball-ball throw, english, draw —
+  // thousands of matrix products per ball, which is where a naive
+  // integrator's shear would show up.
+  for (let shot = 0; shot < 10; shot++) {
+    const cue = P.getBall(w, "cue");
+    if (cue.pocketed) break;
+    P.strike(cue, Math.cos(shot * 1.1), Math.sin(shot * 1.1), 4.5, 0.004, 0.006);
+    P.simulateToRest(w);
+  }
+  for (const b of w.balls) {
+    assertTrue(rotationError(b.rot) < 1e-9, `${b.id} is still a rotation (err ${rotationError(b.rot)})`);
+  }
+});
+
+test("pure english spins the ball about the vertical and leaves its number facing up", () => {
+  const w = worldWith([{ id: "9", x: L / 2, y: W / 2 }]);
+  const b = P.getBall(w, "9");
+  b.wz = 40;
+  // isAtRest() does not count english — a ball spinning in place is at
+  // rest as far as the RULES are concerned — so this is stepped by hand
+  // rather than through simulateToRest, which would return at once.
+  for (let i = 0; i < 300; i++) P.stepWorld(w, P.SUB_DT);
+  assertTrue(Math.abs(b.x - L / 2) < 1e-12 && Math.abs(b.y - W / 2) < 1e-12, "it never moved");
+  // The ball's own +z — the pole the number is printed on — is the third
+  // COLUMN of the matrix, and a turn about the vertical leaves it exactly
+  // where it was. A number that tipped here would be spin leaking into
+  // the rolling axis.
+  assertTrue(Math.abs(b.rot[2]) < 1e-12, "no tip in x");
+  assertTrue(Math.abs(b.rot[5]) < 1e-12, "no tip in y");
+  assertTrue(Math.abs(b.rot[8] - 1) < 1e-12, "the number still faces straight up");
+  // But it DID turn: the ball's own x axis has swung away from the
+  // table's, so the number is rotated in its own plane.
+  assertTrue(Math.abs(b.rot[0] - 1) > 1e-6 || Math.abs(b.rot[1]) > 1e-6, "it actually spun");
+});
+
+test("a cloned world's orientation is its own, so previews cannot spin the real table", () => {
+  const w = worldWith([{ id: "cue", x: L * 0.25, y: W / 2 }]);
+  const copy = P.cloneWorld(w);
+  P.strike(P.getBall(copy, "cue"), 1, 0, 3);
+  P.simulateToRest(copy, 6);
+  assertEqual(P.getBall(w, "cue").rot, [1, 0, 0, 0, 1, 0, 0, 0, 1], "the original never turned");
+  assertTrue(rotationError(P.getBall(copy, "cue").rot) < 1e-9, "the clone's did");
+});

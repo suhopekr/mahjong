@@ -16,21 +16,55 @@
  * toolbar.
  *
  * Sizing: every table dimension comes from src/main.js measure(), which
- * sets the canvas's CSS width and height in px from the measured width of
- * .pool-play and the height still free on screen. Nothing here guesses.
+ * sets the canvas's CSS width and height in px from the width this file
+ * gives .pool-table-col and the height still free on screen. Nothing here
+ * guesses, and nothing here sets a width on the canvas.
  */
 
+/* THE PAGE COLUMN, and why it no longer has one width.
+ *
+ * This block used to be `max-width: 760px`, which is the right measure for
+ * a paragraph and the wrong one for a pool table: on a 1440px window it
+ * left 350px of empty cream either side of a 744px cloth, because
+ * src/main.js measure() sizes the table from the width .pool-play is
+ * given. The cap is therefore moved OFF the page column and ON TO the
+ * blocks that are made of words — the goal sentence, the chips, the SEO
+ * article (which caps itself at 820px in /style.css) and the footer, which
+ * has no width of its own anywhere on the site and was relying on this cap
+ * to stay readable. Everything else is free to use the screen, and what
+ * actually limits the table is now the height budget in measure().
+ *
+ * --pool-prose is that measure, in one place.
+ * --pool-side is the layout flag measure() reads back (see the 1024px
+ * block): 0 = toolbar under the table, 1 = toolbar beside it. Keeping the
+ * breakpoint here and nowhere else is the only way JS and CSS cannot
+ * drift apart about which layout is on screen. */
 #eight-ball-pool {
   --pool-chip-bg: #e7ddc6;
   --pool-rail: #4a2a17;
   --pool-cloth-chip: #146b4c;
+  --pool-prose: 760px;
+  --pool-side: 0;
+  /* The side toolbar's footprint at 1024px and up: its own min-width plus
+   * the row's column-gap. Written once, used by the 1024px block below for
+   * the column itself AND for the optical centring of the two text rows. */
+  --pool-side-w: 174px;
 
-  max-width: 760px;
   margin: 0 auto;
   padding: 8px 8px calc(24px + env(safe-area-inset-bottom));
   display: flex;
   flex-direction: column;
   align-items: center;
+}
+
+/* The two blocks that inherited their readable width from the old cap and
+ * would otherwise spread across the whole window. The article already caps
+ * itself; the footer never did, on any page — it simply never met a game
+ * column wider than 760px before. */
+#eight-ball-pool .site-footer {
+  width: 100%;
+  max-width: var(--pool-prose);
+  margin-inline: auto;
 }
 
 /* The site's link colour is a deep blue meant for the cream page, and on
@@ -49,6 +83,9 @@
 
 .pool-goal {
   margin: 2px 0 8px;
+  /* A one-line rule set across 1400px of window is a sentence you have to
+   * hunt the start of. Capped at the prose measure like the article. */
+  max-width: var(--pool-prose);
   font-size: 18px;
   font-weight: 500;
   line-height: 1.45;
@@ -83,9 +120,9 @@
   max-width: 560px;
 }
 
-/* ======================= the play block (board + shot) =================
- * The board and the shot row travel together so that the sticky rule
- * below has an end: the power bar stays pinned to the bottom of the
+/* ============== the play block (facts + board + shot + toolbar) ========
+ * Everything a player touches travels in one block so that the sticky
+ * rules have an end: the power bar stays pinned to the bottom of the
  * window while the table is on screen, and stops the moment this block
  * does — it never follows the player down into the FAQ. */
 
@@ -97,12 +134,23 @@
   position: relative;
 }
 
+/* The two grouping wrappers exist ONLY for the wide layout further down,
+ * where the chips share a row with the status line and the toolbar stands
+ * beside the table. On everything narrower they must cost nothing at all:
+ * `display: contents` takes their boxes out of the tree entirely and hands
+ * their children straight back to .pool-play, so the phone's stack —
+ * chips, status, cloth, shot row, toolbar — and every sticky offset in it
+ * are byte for byte what they were before the wrappers existed. */
+.pool-info,
+.pool-table-col { display: contents; }
+
 /* ------------------------------ the plate ----------------------------- */
 /* One line of facts: who is on which group and how many they have left. */
 
 .pool-plate {
   margin: 0 0 8px;
   width: 100%;
+  max-width: var(--pool-prose);
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -357,6 +405,147 @@
   cursor: default;
 }
 .pool-controls .btn:disabled:hover { background: var(--paper-dim); }
+
+/* ====================== winning the height back =======================
+ *
+ * A pool table is 2:1, so every pixel of height the page spends above the
+ * cloth costs the cloth nearly two pixels of width. Uncapping the column
+ * alone therefore buys very little: measure()'s height budget is what
+ * actually decides how big the table gets. These two blocks hand that
+ * budget back, in the order that costs a 65+ player the least.
+ *
+ * 900px — the name and the rule share one row, and so do the chips and
+ * the status line. Four stacked rows above the cloth become two. Nothing
+ * shrinks: the h1 is still 22px, the goal 18px, the status 19px with two
+ * lines reserved, the chips 16px. They are simply beside each other
+ * instead of under each other, which is what a wide screen is for.
+ *
+ * .pool-play becomes a wrapping row so the toolbar can join it at 1024px;
+ * .pool-info takes a full line of its own above that. */
+@media (min-width: 900px) {
+  #eight-ball-pool {
+    flex-flow: row wrap;
+    justify-content: center;
+    align-items: center;
+    column-gap: 16px;
+  }
+  /* The h1 must stay the first child of <main> — tools/nav-check.mjs and
+   * test/page.test.js both look for it there — so it cannot be wrapped in
+   * a row with the goal sentence. Making the page column a wrapping ROW
+   * and giving every later block a full line puts the two on one line
+   * without moving either of them in the markup. */
+  #eight-ball-pool .pool-play,
+  #eight-ball-pool .content,
+  #eight-ball-pool .site-footer { flex: 0 0 100%; }
+  /* The site gives .game-title 14px of air above it because on every other
+   * page it opens the column. Here it now sits on the same line as the
+   * goal, so that air is the line's air and is set once, on the pair. */
+  #eight-ball-pool .game-title { margin: 10px 0 6px; }
+  .pool-goal { margin: 10px 0 6px; }
+
+  .pool-play {
+    flex-flow: row wrap;
+    justify-content: center;
+    align-items: flex-start;
+    column-gap: 16px;
+  }
+  .pool-info {
+    display: flex;
+    flex: 0 0 100%;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  /* Side by side. The chips take only the width of their own words; the
+   * status pill KEEPS its 560px measure rather than shrinking to whatever
+   * sentence is in it, because the row is centred — a pill that resized
+   * with the message would slide the chips sideways every time the
+   * message changed, and a label that moves is a label you re-read. */
+  .pool-plate { width: auto; max-width: none; margin: 0; }
+  .pool-status { margin: 0; }
+  /* The shot row is sized against the CLOTH, not against a phone: under a
+   * 1100px table a 640px power bar reads as a leftover. More travel for
+   * the same power curve is also finer control, which is the whole point
+   * of the bar. */
+  .pool-shot { max-width: 820px; }
+  .pool-table-col {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    /* Shrink-to-fit around the canvas, which main.js has already sized to
+     * exactly the width this column is allowed — so the toolbar beside it
+     * always has its share left over and .pool-play never wraps. (The
+     * measurement there rounds UP for the same reason; a third of a pixel
+     * of error tips the toolbar onto the next line.) min-width:0 lets the
+     * column shrink past the shot row's own minimum rather than overflow
+     * if that ever happens anyway. */
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+}
+
+/* 1024px — the toolbar leaves the stack and stands beside the table.
+ *
+ * Four 56px buttons plus their margin are ~70px of height, and under a 2:1
+ * table that is ~128px of width the cloth never gets. Beside it they cost
+ * nothing vertical at all, they are at eye level next to the cloth rather
+ * than below the shot row, and they are wider than they were in a row of
+ * four. --pool-side tells src/main.js measure() that the width it may give
+ * the table is the play block MINUS this column; that is the one thing JS
+ * cannot work out from the markup alone, and reading the flag back keeps
+ * the breakpoint written only here.
+ *
+ * Not below 1024px: at 768px the table already fills the window edge to
+ * edge, so taking 170px away for a toolbar would make it smaller, not
+ * bigger. */
+@media (min-width: 1024px) {
+  #eight-ball-pool { --pool-side: 1; }
+  .pool-controls {
+    flex: 0 0 auto;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    width: auto;
+    max-width: none;
+    min-width: calc(var(--pool-side-w) - 16px);
+    margin-top: 0;
+  }
+
+  /* CENTRE THE WORDS ON THE CLOTH, NOT ON THE PAGE.
+   *
+   * The toolbar sits on the right of the play row, so the cloth's own
+   * centre is half the toolbar's footprint left of the page's centre —
+   * 87px at this breakpoint. The title, the goal sentence, the chips and
+   * the status pill were all centred on the PAGE, which put every one of
+   * them measurably right of the table they belong to; on a 1128px cloth
+   * that reads as a page whose halves do not line up, and for someone
+   * reading a sentence and then looking at the cloth below it, alignment
+   * is how the two are known to belong together.
+   *
+   * The title and the goal share a line whose two items are centred as a
+   * unit, so an end margin on the second of them moves both by half of it
+   * — no width is taken from anyone.
+   *
+   * The info row cannot use space the same way, and that matters: padding
+   * or a margin there narrows the box the chips and the status pill are
+   * centred in, which at 1024px was enough to wrap them onto two lines
+   * and cost the cloth 41px of width (ball 29.8px -> 28.3px). Buying
+   * alignment with the table's size is exactly the wrong trade on this
+   * page. A transform is outside layout, so it moves the row and takes
+   * nothing; half of 174 is a whole number of pixels, so no text lands on
+   * a subpixel. */
+  #eight-ball-pool .pool-goal { margin-inline-end: var(--pool-side-w); }
+  .pool-info { transform: translateX(calc(var(--pool-side-w) / -2)); }
+  [dir="rtl"] .pool-info { transform: translateX(calc(var(--pool-side-w) / 2)); }
+  /* In a column the main axis is vertical, so the row's `flex: 1 1 0`
+   * would set the BUTTONS' height to zero and leave four min-height
+   * boxes. Auto height, full column width. */
+  .pool-controls .btn {
+    flex: 0 0 auto;
+    width: 100%;
+  }
+}
 
 /* Height is the scarce thing on a phone, and the table is what it should
  * be spent on. Under 900px of window the text above the cloth gives back

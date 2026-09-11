@@ -114,13 +114,87 @@ and firing it only on a player win would silently lose half the funnel.
 says who won and before the result modal opens, so the ad lands on a pause
 and the player comes back to a screen that celebrates.
 
+## The September pass: size, pockets, and rolling balls
+
+Three things the owner saw on screen, in one round.
+
+**The table got the screen.** `#eight-ball-pool` was capped at 760px, so on
+a 1440px window the table was 744px wide with 350px of cream either side.
+The cap now lives on the blocks made of WORDS (`--pool-prose`), not on the
+page column: a 1400px line of body text is unreadable, a 1400px table is
+the point. Width alone would not have helped — the table is 2:1, so a wider
+table is a taller one, and `measure()`'s height budget is what actually
+decides — so height came back too: the h1 shares a row with the goal
+sentence, the chips share a row with the status pill, and at 1024px and up
+the toolbar leaves the stack for a column beside the cloth (`--pool-side`
+is the flag `measure()` reads back, so the breakpoint is written only in
+CSS). Measured, before → after: 1440×900 744→**1128** px wide, ball
+26.6→**40.5**px; 1280×800 744→**945**, ball →33.9; 1024×768 →833, →29.8.
+A 390×844 phone is byte-for-byte what it was — `.pool-info` and
+`.pool-table-col` are `display: contents` below 900px — and the whole game,
+toolbar included, now fits with no scrolling from 1024px up.
+
+The two text rows are centred on the CLOTH, not on the page: the toolbar
+sits on the right of the play row, so the cloth's centre is half the
+toolbar's footprint left of the page's. The title/goal pair takes an end
+margin (two centred items, so an end margin on the second moves both by
+half of it) and the info row takes a transform — a margin there narrowed
+the box the pill centres in, wrapped it onto two lines at 1024px, and cost
+the cloth 41px. Alignment is not worth buying with the table's size.
+
+**The pockets became pockets.** They were circles painted on top of a
+continuous cushion, with the brass fillet stroked straight across all six
+as a full rectangle — the gold line through every hole that got this
+reported. Four separate defects, all fixed: the fillet and everything else
+belonging to cushion or wood is punched out at the mouths (`clipOutPockets`,
+`evenodd` — canvas has no boolean subtract); the lamp gradient, which was
+the LAST layer and clipped to `bed`, used to lighten each pocket's interior
+with a hard step at `bed.y` and now runs before the pockets, clipped to bed
+∪ the shelves; everything except the cast shadow is clipped to the table's
+outer rect, so no rim gradient smudges the page outside a corner; and the
+cushion is no longer a band at all but six RUNS whose nose extents are
+`cushionsFor()`'s own segment extents, each end cut back — 45° at a corner,
+~22° at a side — with a lit and shadowed cut face. The mouths are shaped:
+a rounded wedge on the diagonal at a corner, a trapezoid flaring outward at
+a side pocket. The drawn mouth reaches 0.883 of the capture radius at a
+corner and 0.885 at a side, so a ball on the lip still visibly sits on the
+cloth.
+
+**The balls roll.** Every number, every stripe used to face the camera the
+whole way down the table, which reads as sliding, not rolling — and the
+fix was mostly already in the physics, which has carried a full angular
+velocity `(wx, wy, wz)` per ball from the start. Each ball now also carries
+`rot`, a 3×3 matrix advanced on the same time slices as its position by a
+full Rodrigues rotation (a 1/600s substep is a third of a radian at break
+speed, so small-angle would shear the ball), re-orthonormalised every 256
+steps, deep-copied in `cloneWorld` — a shallow spread would have let every
+AI and preview clone spin the real table — and reset wherever velocity is
+cleared by hand.
+
+The renderer moves the markings into the ball's own frame: the stripe is
+`|local y| < 0.52` and the number is a coverage texture on both local-z
+poles, selected per pixel by the transformed screen normal. Cost is the
+whole design constraint here, because the audience is 65+ on old phones:
+re-shading all sixteen balls from scratch every frame measures 8.5ms at a
+desktop ball size and 34ms at dpr 2, which is not shippable. Every term in
+the lighting that depends only on the SCREEN normal — lamp, fill, cloth
+bounce, fresnel, both speculars — is independent of the ball's rotation, so
+it is baked once per sprite size and composited into finished RGBA layers;
+a frame is then a 32-bit word copy per pixel plus the 3×3 transform. That
+measures 0.75ms (desktop dpr 1) / 2.38ms (dpr 2) / 0.52ms (phone) with all
+sixteen moving, and 0.09ms with nothing turning — the aiming phase, which
+is most of the game's wall clock, is free.
+
 ## Known gaps
 
-- **The toolbar (Hint / Undo / New game / Settings) sits just below the
-  fold on phones.** The shot controls are always on screen — that is what
-  the sticky row is for — but the four buttons need a short scroll. They
-  are one row of four rather than a 2×2 grid so that scroll is as small as
-  possible. Fixing it properly would cost about 60px of table.
+- **The toolbar sits just below the fold on phones.** Fixed from 1024px up
+  (it stands beside the cloth and costs no height at all) and on anything
+  that is not a portrait phone it is now counted in the height budget, so
+  "no scrolling" means the whole game. On a phone the four buttons still
+  need a short scroll; the shot controls are always on screen, which is
+  what the sticky row is for. The trade is priced: counting the toolbar
+  costs a little cloth on small windows — at 900×700 the table goes
+  643→635px wide.
 - **The goal line scrolls away on 375 × 667** after `revealTable()`. It is
   on screen at load and on every viewport 390 × 844 and larger.
 - **The drawn cue is mostly off-canvas when the cue ball is near a rail** —
@@ -135,10 +209,19 @@ and the player comes back to a screen that celebrates.
 - **No shot clock, no call pocket, no three-foul rule** — deliberate.
 - Balls are drawn at a 60mm diameter against real pool's 57.15mm. Nobody
   can see 5%, and it buys a readable number.
-- `src/i18n/strings.js` is **English only**. Every user-visible string
-  goes through `i18n.t()` or `data-i18n`; a translator agent adds the
-  other thirteen languages and `test/strings.test.js` will then guard
-  them.
+- The cue ball is plain white, so it alone still reads as sliding rather
+  than rolling — which is also true of a real cue ball seen from above, so
+  it is not strictly a defect. A measle ball (the six red dots of a
+  practice cue ball) would show its roll; it is a look change nobody has
+  asked for, so it is not in.
+- After a break some balls come to rest with no number visible, which is
+  correct and slightly worse for a 65+ player looking for a particular
+  ball. Solid-vs-stripe still says which group at a glance.
+- At a side pocket the physics mouth between the jaws is 4.5R while the
+  capture circle only permits a 3.25R-wide hole, so about 0.6R of shelf
+  shows each side and a ball rolling along the cushion can be swallowed
+  while it looks entirely on the cloth. That band is set by `pocketsFor()`
+  in physics.js and predates the new pocket art.
 
 ## How the QA runs
 

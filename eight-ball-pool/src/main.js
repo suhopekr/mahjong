@@ -35,7 +35,9 @@ const i18n = createI18n({ common, game: strings });
 i18n.applyStatic();
 
 const $ = (id) => document.getElementById(id);
+const mainEl = document.getElementById("eight-ball-pool");
 const playEl = $("pool-play");
+const tableColEl = $("pool-table-col");
 const boardEl = $("pool-board");
 const canvas = $("pool-canvas");
 const ctx = canvas.getContext("2d");
@@ -47,6 +49,7 @@ const powerInput = $("pool-power");
 const powerWord = $("pool-power-word");
 const shootBtn = $("pool-shoot");
 const spinBox = $("pool-spin");
+const controlsEl = document.querySelector(".pool-controls");
 const hintBtn = $("pool-hint-btn");
 const undoBtn = $("pool-undo-btn");
 const newBtn = $("pool-new-btn");
@@ -144,7 +147,24 @@ const ballName = (id) => id;
 // layout — the table is as big as the screen can show
 // ----------------------------------------------------------------------
 function measure() {
-  const W = playEl.clientWidth || 360;
+  // THE WIDTH BUDGET.
+  //
+  // The page column no longer has a 760px cap (style.css says why), so the
+  // width on offer is the whole play block — EXCEPT where the toolbar
+  // stands beside the table instead of under it. style.css owns that
+  // breakpoint and publishes it as --pool-side; reading the flag back is
+  // how this function learns which layout is on screen without a second
+  // copy of the media query that would quietly drift from the first.
+  const side = getComputedStyle(mainEl).getPropertyValue("--pool-side").trim() === "1";
+  const gapPx = parseFloat(getComputedStyle(playEl).columnGap) || 0;
+  // Rounded UP, and a pixel more. The toolbar column is as wide as its
+  // longest word, which is a fraction of a pixel in most languages, and
+  // .pool-play wraps: underestimate that width by a third of a pixel and
+  // German's "Einstellungen" tips the whole toolbar onto the line below
+  // the table, where at 1024x768 it lands off the bottom of the screen.
+  // offsetWidth rounds to the nearest integer and did exactly that.
+  const asideW = side ? Math.ceil(controlsEl.getBoundingClientRect().width + gapPx) + 1 : 0;
+  const W = Math.max(180, (playEl.clientWidth || 360) - asideW);
   const vh = window.innerHeight || 800;
   // A pool table is 2:1 and a phone is 1:2, so the table stands upright on
   // anything narrow and lies down on anything wide. 620 is between the
@@ -154,12 +174,27 @@ function measure() {
   const bodyTop = document.body.getBoundingClientRect().top;
   const boardTop = boardEl.getBoundingClientRect().top - bodyTop;
 
+  // What stands between the bottom of the cloth and the bottom of the
+  // screen. The shot row always does. The toolbar does too on a screen
+  // that is not a portrait phone, because "no scrolling" has to mean the
+  // whole game: a player who must scroll the cloth away to reach New game
+  // or Settings has been given a bigger table and a worse page. On a
+  // portrait phone it deliberately does NOT count — there the table is
+  // already taller than the fold (see `scrolled` below) and the toolbar
+  // lives one flick under it, which is the trade that block describes.
+  // Where the toolbar stands BESIDE the table it costs no height at all.
+  const toolbarH = vertical || side
+    ? 0
+    : controlsEl.offsetHeight + (parseFloat(getComputedStyle(controlsEl).marginTop) || 0);
+
   // THE HEIGHT BUDGET.
   //
   // Three sizes are in play. `fits` is the table that needs no scrolling
-  // at all — from the site header down to the Take the shot button on one
-  // screen. `wants` is the table whose balls are BALL_FLOOR_PX across,
-  // which is the size BRIEF.md sets for the smallest phone we ship to.
+  // at all — from the site header down to the last control on one screen
+  // (the Take the shot button on a phone, the toolbar under or beside it
+  // everywhere else; see toolbarH). `wants` is the table whose balls are
+  // BALL_FLOOR_PX across, which is the size BRIEF.md sets for the smallest
+  // phone we ship to.
   // `scrolled` is the table that fits once the player has flicked the
   // header and the goal line off the top: the status line pins itself to
   // the top of the window and the shot row to the bottom, so that view is
@@ -174,7 +209,7 @@ function measure() {
   // flick of the thumb for a ball they can see.
   const BALL_FLOOR_PX = 18;
   const statusH = statusEl.offsetHeight || 60;
-  const fits = Math.max(180, vh - boardTop - shotH - 12);
+  const fits = Math.max(180, vh - boardTop - shotH - toolbarH - 12);
   const scrolled = Math.max(180, vh - statusH - shotH - 12);
   const floorScale = BALL_FLOOR_PX / (2 * P.BALL_RADIUS);
   const wants = (vertical ? LO.BOX_ALONG : LO.BOX_ACROSS) * floorScale + 2 * LO.MARGIN_PX;
@@ -924,8 +959,13 @@ measure();
 
 let lastW = 0;
 let lastH = 0;
+/** The cheap guard against a ResizeObserver storm. It keys on the toolbar's
+ *  width as well as the window's, because in the side-by-side layout the
+ *  toolbar column is what the table's width is measured against, and that
+ *  column is as wide as its longest word — "Einstellungen" and Indonesian's
+ *  "Pengaturan" make it wider than English does. */
 const remeasure = () => {
-  const w = playEl.clientWidth;
+  const w = playEl.clientWidth * 10000 + controlsEl.offsetWidth;
   const h = window.innerHeight;
   if (w === lastW && h === lastH) return;
   lastW = w;
@@ -934,6 +974,7 @@ const remeasure = () => {
   requestDraw();
 };
 new ResizeObserver(remeasure).observe(playEl);
+new ResizeObserver(remeasure).observe(controlsEl);
 window.addEventListener("orientationchange", () => setTimeout(remeasure, 120));
 window.addEventListener("resize", remeasure);
 requestAnimationFrame(() => requestAnimationFrame(() => { remeasure(); revealTable(); }));
@@ -956,12 +997,15 @@ function revealTable() {
   if (need <= 8) return;
   // Design review: scrolling by exactly `need` left the page resting in the
   // middle of the plate, so the first thing at the top of the screen was
-  // the bottom two pixels of a chip. Land on the play block instead — the
-  // status line is sticky to its top, so this puts the sentence that says
+  // the bottom two pixels of a chip. Land on the status line instead — it
+  // is the element that pins to top:0, so this puts the sentence that says
   // what to do flush against the top of the window with nothing half-cut
-  // above it, which is also where it stays for the rest of the game.
-  const playTop = playEl.getBoundingClientRect().top + window.scrollY;
-  const top = Math.max(playTop, window.scrollY + need);
+  // above it, which is also where it stays for the rest of the game. (It
+  // used to say .pool-play, which began with the status line; the chips
+  // now live inside that block too, so the sticky element is named here
+  // rather than inferred from the block that happens to start with it.)
+  const stickyTop = statusEl.getBoundingClientRect().top + window.scrollY;
+  const top = Math.max(stickyTop, window.scrollY + need);
   window.scrollTo({ top: Math.round(top), behavior: reduceMotion ? "auto" : "smooth" });
 }
 

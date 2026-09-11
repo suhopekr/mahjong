@@ -280,6 +280,37 @@ export function paintCloth(ctx, r, colors) {
 }
 
 /**
+ * THE SHELF — the slate that shows inside a pocket mouth, between the two
+ * cut-back cushion ends and the hole, and under the bite the pocket takes
+ * out of the rail.
+ *
+ * It is the same cloth over the same slate as the bed, so it gets the
+ * bed's own fibre; what makes it read as being INSIDE something is the
+ * shadow render.js lays over it afterwards. The flat 26% black is not a
+ * taste decision: paintCloth darkens the bed by exactly that much in the
+ * narrow band where the cloth is pulled down at the cushion, so starting
+ * the shelf at the same tone means the two meet at the nose line with no
+ * step — and a step there is a straight line drawn across an open mouth,
+ * which is the thing this whole pocket rework is about. For the same
+ * reason the shadow is NOT applied here: it has to run on across the
+ * seam onto the cloth, and only the caller knows where the cloth is.
+ *
+ * The caller has already clipped to the shelf; `box` only has to cover it.
+ *
+ * @param {{x:number,y:number,w:number,h:number}} box  any rect covering the clip
+ */
+export function paintShelf(ctx, box, colors) {
+  ctx.save();
+  ctx.fillStyle = colors.edge;
+  ctx.fillRect(box.x, box.y, box.w, box.h);
+  ctx.fillStyle = "rgba(0,0,0,0.26)";
+  ctx.fillRect(box.x, box.y, box.w, box.h);
+  ctx.fillStyle = fleckPattern(ctx, 0x51ed270b, AMPLITUDE.fleck);
+  ctx.fillRect(box.x, box.y, box.w, box.h);
+  ctx.restore();
+}
+
+/**
  * A rail: one straight piece of polished hardwood.
  *
  * Drawn per side rather than as one frame, because the grain in a real

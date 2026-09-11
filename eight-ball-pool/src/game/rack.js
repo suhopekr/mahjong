@@ -3,7 +3,14 @@
 // cloth. Pure geometry, no DOM, deterministic (makeRng) so a rack can be
 // reproduced from its seed.
 
-import { TABLE_LENGTH, TABLE_WIDTH, BALL_RADIUS, createWorld, getBall } from "./physics.js";
+import {
+  TABLE_LENGTH,
+  TABLE_WIDTH,
+  BALL_RADIUS,
+  createWorld,
+  getBall,
+  resetOrientation,
+} from "./physics.js";
 
 /** mulberry32 — the site's deterministic RNG (klondike.js uses the same). */
 export function makeRng(seed) {
@@ -181,6 +188,7 @@ export function spotBall(world, id) {
       b.y = y;
       b.pocketed = false;
       b.vx = b.vy = b.wx = b.wy = b.wz = 0;
+      resetOrientation(b);
       return true;
     }
     return false;
