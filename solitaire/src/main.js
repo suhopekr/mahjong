@@ -14,7 +14,7 @@
 
 import {
   newGame, applyMove, drawFromStock, canMove, cardsAt, autoMoveTarget, destinationsFor,
-  findHint, describeHint, isWon, canAutoComplete, autoCompleteStep,
+  findHint, describeHint, isWon, isStuck, canAutoComplete, autoCompleteStep,
   makeDeck, RANK_LABEL, RED,
 } from "./game/klondike.js";
 import * as store from "./core/storage.js";
@@ -65,8 +65,27 @@ function say(key, args) {
   if (a.target) a.target = cardLabel(a.target);
   return i18n.t(key, a);
 }
-/** The key for "what to do next" in the current tap mode. */
-const idleKey = () => (settings.tap === "choose" ? "chooseStart" : "start");
+/**
+ * The key for "what to do next", which is also where the game says the
+ * position is dead.
+ *
+ * Every place that ends a turn asks this rather than naming "start" or
+ * "chooseStart" itself, so "No moves left — try a new game." appears the
+ * moment the hand goes dead — after a move, after a draw, after an undo —
+ * instead of only when the player presses Hint. It is the shared site
+ * key `noMoves` from /i18n/common.js, already written in all fourteen
+ * languages, so this needed no translation round.
+ *
+ * A handful of messages deliberately beat it, because they answer
+ * something the player just did and this does not: picking a card up,
+ * "that can't go there", the deck being spent, and the win. The ones that
+ * would otherwise sit ON a dead position — "the deck is used up",
+ * "undone" — check isStuck() themselves at their call site.
+ */
+const idleKey = () => {
+  if (state && !isWon(state) && isStuck(state)) return "noMoves";
+  return settings.tap === "choose" ? "chooseStart" : "start";
+};
 
 // ----------------------------------------------------------------------
 // analytics — same shape as every other page: check gtag exists, never throw
@@ -356,10 +375,12 @@ function moveCards(from, to) {
 function draw() {
   if (busy) return;
   const next = drawFromStock(state);
-  if (!next) { setStatus("deckDone"); return; }
+  if (!next) { setStatus(isStuck(state) ? "noMoves" : "deckDone"); return; }
   commit(next);
   audio.playDraw();
-  if (state.stock.length === 0 && state.waste.length) setStatus("deckAgain");
+  // "Turn the deck over again" is only worth saying if going round again
+  // could do something; idleKey() says so when it cannot.
+  if (state.stock.length === 0 && state.waste.length && !isStuck(state)) setStatus("deckAgain");
   else setStatus(idleKey());
 }
 
@@ -370,7 +391,11 @@ function undo() {
   render();
   store.saveGame(state, history);
   audio.playUndo();
-  setStatus("undone");
+  // Undo is how a player gets OUT of a dead position, so this is where the
+  // message has to clear. Undoing a draw does not change whether the hand
+  // is dead (isStuck looks at the whole deck, not just the waste card), so
+  // that case keeps saying it.
+  setStatus(isStuck(state) ? "noMoves" : "undone");
 }
 
 // ----------------------------------------------------------------------
@@ -421,13 +446,13 @@ function tapCard(el) {
     return;
   }
   moveCards(loc, to);
-  if (!isWon(state) && !busy) setStatus("start");
+  if (!isWon(state) && !busy) setStatus(idleKey());
 }
 
 function tapChoose(loc, el) {
   if (selected) {
     const same = selected.pile === loc.pile && selected.index === loc.index && selected.card === loc.card;
-    if (same) { selected = null; clearHighlights(); setStatus("chooseStart"); return; }
+    if (same) { selected = null; clearHighlights(); setStatus(idleKey()); return; }
     if (tryPlaceSelected({ pile: loc.pile, index: loc.index })) return;
   }
   selectRun(loc);
@@ -449,7 +474,7 @@ function tryPlaceSelected(to) {
   const from = selected;
   if (canMove(state, from, to)) {
     moveCards(from, to);
-    if (!isWon(state) && !busy) setStatus("chooseStart");
+    if (!isWon(state) && !busy) setStatus(idleKey());
     return true;
   }
   sayCannotGo(from, to);
@@ -770,8 +795,13 @@ drawRadios.forEach((r) => r.addEventListener("change", () => {
   if (!r.checked) return;
   settings.draw = Number(r.value);
   store.saveSettings(settings);
-  // Nothing played yet: re-deal the same cards under the new rule, so the
-  // change is visible at once instead of "on your next game".
+  // Nothing played yet: re-deal from the same seed under the new rule, so
+  // the change is visible at once instead of "on your next game". That
+  // brings the same cards back whenever they can still be won by the new
+  // rule, and the next hand that can when they cannot — Draw 3 is a much
+  // harder game than Draw 1, and handing the player a board that is lost
+  // before the first tap would undo the point of dealing only winnable
+  // games (see newGame in game/klondike.js).
   if (state && state.moves === 0 && !busy) {
     stats.played -= 1; // the re-deal is the same game, not a new one
     deal({ seed: state.seed });
@@ -797,7 +827,7 @@ document.addEventListener("keydown", (e) => {
   if (winModal.dataset.open === "true") { winModal.dataset.open = "false"; return; }
   if (confirmModal.dataset.open === "true") { confirmModal.dataset.open = "false"; return; }
   if (settingsPanel.dataset.open === "true") closeSettings();
-  else if (selected) { selected = null; clearHighlights(); setStatus("chooseStart"); }
+  else if (selected) { selected = null; clearHighlights(); setStatus(idleKey()); }
 });
 
 // A new language: applyStatic() has already swapped the data-i18n text;

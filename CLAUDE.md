@@ -31,6 +31,20 @@ be 65+ women in the ad data): big targets, words on buttons, no timers.
   UNTOUCHED board to fit the screen it is opened on, and restores a board
   with moves in it whatever the shape — losing progress is worse than
   looking a little wrong.
+- **A player is never told a board is dead while it is alive, and never
+  left guessing when it is.** Both halves got broken in Solitaire at once:
+  `findHint` only ever considered each column's WHOLE face-up run, so it
+  missed a run starting part-way down and said "turn the deck over" about
+  a board with a move on it; and its last line promised a draw whenever
+  ANY card sat in the stock or waste, so a genuinely dead hand promised a
+  draw forever. `isStuck()` now decides deadness by asking whether any
+  PROGRESS move (a foundation, a flip, an emptied column, a playable deck
+  card) is reachable through any sequence of pure rearrangements, and
+  `idleKey()` puts the site-wide `noMoves` string in the status line the
+  moment that is true — status line only, no modal, per the rule above.
+  Klondike also deals only hands a bounded solver can win, the way Mahjong
+  only builds solvable boards; a winnable hand is still losable by playing
+  it badly, which is why the stuck message is not optional.
 - No ad SDK on this site. The games ported from the CrazyGames builds keep
   their `src/core/ads.js` **as a shim** (every export a no-op,
   `requestRewardedHint()` resolves `"granted"` at once — previews are free).

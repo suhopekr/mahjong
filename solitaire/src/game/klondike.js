@@ -22,6 +22,8 @@
 // "tap a card and it goes where it should" gesture. Foundation first,
 // then the tableau column that does the most for you.
 
+import { isWinnable } from "./solver.js";
+
 export const SUITS = ["S", "H", "D", "C"];
 export const RED = { H: true, D: true, S: false, C: false };
 export const RANK_LABEL = ["", "A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
@@ -66,13 +68,8 @@ export function cardName(card) {
   return `${RANK_LABEL[card.rank]} of ${SUIT_NAME[card.suit]}`;
 }
 
-/**
- * A fresh deal. `draw` is 1 or 3. `seed` picks the shuffle; omit it for a
- * random one (Date + Math.random, so two New games in the same
- * millisecond still differ).
- */
-export function newGame({ draw = 1, seed } = {}) {
-  if (seed === undefined) seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+/** The plain deal a seed gives: shuffle, 1..7 to the tableau, 24 to the stock. */
+function dealSeed(seed, draw) {
   const rng = makeRng(seed);
   const deck = shuffle(makeDeck(), rng);
   const tableau = [];
@@ -100,6 +97,58 @@ export function newGame({ draw = 1, seed } = {}) {
     // hint text, nothing else.
     redeals: 0,
   };
+}
+
+/**
+ * The nth candidate seed for a requested seed, mixed with a 32-bit
+ * avalanche so consecutive attempts land nowhere near each other.
+ *
+ * Derived from the REQUESTED seed and nothing else — never the clock —
+ * because the whole point is that `newGame({ seed })` is the same game
+ * every time: the Draw 1/Draw 3 switch re-deals an untouched board by
+ * handing its own seed back (see main.js), and that has to bring back the
+ * same cards.
+ */
+function candidateSeed(seed, n) {
+  let h = (seed ^ Math.imul(n, 0x9e3779b1)) >>> 0;
+  h = Math.imul(h ^ (h >>> 16), 0x85ebca6b) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 0xc2b2ae35) >>> 0;
+  return (h ^ (h >>> 16)) >>> 0;
+}
+
+// How many candidate deals to look at before giving up and dealing an
+// ordinary shuffle. At the solver's measured acceptance rate (81% of
+// Draw 1 deals, 56% of Draw 3 ones) thirty rejections in a row is a
+// once-in-the-lifetime-of-the-universe event, so the fallback below is
+// there to make a hang impossible rather than because it will ever run.
+const MAX_DEAL_ATTEMPTS = 30;
+
+/**
+ * A fresh deal that can actually be won. `draw` is 1 or 3. `seed` picks
+ * the shuffle; omit it for a random one (Date + Math.random, so two New
+ * games in the same millisecond still differ). Pass `winnable: false` for
+ * a plain shuffle — the tests use it to build positions on purpose.
+ *
+ * Candidates are tried in a fixed order starting with the requested seed
+ * itself, and `state.seed` is the seed of the deal actually KEPT. Those
+ * two facts together are what make this reproducible: the kept seed is by
+ * definition one the solver accepts, so asking for it again accepts it on
+ * the first attempt and deals the same cards.
+ */
+export function newGame({ draw = 1, seed, winnable = true } = {}) {
+  if (seed === undefined) seed = (Date.now() ^ Math.floor(Math.random() * 0xffffffff)) >>> 0;
+  seed = seed >>> 0;
+  if (!winnable) return dealSeed(seed, draw);
+  for (let attempt = 0; attempt < MAX_DEAL_ATTEMPTS; attempt++) {
+    const state = dealSeed(attempt === 0 ? seed : candidateSeed(seed, attempt), draw);
+    if (isWinnable(state)) return state;
+  }
+  // Escape hatch: deal the requested seed and let the player have an
+  // ordinary hand rather than spin here. Part 1 (isStuck / "No moves
+  // left") is what covers a hand that turns out to be lost, which is why
+  // it is not enough to only do Part 2 — a winnable deal is still
+  // losable by playing it badly.
+  return dealSeed(seed, draw);
 }
 
 export function clone(state) {
@@ -185,13 +234,36 @@ export function destinationsFor(state, from) {
 }
 
 /**
+ * The one move in Klondike that provably changes nothing: a whole column
+ * — a King and whatever is already on it, with no face-down card
+ * underneath — moving into an ANOTHER empty column. The position
+ * afterwards is the position before it with two columns renamed, so the
+ * set of games reachable from it is identical.
+ *
+ * It is deliberately the ONLY thing called pointless, because isStuck()
+ * shares this test and "no moves left" is a much stronger claim than "not
+ * what you meant by that tap". The tempting second entry is the move that
+ * only shuffles a run between two columns and reveals nothing — say a red
+ * seven moving off one black eight onto another. That is NOT pointless:
+ * it leaves a different card exposed at the bottom of the column it came
+ * from, of a different SUIT, which may be exactly the card a foundation
+ * is waiting for, and it can free a run to be picked up in one piece
+ * later. Anything waved away here is a move a player might have been
+ * able to use, so the list stays at one.
+ */
+function isPointlessMove(state, from, to) {
+  if (to.pile !== "tableau" || from.pile !== "tableau") return false;
+  if (state.tableau[to.index].length) return false;
+  const pile = state.tableau[from.index];
+  const idx = from.card === undefined ? pile.length - 1 : from.card;
+  return idx === 0;
+}
+
+/**
  * Where a tapped card should go. Foundation if it can; otherwise the
- * tableau column that helps most. Two tableau moves are refused as
- * "pointless" so a tap never shuffles a card sideways for nothing: a
- * King (with whatever is under it) from one empty-bottomed column to
- * another empty column, and a run whose parent card is face up moving to
- * a column where it would sit on the very same rank and colour it already
- * sits on (nothing gained, and the tap feels broken).
+ * tableau column that helps most, skipping the one move that is
+ * pointless (isPointlessMove) so a tap never shuffles a King between two
+ * empty columns for nothing.
  */
 export function autoMoveTarget(state, from) {
   const dests = destinationsFor(state, from);
@@ -199,13 +271,7 @@ export function autoMoveTarget(state, from) {
   if (dests[0].pile === "foundation") return dests[0];
   const cards = cardsAt(state, from);
   const head = cards[0];
-  const fromPile = pileAt(state, from);
-  const fromIdx = from.pile === "tableau" ? (from.card === undefined ? fromPile.length - 1 : from.card) : -1;
-  const useful = dests.filter((to) => {
-    const dest = state.tableau[to.index];
-    if (head.rank === 13 && from.pile === "tableau" && fromIdx === 0 && dest.length === 0) return false;
-    return true;
-  });
+  const useful = dests.filter((to) => !isPointlessMove(state, from, to));
   if (!useful.length) return null;
   // Prefer the column whose exposed card is face up (a real build) over an
   // empty column, and among real builds the one with the longest run so
@@ -288,6 +354,144 @@ export function autoCompleteStep(state) {
   return best ? { from: best.from, to: best.to } : null;
 }
 
+// The closure below is tiny in practice — a handful of arrangements, since
+// every rearrangement needs a matching rank and colour — but this cap is
+// here so that a freak position cannot stall a phone. Hitting it answers
+// "not stuck", which is the safe direction.
+const STUCK_SEARCH_CAP = 600;
+
+/**
+ * Is this position dead — is there nothing left that can get anywhere?
+ *
+ * Being blocked in Klondike is simply a loss: no rule rescues you, and
+ * about a fifth of random deals cannot be won however well they are
+ * played (which is why newGame() no longer deals those). The game used to
+ * have no way to SAY that. findHint()'s last resort was an unconditional
+ * "turn the deck over and go through it again", so a single unplayable
+ * card sitting in the waste made it promise a move forever.
+ *
+ * WHAT COUNTS AS A MOVE. The obvious test — "no legal move exists" — is
+ * far too strict to be useful, because a blocked position usually still
+ * has a run that can slide from one column to another and slide straight
+ * back. So the question this asks is not "can anything move" but "can
+ * anything GET anywhere", and the answer is exact rather than a judgement
+ * call about which moves look pointless:
+ *
+ *   PROGRESS is a move that changes something a later move can use — a
+ *   card to a foundation, a move that turns a face-down card face up, a
+ *   move that leaves a column empty, or a card from the stock or the
+ *   waste that can be placed at all.
+ *
+ *   A REARRANGEMENT is a tableau move that does none of those: a face-up
+ *   run lifted off a face-up card and dropped on another face-up card.
+ *   It leaves the foundations, every face-down card and the whole deck
+ *   exactly as they were, and only changes which face-up cards are on
+ *   top of which columns.
+ *
+ * The position is dead when NO progress move can be reached by any
+ * sequence of rearrangements. That is the honest version of the claim:
+ * whatever the player slides around, they cannot turn a card, empty a
+ * column, play to a foundation, or use the deck. Note that nothing is
+ * disabled when this returns true — the board stays fully playable and
+ * the player can go on sliding runs about if they like. The message is
+ * advice, not a lock.
+ *
+ * A rearrangement never changes which cards are face down, so the search
+ * only has to walk the face-up parts of the seven columns.
+ *
+ * Two things are deliberately NOT counted as moves:
+ *
+ *   - Turning the deck. Redeals are unlimited (drawFromStock turns the
+ *     waste back over as often as you like), so in Draw 1 EVERY card in
+ *     the stock and the waste reaches the top of the waste if the player
+ *     keeps turning: asking whether any of them can be placed is exactly
+ *     right. In Draw 3 only some of them ever reach the top, so the same
+ *     question is stricter than it needs to be — which can leave a dead
+ *     position unreported but can never report a live one as dead.
+ *
+ *   - Taking a card back off a foundation onto the tableau. The page
+ *     allows it, and in the position this was written for (see
+ *     test/klondike.test.js) it is the one thing left to do: both red
+ *     fives are out of reach, so the 4 of clubs in the waste can only be
+ *     parked on a five pulled back down — after which the position is
+ *     frozen again with one card fewer on the foundations. Counting it
+ *     would put us back to offering the player a move that leads nowhere,
+ *     which is the bug this function exists to fix.
+ */
+export function isStuck(state) {
+  if (isWon(state)) return false;
+
+  // A rearrangement cannot change any of these, so they are read once.
+  const hidden = state.tableau.map((pile) => pile.filter((c) => !c.faceUp).length);
+  const deck = [...state.stock, ...state.waste];
+
+  /** Can `card` be dropped on column `t` of this arrangement? */
+  const canDropOn = (up, card, t) => {
+    if (up[t].length) return canPlaceOnTableau(card, up[t]);
+    // A column with nothing face up is either truly empty (a King may go
+    // there) or still has face-down cards on top, which take nothing.
+    return hidden[t] === 0 && card.rank === 13;
+  };
+
+  const canGoUp = (card) => {
+    const f = foundationIndexFor(state, card);
+    return f >= 0 && canPlaceOnFoundation(card, state.foundations[f]);
+  };
+
+  function hasProgress(up) {
+    for (let i = 0; i < 7; i++) {
+      if (up[i].length && canGoUp(up[i][up[i].length - 1])) return true;
+    }
+    for (let i = 0; i < 7; i++) {
+      if (!up[i].length) continue;
+      const head = up[i][0]; // the whole face-up run: moving it flips or empties
+      for (let t = 0; t < 7; t++) {
+        if (t === i || !canDropOn(up, head, t)) continue;
+        // A face-down card underneath turns over; otherwise the column is
+        // left empty, unless the destination was empty too, in which case
+        // this is the pointless King shuffle (isPointlessMove) and the two
+        // columns have merely swapped names.
+        if (hidden[i] > 0 || up[t].length > 0) return true;
+      }
+    }
+    for (const card of deck) {
+      if (canGoUp(card)) return true;
+      for (let t = 0; t < 7; t++) if (canDropOn(up, card, t)) return true;
+    }
+    return false;
+  }
+
+  const keyOf = (up) => up.map((pile, i) => hidden[i] + ":" + pile.map((c) => c.id).join(",")).sort().join("|");
+
+  const start = state.tableau.map((pile) => pile.filter((c) => c.faceUp));
+  const seen = new Set([keyOf(start)]);
+  const queue = [start];
+  let visited = 0;
+  while (queue.length) {
+    const up = queue.pop();
+    if (hasProgress(up)) return false;
+    if (++visited >= STUCK_SEARCH_CAP) return false;
+    for (let f = 0; f < 7; f++) {
+      // j starts at 1: lifting the whole face-up run (j === 0) either
+      // flips a card or empties a column, so it is progress, not a
+      // rearrangement, and hasProgress() has already said no to it.
+      for (let j = 1; j < up[f].length; j++) {
+        for (let t = 0; t < 7; t++) {
+          if (t === f || !up[t].length || !canPlaceOnTableau(up[f][j], up[t])) continue;
+          const next = up.slice();
+          next[f] = up[f].slice(0, j);
+          next[t] = up[t].concat(up[f].slice(j));
+          const k = keyOf(next);
+          if (seen.has(k)) continue;
+          seen.add(k);
+          queue.push(next);
+        }
+      }
+    }
+  }
+  return true;
+}
+
 // ----------------------------------------------------------------------
 // hint — the move a patient friend would point at
 // ----------------------------------------------------------------------
@@ -300,8 +504,9 @@ export function autoCompleteStep(state) {
  *   1. anything to a foundation (waste first, then tableau tops)
  *   2. a tableau run whose move turns a face-down card face up
  *   3. the waste card onto the tableau
- *   4. a King onto an empty column, if that reveals a card
- *   5. any other tableau-to-tableau move that is not pointless
+ *   4. a run from part-way down a column, when it frees a card for a
+ *      foundation
+ *   5. the whole face-up run, anywhere it is not pointless
  *   6. draw
  */
 export function findHint(state) {
@@ -336,7 +541,57 @@ export function findHint(state) {
     if (dests.length) return { from: waste, to: dests[0] };
   }
 
-  // 4./5. other tableau moves that are not pointless
+  // 4. A RUN FROM PART-WAY DOWN A COLUMN, WHEN IT FREES A CARD FOR A
+  //    FOUNDATION.
+  //
+  // This step is here because of a hand that was reported as stuck and was
+  // not. Column one held the whole of K♣ Q♦ J♣ 10♥ 9♠ 8♦ 7♣ 6♥ 5♣ 4♦ 3♣
+  // face up, the six of diamonds sat alone on another column, and the move
+  // was 5♣ 4♦ 3♣ onto that six — which uncovers the 6♥, and hearts were
+  // already built to the five. A real move, on the table, in plain sight.
+  //
+  // Every step below step 3 used to start from `pile.findIndex(faceUp)` —
+  // the first face-up card — so the only tableau move any of them ever
+  // considered was the WHOLE face-up run. In that column the whole run is
+  // headed by a King that already has a column to itself, so there was
+  // nothing to try and the hint fell through to "turn the deck over and go
+  // through it again". Telling a player that about a board with a move on
+  // it is worse than saying nothing: they believe it.
+  //
+  // Every face-up card is a candidate head. The face-up part of a Klondike
+  // column is always a valid descending alternating run — a card only ever
+  // lands there by a legal build, and a card only turns over once
+  // everything above it has gone — so any slice of it is a legal run and
+  // needs no extra check.
+  //
+  // ONLY when the card it uncovers can go straight to a foundation. That
+  // restriction is not timidity, it is what keeps two promises:
+  //
+  //   - isStuck() true must mean findHint() returns null, or the status
+  //     line and the Hint button contradict each other. Uncovering a card
+  //     that plays to a foundation IS progress by isStuck's definition, so
+  //     a move this step offers can never exist in a hand isStuck calls
+  //     dead.
+  //   - a hint is advice, and "shuffle this run onto that one because the
+  //     card underneath could then move somewhere" is advice that
+  //     ping-pongs. The test that plays a whole game by following hints is
+  //     what catches that, and it did.
+  for (let i = 0; i < 7; i++) {
+    const pile = state.tableau[i];
+    const first = pile.findIndex((c) => c.faceUp);
+    if (first < 0) continue;
+    for (let j = first + 1; j < pile.length; j++) {
+      const under = pile[j - 1];
+      const f = foundationIndexFor(state, under);
+      if (f < 0 || !canPlaceOnFoundation(under, state.foundations[f])) continue;
+      const from = { pile: "tableau", index: i, card: j };
+      const to = autoMoveTarget(state, from);
+      if (to && to.pile === "tableau") return { from, to };
+    }
+  }
+
+  // 5. the whole face-up run, anywhere it is not pointless — a King onto
+  //    an empty column, or a run onto a build.
   for (let i = 0; i < 7; i++) {
     const pile = state.tableau[i];
     const first = pile.findIndex((c) => c.faceUp);
@@ -346,8 +601,11 @@ export function findHint(state) {
     if (to && to.pile === "tableau") return { from, to };
   }
 
-  // 6. draw
-  if (state.stock.length || state.waste.length) return { draw: true };
+  // 6. draw — but only when the deck can still change something. This
+  // used to be the unconditional last line, which is how a dead position
+  // came to promise "turn the deck over and go through it again" forever:
+  // one unplayable card in the waste was enough to satisfy it.
+  if ((state.stock.length || state.waste.length) && !isStuck(state)) return { draw: true };
   return null;
 }
 

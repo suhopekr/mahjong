@@ -3,8 +3,9 @@ import { test, assertEqual, assertTrue } from "./harness.js";
 import {
   newGame, makeDeck, canPlaceOnFoundation, canPlaceOnTableau, canMove, applyMove,
   drawFromStock, destinationsFor, autoMoveTarget, findHint, describeHint,
-  isWon, canAutoComplete, autoCompleteStep, cardsAt, foundationIndexFor, makeRng, shuffle,
+  isWon, canAutoComplete, autoCompleteStep, cardsAt, foundationIndexFor, makeRng, shuffle, isStuck,
 } from "../src/game/klondike.js";
+import { solveDeal } from "../src/game/solver.js";
 import { strings } from "../src/i18n/strings.js";
 import { common } from "../../i18n/common.js";
 
@@ -43,7 +44,7 @@ test("shuffle keeps every card and is reproducible from the seed", () => {
 });
 
 test("a new game deals 1..7 to the tableau, last card face up, 24 to the stock", () => {
-  const s = newGame({ seed: 7 });
+  const s = newGame({ seed: 7, winnable: false });
   assertEqual(s.tableau.map((p) => p.length), [1, 2, 3, 4, 5, 6, 7]);
   for (const pile of s.tableau) {
     pile.forEach((c, i) => assertEqual(c.faceUp, i === pile.length - 1, `only the last card is face up`));
@@ -127,14 +128,14 @@ test("only a single card goes to a foundation, and to the pile of its suit", () 
 });
 
 test("Draw 1 turns one card; Draw 3 turns three with the third on top", () => {
-  const s1 = newGame({ seed: 5, draw: 1 });
+  const s1 = newGame({ seed: 5, draw: 1, winnable: false });
   const d1 = drawFromStock(s1);
   assertEqual(d1.waste.length, 1);
   assertEqual(d1.stock.length, 23);
   assertTrue(d1.waste[0].faceUp);
   assertEqual(d1.waste[0].id, s1.stock[23].id, "top of stock becomes the waste card");
 
-  const s3 = newGame({ seed: 5, draw: 3 });
+  const s3 = newGame({ seed: 5, draw: 3, winnable: false });
   const d3 = drawFromStock(s3);
   assertEqual(d3.waste.length, 3);
   assertEqual(d3.stock.length, 21);
@@ -142,7 +143,7 @@ test("Draw 1 turns one card; Draw 3 turns three with the third on top", () => {
 });
 
 test("an empty stock turns the waste back over, in order, as often as you like", () => {
-  let s = newGame({ seed: 11, draw: 3 });
+  let s = newGame({ seed: 11, draw: 3, winnable: false });
   const order = s.stock.map((c) => c.id);
   while (s.stock.length) s = drawFromStock(s);
   assertEqual(s.waste.length, 24);
@@ -217,15 +218,55 @@ test("hint: falls back to the waste card, then to drawing, then to nothing", () 
   s.waste = [card("S", 7)];
   s.tableau[2] = [card("D", 8)];
   assertEqual(findHint(s), { from: { pile: "waste" }, to: { pile: "tableau", index: 2 } });
+  // Nothing on the table can move, but there is an Ace still in the deck.
   s.waste = [card("S", 2)];
-  s.stock = [card("C", 9, false)];
+  s.stock = [card("H", 1, false), card("C", 9, false)];
   assertEqual(findHint(s), { draw: true });
   assertEqual(sayHint(s, { draw: true }), "Turn over the next card from the deck.");
+  // The same Ace, now buried in the waste: the deck has to be turned over.
   s.stock = [];
+  s.waste = [card("H", 1), card("S", 2)];
+  assertEqual(findHint(s), { draw: true });
   assertEqual(sayHint(s, { draw: true }), "Turn the deck over and go through it again.");
   s.waste = [];
   assertEqual(findHint(s), null);
   assertEqual(sayHint(s, null), "No moves left — try a new game.");
+});
+
+test("hint offers no draw when nothing in the deck can ever be played", () => {
+  // This is the bug the owner hit: one unplayable card in the waste used to
+  // be enough for findHint() to promise "turn the deck over and go through
+  // it again", forever, in a position with nothing left in it at all.
+  const s = emptyState();
+  s.waste = [card("S", 2)];
+  s.tableau[2] = [card("D", 8)];
+  assertTrue(isStuck(s), "2 of spades fits nowhere and the 8 of diamonds cannot move");
+  assertEqual(findHint(s), null, "no draw is offered");
+  assertEqual(sayHint(s, findHint(s)), "No moves left — try a new game.");
+});
+
+test("isStuck: a fresh deal is never stuck, and a won game is never stuck", () => {
+  const fresh = newGame({ seed: 3, draw: 1 });
+  assertTrue(!isStuck(fresh), "there is always the deck to turn at the start");
+  const won = emptyState();
+  for (let i = 0; i < 4; i++) won.foundations[i] = Array.from({ length: 13 }, (_, r) => card("SHDC"[i], r + 1));
+  assertTrue(!isStuck(won), "a won game is over, not stuck");
+});
+
+test("isStuck: a run shuffle that uncovers a foundation card is a real move", () => {
+  // The only legal move here slides the 5 of clubs off the 6 of hearts onto
+  // the 6 of diamonds — it reveals nothing and empties nothing, so a test
+  // that only looked one move deep would call this position dead. It is not:
+  // the 6 of hearts it uncovers goes straight up to the hearts foundation.
+  const s = emptyState();
+  s.foundations[0] = [1, 2, 3, 4, 5].map((r) => card("H", r));
+  s.tableau[0] = [card("S", 9, false), card("H", 6), card("C", 5)];
+  s.tableau[1] = [card("C", 9, false), card("D", 6)];
+  assertTrue(!isStuck(s), "not stuck: the shuffle leads to a foundation move");
+  // Put the hearts foundation one card lower and the same shuffle leads
+  // nowhere, and nowhere is all there is.
+  s.foundations[0] = [1, 2, 3, 4].map((r) => card("H", r));
+  assertTrue(isStuck(s), "stuck: the shuffle only swaps which red six is on top");
 });
 
 test("hint never suggests a pointless King shuffle", () => {
@@ -288,4 +329,160 @@ test("a full game can be won by following hints and auto-complete (seeded)", () 
     }
   }
   assertTrue(won, "the hint policy wins at least one of the first 60 seeds");
+});
+
+// ----------------------------------------------------------------------
+// the position the owner got stuck in — the reason isStuck() exists
+// ----------------------------------------------------------------------
+
+/**
+ * The hand he reported, card for card, with ONE correction.
+ *
+ * As he wrote it down the hearts foundation was up to the 5, and that hand
+ * is not actually dead: sliding the 5♣ 4♦ 3♣ off the 6♥ in column 1 onto
+ * the 6♦ in column 5 uncovers the 6♥, and with the 5♥ already up the 6♥
+ * goes straight to its foundation. So the hand recorded here has the
+ * hearts foundation up to the 4 and the 5♥ among column 7's face-down
+ * cards — one card different, and then nothing can be turned over or
+ * played up ever again, which is the position he was describing. That was
+ * checked the hard way before this test was written: walking EVERY legal
+ * move from it (1920 distinct positions, the whole reachable space) never
+ * reaches a foundation and never turns a card over. The
+ * blocker he noticed is real either way: the 4♣ in the waste needs a red
+ * five, one is on a foundation and the other is buried under a column
+ * nothing can dig into.
+ *
+ * The face-down cards are the six the rest of the layout does not account
+ * for; which of them is where does not matter to any of the assertions,
+ * because isStuck() only ever reads face-up cards, the foundations and the
+ * deck.
+ */
+function ownersDeadHand() {
+  const rank = (t) => ({ A: 1, T: 10, J: 11, Q: 12, K: 13 }[t] ?? Number(t));
+  const c = (t, faceUp = true) => { const suit = t.slice(-1), r = rank(t.slice(0, -1)); return { id: suit + r, suit, rank: r, faceUp }; };
+  const row = (str) => str.split(" ").map((t) => c(t));
+  const upTo = (suit, n) => "A23456789TJQK".slice(0, n).split("").map((r) => c(r + suit));
+
+  const state = {
+    seed: 0, draw: 1, moves: 96, redeals: 3,
+    stock: [],
+    waste: [c("4C")],
+    foundations: [upTo("S", 4), upTo("H", 4), upTo("D", 3), upTo("C", 1)],
+    tableau: [
+      row("KC QD JC TH 9S 8D 7C 6H 5C 4D 3C"),
+      row("KH QC JH TC 9D 8C 7H 6S"),
+      row("KS QH"),
+      row("KD QS JD TS 9H 8S 7D 6C"),
+      row("6D"),
+      [],
+      row("9C 8H"),
+    ],
+  };
+  // Whatever the layout above does not name is face down: one card under
+  // the 6♦ in column 5 and the rest under the 9♣ in column 7.
+  const placed = new Set([...state.foundations.flat(), ...state.waste, ...state.tableau.flat()].map((x) => x.id));
+  const buried = [];
+  for (const suit of "SHDC") for (let r = 1; r <= 13; r++) if (!placed.has(suit + r)) buried.push({ id: suit + r, suit, rank: r, faceUp: false });
+  state.tableau[4] = [buried[0], ...state.tableau[4]];
+  state.tableau[6] = [...buried.slice(1), ...state.tableau[6]];
+  return state;
+}
+
+test("the owner's hand: 52 cards, and it is dead", () => {
+  const s = ownersDeadHand();
+  const all = [...s.foundations.flat(), ...s.waste, ...s.stock, ...s.tableau.flat()];
+  assertEqual(all.length, 52, "the hand is a whole deck");
+  assertEqual(new Set(all.map((x) => x.id)).size, 52, "every card exactly once");
+  assertEqual(s.tableau.map((p) => p.length), [11, 8, 2, 8, 2, 0, 8]);
+
+  assertTrue(isStuck(s), "no move can turn a card, empty a column or reach a foundation");
+  const h = findHint(s);
+  assertEqual(h, null, "and so the hint offers no draw");
+  assertTrue(!(h && h.draw), "specifically: not { draw: true }");
+  assertEqual(describeHint(s, h), { key: "noMoves" }, "the status line says noMoves");
+  assertEqual(sayHint(s, h), "No moves left — try a new game.");
+});
+
+test("the owner's hand AS PHOTOGRAPHED was alive, and the hint says the move", () => {
+  // The hand above is the reported one with ONE card changed — hearts
+  // pulled back to the four — because as photographed, with hearts up to
+  // the FIVE, it was not dead at all. 5♣ 4♦ 3♣ goes onto the lone 6♦,
+  // which uncovers the 6♥, which plays straight up.
+  //
+  // That is the whole reason findHint has a step for a run starting
+  // part-way down a column. Everything below step 3 used to consider only
+  // the WHOLE face-up run of each column, and column one's whole run is
+  // headed by a King that already has a column of its own — so the hint
+  // found nothing and said "turn the deck over and go through it again"
+  // about a board with a move on it. A wrong hint is worse than none.
+  const s = ownersDeadHand();
+  s.foundations[1].push({ id: "H5", suit: "H", rank: 5, faceUp: true });
+  s.tableau[6] = s.tableau[6].filter((x) => x.id !== "H5");
+
+  const all = [...s.foundations.flat(), ...s.waste, ...s.stock, ...s.tableau.flat()];
+  assertEqual(new Set(all.map((x) => x.id)).size, 52, "still a whole deck");
+  assertTrue(!isStuck(s), "the position is alive");
+
+  const h = findHint(s);
+  assertTrue(h && !h.draw, "the hint is a move, not 'turn the deck over'");
+  assertEqual(h.from, { pile: "tableau", index: 0, card: 8 }, "the run headed by the 5 of clubs");
+  assertEqual(cardsAt(s, h.from).map((x) => x.id), ["C5", "D4", "C3"]);
+  assertEqual(h.to, { pile: "tableau", index: 4 }, "onto the six of diamonds");
+  assertEqual(sayHint(s, h), "Move the 5 of clubs onto the 6 of diamonds.");
+
+  // And the move really does free the 6 of hearts for its foundation.
+  const after = applyMove(s, h.from, h.to);
+  assertTrue(!!after, "the move the hint points at is legal");
+  const top = { pile: "tableau", index: 0, card: after.tableau[0].length - 1 };
+  assertEqual(cardsAt(after, top)[0].id, "H6");
+  assertEqual(destinationsFor(after, top)[0].pile, "foundation");
+});
+
+test("the owner's hand is NOT dead once the 4 of clubs has a red five to sit on", () => {
+  // The negative control: without it a function that always returned true
+  // would pass the test above. Swap the 6♦ on column 5 for the 5♦ that was
+  // buried in column 7 — the deck is still whole, and the 4♣ in the waste
+  // now has somewhere to go.
+  const s = ownersDeadHand();
+  const five = s.tableau[6].find((x) => x.id === "D5");
+  s.tableau[6] = s.tableau[6].filter((x) => x.id !== "D5");
+  s.tableau[6].splice(s.tableau[6].length - 2, 0, { ...s.tableau[4][1], faceUp: false });
+  s.tableau[4] = [s.tableau[4][0], { ...five, faceUp: true }];
+
+  const all = [...s.foundations.flat(), ...s.waste, ...s.tableau.flat()];
+  assertEqual(new Set(all.map((x) => x.id)).size, 52, "still a whole deck");
+  assertTrue(destinationsFor(s, { pile: "waste" }).length > 0, "the 4 of clubs can be played");
+  assertTrue(!isStuck(s), "so the position is alive");
+  assertTrue(findHint(s) !== null, "and the hint has something to say");
+});
+
+// ----------------------------------------------------------------------
+// only winnable deals
+// ----------------------------------------------------------------------
+
+test("newGame deals only hands the solver can win", () => {
+  for (const draw of [1, 3]) {
+    for (let seed = 1; seed <= 12; seed++) {
+      const s = newGame({ seed, draw });
+      assertTrue(solveDeal(s).solved, `draw ${draw} seed ${seed} was dealt but cannot be won`);
+    }
+  }
+});
+
+test("the kept seed deals the same hand again, so a saved game reloads", () => {
+  for (const draw of [1, 3]) {
+    for (let seed = 0; seed < 8; seed++) {
+      const a = newGame({ seed, draw });
+      assertEqual(newGame({ seed, draw }).tableau, a.tableau, "same request, same hand");
+      const again = newGame({ seed: a.seed, draw });
+      assertEqual(again.seed, a.seed, "the kept seed is accepted first time round");
+      assertEqual(again.tableau, a.tableau, "and deals the same cards");
+    }
+  }
+});
+
+test("winnable: false is a plain shuffle, for tests and for the escape hatch", () => {
+  const plain = newGame({ seed: 4242, draw: 1, winnable: false });
+  assertEqual(plain.seed, 4242, "the requested seed, untouched");
+  assertEqual(plain.tableau.map((p) => p.length), [1, 2, 3, 4, 5, 6, 7]);
 });
