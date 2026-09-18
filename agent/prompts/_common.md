@@ -12,15 +12,16 @@
    pulse-latest.md의 날짜가 3일 이상 지났거나 파일이 없으면 tier = blind.
 7. `CLAUDE.md` 읽기 — 사이트의 하드 제약.
 
-생존 tier 판정 (SOUL의 표): metrics.csv의 organic_sessions로 최근 4주 vs 그 전 4주 이동평균을 비교. 데이터가 8주 미만이면 `flat`으로 두고 "기준선 수집 중"이라고 적는다.
+생존 tier 판정 (한 가지 기준): metrics.csv가 0행이거나 pulse-latest.md가 없거나 3일 이상 오래됨 → `blind`. 데이터가 있지만 8주 미만 → `flat` ("기준선 수집 중"이라고 적는다). 8주 이상 → organic_sessions 최근 4주 vs 그 전 4주 이동평균으로 SOUL 표대로 growing/flat/declining.
 
 작업이 끝나면 반드시:
-- `agent/episodes/YYYY-MM-DD-<task>.md` 작성 (형식은 episodes/README.md). 읽기만 했으면 `idle: true` 한 줄.
+- `agent/episodes/YYYY-MM-DD-<task>.md` 작성 (형식은 episodes/README.md). 읽기만 했으면 `idle: true` 한 줄. 같은 날 같은 task 파일이 이미 있으면 덮어쓰지 말고 `---` 구분선 뒤에 이어 붙인다.
 - `agent/WORKLOG.md` 맨 위에 항목 추가(5줄 이내), 10개 초과 시 오래된 것을 MEMORY로 요약 이전.
 - 새로 알게 된 **사실**이 있으면 MEMORY.md에 한 줄(출처·날짜).
 - 브랜치를 만들었으면 WORKLOG "Push 대기"에 브랜치명.
 - 마지막 응답은 창조자가 30초에 읽을 수 있게: tier, 한 일 3줄 이내, 창조자가 해야 할 일(있으면).
 
 ## git 주의 (데스크톱 브리지 VM 특성)
+- 읽기 전용 git 명령(status, log, diff, branch)은 항상 `GIT_OPTIONAL_LOCKS=0 git ...`으로 실행한다. 이러면 index.lock을 만들지 않는다. 펄스·소셜·리플렉션 작업은 git을 아예 건드리지 않아도 된다.
 - 이 VM에서는 삭제 권한을 받기 전까지 git이 `.git/index.lock`을 못 지워서 빈 lock 파일이 남는다. **git 명령을 하나라도 쓰기 전에** `device_request_delete_permission`으로 Mahjong 폴더의 삭제 권한을 먼저 요청한다(이유: "git index.lock 정리"). 크기 0인 `.git/index.lock`이 이미 있으면 지우고 시작한다. 권한이 없으면 git status/commit을 시도하지 말고 파일 변경만 남긴 뒤 WORKLOG에 "커밋 못 함: 삭제 권한 없음"이라고 적는다.
 - 삭제 권한은 lock 파일 정리에만 쓴다. POLICY의 "파일 삭제 금지"는 그대로다.

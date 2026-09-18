@@ -14,3 +14,9 @@
 - 제안: tools/agent/README.md 절차대로 서비스 계정 JSON을 agent/secrets/google-sa.json에 두고 GA4 속성·GSC 도메인 속성에 뷰어 권한 부여.
 - 비용: $0
 - 결정:
+
+## P-003 · 펄스 CSV 행 갱신(과소집계 고정 방지) (open — 2026-09-18 펄스)
+- 배경: tools/agent/pulse.mjs는 이미 있는 날짜 행을 건너뛴다. launchd가 06:30 로컬에 '어제'(daysAgo(1))를 긁으면 GA4 처리 지연으로 부분집계된 값이 CSV에 영구 고정된다(09-17: organic 0 / engaged 0 / start 0 — 전체 기간 유일). GSC는 3일 지연이라 09-16/09-17 행의 GSC 열도 영영 빈칸. 이후 주간 이동평균(tier 판정)이 매주 마지막 날 과소집계를 안고 간다.
+- 제안(창조자 판단, 에이전트는 tools/ 미수정): (a) 최근 3일 행은 실행 때마다 덮어쓰기, 또는 (b) gaEnd를 daysAgo(2)로 늦추고 GSC 열은 값이 생기면 채우기. 검증: 다음 펄스의 pulse-latest.md 09-17 값과 CSV 09-17 행을 비교.
+- 비용: $0
+- 결정:

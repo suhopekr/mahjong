@@ -8,6 +8,12 @@
 
 ## 최근 실행
 
+### 2026-09-18 · pulse(2, 실데이터) · idle: false
+- tier = flat(기준선 수집 중). 오가닉 주간 27 vs 22(+23%), 이상 없음. 비영어권 노출 합 9, P-001 보류 유지.
+- 의심: 09-17 행 전부 0(부분집계?), /solitaire/ 랜딩 17세션 중 engaged 3, Direct 38 > Organic 27, GSC 09-14/15 노출 1·3.
+- 구조: pulse.mjs가 기존 CSV 행을 갱신 안 함 → 마지막 날 과소집계 고정, 09-16/17 GSC 열 빈칸. P-003 신설.
+- 다음: 다음 펄스에서 09-17 재조회값 vs CSV 비교로 P-003 확정. 관찰만, 사이트 파일 변경 없음.
+
 ### 2026-09-18 · manual · idle: false
 - 첫 펄스 데이터 확인, SOUL Strategy 개정(검색 의도 정렬 1번, 언어 URL 보류). GSC 색인 6/20, 미색인 11개는 크롤 대기 → 창조자가 색인 요청.
 - 다음 콘텐츠 스프린트 후보: 홈 title/description에 'full screen'·'no download' 반영; daily.html 강화; sitemap.xml에 /daily.html 중복 항목 정리(펜스 밖 수동 항목).

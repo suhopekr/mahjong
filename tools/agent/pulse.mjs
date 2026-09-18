@@ -186,21 +186,45 @@ async function main() {
   const gscPages = await tryGet("gsc pages", () => gsc(token, config.gscSiteUrl, gscStart, gscEnd, ["page"], 20));
   const gscCountries = await tryGet("gsc countries", () => gsc(token, config.gscSiteUrl, gscStart, gscEnd, ["country"], 15));
 
-  // append new daily rows (GA4 rows keyed by date; GSC joined where the date exists)
-  const have = existingDates();
-  const gscByDate = Object.fromEntries((gscDaily ?? []).map((r) => [r.keys[0], r]));
-  let added = 0;
-  if (!existsSync(csvPath)) writeFileSync(csvPath, "date,source,organic_sessions,total_sessions,users,new_users,engaged_sessions,avg_engagement_sec,game_start,game_win,gsc_clicks,gsc_impressions,gsc_ctr,gsc_position,note\n");
-  for (const d of Object.keys(ga ?? {}).sort()) {
-    if (have.has(d)) continue;
-    const v = ga[d], g = gscByDate[d];
-    appendFileSync(csvPath, csvLine([
-      d, "pulse", v.organic, v.total, v.users, v.newUsers, v.engaged,
-      v.total ? Math.round(v.engSec / v.total) : 0, v.start, v.win,
-      g?.clicks ?? "", g?.impressions ?? "", g ? pct(g.ctr) : "", g ? g.position.toFixed(1) : "", "",
-    ]));
-    added++;
+  // upsert daily rows: every fetched date overwrites its CSV row, so the
+  // last (partially processed) day and the GSC columns (2-3 day lag) heal on
+  // the next run instead of freezing at first sight.
+  const HEADER = "date,source,organic_sessions,total_sessions,users,new_users,engaged_sessions,avg_engagement_sec,game_start,game_win,gsc_clicks,gsc_impressions,gsc_ctr,gsc_position,note";
+  const rows = new Map();
+  if (existsSync(csvPath)) {
+    for (const line of readFileSync(csvPath, "utf8").split("\n").slice(1)) {
+      const d = line.split(",")[0];
+      if (d) rows.set(d, line);
+    }
   }
+  const gscByDate = Object.fromEntries((gscDaily ?? []).map((r) => [r.keys[0], r]));
+  let added = 0, updated = 0;
+  for (const d of Object.keys(ga ?? {}).sort()) {
+    const v = ga[d], g = gscByDate[d];
+    const prev = rows.get(d);
+    const prevCells = prev ? prev.split(",") : null;
+    // keep an existing GSC value if this run has none for that date (GSC lag)
+    const gsc = g
+      ? [g.clicks, g.impressions, pct(g.ctr), g.position.toFixed(1)]
+      : prevCells && prevCells[10] !== "" ? prevCells.slice(10, 14) : ["", "", "", ""];
+    const note = prevCells?.[14] ?? "";
+    const line = csvLine([
+      d, "pulse", v.organic, v.total, v.users, v.newUsers, v.engaged,
+      v.total ? Math.round(v.engSec / v.total) : 0, v.start, v.win, ...gsc, note,
+    ]).trimEnd();
+    if (prev === undefined) added++; else if (prev !== line) updated++;
+    rows.set(d, line);
+  }
+  // GSC-only refresh for dates GA4 did not return this run
+  for (const [d, g] of Object.entries(gscByDate)) {
+    const prev = rows.get(d);
+    if (!prev || ga?.[d]) continue;
+    const c = prev.split(",");
+    if (c.length < 15) continue;
+    const next = [...c.slice(0, 10), g.clicks, g.impressions, pct(g.ctr), g.position.toFixed(1), c[14]].join(",");
+    if (next !== prev) { rows.set(d, next); updated++; }
+  }
+  writeFileSync(csvPath, HEADER + "\n" + [...rows.keys()].sort().map((d) => rows.get(d)).join("\n") + "\n");
 
   // summary for the agent
   const L = [];
@@ -240,7 +264,7 @@ async function main() {
   table("GSC countries", gscCountries, "country");
   writeFileSync(latestPath, L.join("\n"));
 
-  console.log(`pulse: +${added} csv rows, summary -> agent/pulse-latest.md${errors.length ? `, ${errors.length} error(s)` : ""}`);
+  console.log(`pulse: +${added} new / ${updated} updated csv rows, summary -> agent/pulse-latest.md${errors.length ? `, ${errors.length} error(s)` : ""}`);
   if (errors.length) { console.error(errors.join("\n")); process.exitCode = 2; }
 }
 
