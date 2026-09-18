@@ -22,6 +22,5 @@
 - 마지막 응답은 창조자가 30초에 읽을 수 있게: tier, 한 일 3줄 이내, 창조자가 해야 할 일(있으면).
 
 ## git 주의 (데스크톱 브리지 VM 특성)
-- 읽기 전용 git 명령(status, log, diff, branch)은 항상 `GIT_OPTIONAL_LOCKS=0 git ...`으로 실행한다. 이러면 index.lock을 만들지 않는다. 펄스·소셜·리플렉션 작업은 git을 아예 건드리지 않아도 된다.
-- 이 VM에서는 삭제 권한을 받기 전까지 git이 `.git/index.lock`을 못 지워서 빈 lock 파일이 남는다. **git 명령을 하나라도 쓰기 전에** `device_request_delete_permission`으로 Mahjong 폴더의 삭제 권한을 먼저 요청한다(이유: "git index.lock 정리"). 크기 0인 `.git/index.lock`이 이미 있으면 지우고 시작한다. 권한이 없으면 git status/commit을 시도하지 말고 파일 변경만 남긴 뒤 WORKLOG에 "커밋 못 함: 삭제 권한 없음"이라고 적는다.
-- 삭제 권한은 lock 파일 정리에만 쓴다. POLICY의 "파일 삭제 금지"는 그대로다.
+- 이 VM에서는 git이 lock 파일을 지울 수 없고 삭제 권한도 자동으로는 안 나온다. 그래서 **에이전트는 git 쓰기 명령(add/commit/branch/switch/push)을 하지 않는다.** 커밋은 창조자가 한다 (POLICY "커밋 규칙").
+- 읽기 명령(status, diff, log, branch 목록)은 항상 `GIT_OPTIONAL_LOCKS=0 git ...`으로 실행한다. 펄스·소셜·리플렉션은 git을 아예 건드리지 않아도 된다.

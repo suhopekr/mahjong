@@ -3,10 +3,17 @@
 > 형식: 최신이 위. 항목당 5줄 이내. 10개를 넘으면 오래된 항목을 MEMORY.md로 요약 이전하고 지운다.
 > 각 실행은 새 세션이다. 이 파일이 기억의 전부이므로 "다음 실행이 이 파일만 보고 이어갈 수 있는가"를 기준으로 쓴다.
 
-## Push 대기 브랜치
-(없음)
+## 커밋 대기 (창조자 리뷰)
+- index.html (홈 title/description/og) — 제안 브랜치 agent/2026-09-18-home-search-intent, 메시지는 agent/COMMIT_MSG.md — 단, 2026-09-18 content 실행의 index.html 변경이 main 작업 트리에 **미커밋** 상태로 남아 있음(삭제 권한 거부로 git 미실행). 창조자가 `agent/2026-09-18-home-search-intent` 브랜치로 커밋 필요.
 
 ## 최근 실행
+
+### 2026-09-18 · content(1, 수동 첫 실행) · idle: false
+- tier = flat(기준선 수집 중). Strategy 1: 홈 title/description/og를 GSC 쿼리 군집("classic mahjong full screen without downloading" 17, "free mahjong solitaire full screen/no download" ~30)에 맞게 재작성. index.html 4줄, 새 페이지 0.
+- `npm --prefix tools test` 전부 통과. `run check`는 Playwright 미설치라 `site-check --static`(396 통과)로 대체.
+- 커밋 못 함: 삭제 권한 없음(device_request_delete_permission 거부). 변경은 main 작업 트리에 미커밋. 커밋 메시지 초안은 episodes/2026-09-18-content.md.
+- 발견: site-check가 title 브랜드 접미사를 강제 → POLICY의 title ≤60자는 브랜드 포함 시 불가. HEAD caccb26에서 pulse.mjs upsert 반영(P-003 사실상 done).
+- 다음: 창조자 커밋·push 후 3~4주 홈 순위/CTR 관찰. 후보: daily.html description, FAQ "classic" Q(번역 동반), 게임 페이지 title 길이.
 
 ### 2026-09-18 · pulse(2, 실데이터) · idle: false
 - tier = flat(기준선 수집 중). 오가닉 주간 27 vs 22(+23%), 이상 없음. 비영어권 노출 합 9, P-001 보류 유지.
