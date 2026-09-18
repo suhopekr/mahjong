@@ -8,6 +8,10 @@
 
 ## 최근 실행
 
+### 2026-09-18 · manual · idle: false
+- 첫 펄스 데이터 확인, SOUL Strategy 개정(검색 의도 정렬 1번, 언어 URL 보류). GSC 색인 6/20, 미색인 11개는 크롤 대기 → 창조자가 색인 요청.
+- 다음 콘텐츠 스프린트 후보: 홈 title/description에 'full screen'·'no download' 반영; daily.html 강화; sitemap.xml에 /daily.html 중복 항목 정리(펜스 밖 수동 항목).
+
 ### 2026-09-18 · pulse · idle: true
 - tier = blind: agent/pulse-latest.md 없음, metrics.csv 0행. 관찰할 데이터가 아직 없다.
 - PROPOSALS 결정 없음. 파일 변경 없음(episodes/WORKLOG만).
