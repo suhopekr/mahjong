@@ -8,6 +8,10 @@
 
 ## 최근 실행
 
+### 2026-09-18 · creator decision · idle: false
+- P-005 승인(AdSense 기준 4개 + 얇은 게임 페이지 4개에 How-to/FAQ 추가 허용), P-006 반영. 창조자 일반 원칙을 POLICY 맨 위에 추가.
+- 다음 content 실행 우선순위: 얇은 게임 페이지(dots-and-boxes, four-ball-billiards, stone-flick, shuffleboard) 중 2개에 섹션 추가 → 이후 가이드 solitaire/freecell/word-search.
+
 ### 2026-09-18 · reflection(1, 수동 첫 실행, day 1) · idle: false
 - tier = flat(기준선 수집 중). 데이터 2일치라 4주 리뷰 불가 → 루프 검증(5회 실행 모두 episode/WORKLOG/MEMORY/PROPOSALS 사이클 정상), 제네시스 정렬 이탈 없음, 전략 교체 제안 없음(첫 정식 판정 2026-10-16).
 - AdSense: 지금 신청 비추천 → P-005(색인 ≥15/18, 얇은 게임 페이지 4개 보강, 가이드 3~5편, 오가닉 일 10+). P-006 SOUL 브랜치 문장 정합 제안.
