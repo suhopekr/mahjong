@@ -9,3 +9,9 @@ Claude outputs/
 
 # Local Claude Code settings for this checkout.
 .claude/
+
+# Growth agent secrets
+agent/secrets/*
+!agent/secrets/.gitignore
+!agent/secrets/README.md
+agent/pulse.log

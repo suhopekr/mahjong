@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>com.easyclassics.pulse</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/sh</string>
+    <string>-c</string>
+    <string>cd /Users/bo/Projects/Mahjong &amp;&amp; /Users/bo/.nvm/versions/node/v22.21.1/bin/node tools/agent/pulse.mjs</string>
+  </array>
+  <key>StartCalendarInterval</key>
+  <dict><key>Hour</key><integer>6</integer><key>Minute</key><integer>30</integer></dict>
+  <key>StandardOutPath</key><string>/Users/bo/Projects/Mahjong/agent/pulse.log</string>
+  <key>StandardErrorPath</key><string>/Users/bo/Projects/Mahjong/agent/pulse.log</string>
+</dict>
+</plist>
