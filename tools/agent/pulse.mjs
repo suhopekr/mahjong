@@ -140,6 +140,22 @@ async function ga4Pages(token, property, start, end) {
   }));
 }
 
+async function ga4Campaigns(token, property, start, end) {
+  const url = `https://analyticsdata.googleapis.com/v1beta/properties/${property}:runReport`;
+  const r = await postJson(url, token, {
+    dateRanges: [{ startDate: start, endDate: end }],
+    dimensions: [{ name: "sessionCampaignName" }, { name: "sessionSource" }, { name: "sessionMedium" }],
+    metrics: [{ name: "sessions" }, { name: "engagedSessions" }, { name: "totalUsers" }],
+    dimensionFilter: { notExpression: { filter: { fieldName: "sessionCampaignName", inListFilter: { values: ["(not set)", "(direct)", "(organic)", "(referral)"] } } } },
+    orderBys: [{ metric: { metricName: "sessions" }, desc: true }],
+    limit: 30,
+  });
+  return (r.rows ?? []).map((x) => ({
+    campaign: x.dimensionValues[0].value, source: x.dimensionValues[1].value, medium: x.dimensionValues[2].value,
+    sessions: Number(x.metricValues[0].value), engaged: Number(x.metricValues[1].value), users: Number(x.metricValues[2].value),
+  }));
+}
+
 // ---------- Search Console
 async function gsc(token, site, start, end, dimensions, limit = 25) {
   const url = `https://searchconsole.googleapis.com/webmasters/v3/sites/${encodeURIComponent(site)}/searchAnalytics/query`;
@@ -181,6 +197,7 @@ async function main() {
 
   const ga = await tryGet("ga4 daily", () => ga4Daily(token, config.ga4PropertyId, gaStart, gaEnd));
   const pages = await tryGet("ga4 pages", () => ga4Pages(token, config.ga4PropertyId, gaStart, gaEnd));
+  const campaigns = await tryGet("ga4 campaigns", () => ga4Campaigns(token, config.ga4PropertyId, iso(daysAgo(28)), gaEnd));
   const gscDaily = await tryGet("gsc daily", () => gsc(token, config.gscSiteUrl, gscStart, gscEnd, ["date"], 100));
   const gscQueries = await tryGet("gsc queries", () => gsc(token, config.gscSiteUrl, gscStart, gscEnd, ["query"], 30));
   const gscPages = await tryGet("gsc pages", () => gsc(token, config.gscSiteUrl, gscStart, gscEnd, ["page"], 20));
@@ -247,6 +264,11 @@ async function main() {
   if (pages?.length) {
     L.push("## GA4 top landing pages", "| page | sessions | engaged |", "|---|---|---|");
     for (const p of pages) L.push(`| ${p.page} | ${p.sessions} | ${p.engaged} |`);
+    L.push("");
+  }
+  if (campaigns?.length) {
+    L.push(`## GA4 campaigns (utm, last 28d)`, "| campaign | source / medium | sessions | engaged | users |", "|---|---|---|---|---|");
+    for (const c of campaigns) L.push(`| ${c.campaign} | ${c.source} / ${c.medium} | ${c.sessions} | ${c.engaged} | ${c.users} |`);
     L.push("");
   }
   if (gscDaily) {

@@ -32,7 +32,7 @@ Easy Classics를 **광고 수익으로 스스로 유지되는 사이트**로 키
 ## Boundaries (절대 하지 않는 것) — 상세는 POLICY.md
 
 - 돈을 쓰지 않는다. 모든 지출은 PROPOSALS.md에 제안만. 사이트가 벌기 전까지 마케팅 예산 $0.
-- `main`에 커밋하지 않는다. 항상 `agent/<YYYY-MM-DD>-<topic>` 브랜치. push는 창조자가 한다.
+- git 쓰기 명령(add/commit/branch/push)을 하지 않는다. 사이트 변경은 작업 트리에 남기고 `agent/COMMIT_MSG.md`에 메시지를 쓴다; 커밋·push는 창조자가 diff를 본 뒤 한다(POLICY 커밋 규칙).
 - 게임 로직, 광고 코드, ga-init.js, vercel.json, robots.txt, SOUL.md, POLICY.md를 수정하지 않는다.
 - 파일을 삭제하지 않는다. 외부에 게시하지 않는다(SNS·포럼·이메일). 초안만 만든다.
 - agent/secrets/ 내용을 로그·커밋·출력에 남기지 않는다.

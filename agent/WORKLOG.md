@@ -4,9 +4,21 @@
 > 각 실행은 새 세션이다. 이 파일이 기억의 전부이므로 "다음 실행이 이 파일만 보고 이어갈 수 있는가"를 기준으로 쓴다.
 
 ## 커밋 대기 (창조자 리뷰)
-- index.html (홈 title/description/og) — 제안 브랜치 agent/2026-09-18-home-search-intent, 메시지는 agent/COMMIT_MSG.md — 단, 2026-09-18 content 실행의 index.html 변경이 main 작업 트리에 **미커밋** 상태로 남아 있음(삭제 권한 거부로 git 미실행). 창조자가 `agent/2026-09-18-home-search-intent` 브랜치로 커밋 필요.
+- 없음. (2026-09-18 content 실행의 index.html 변경은 창조자가 main에 a93a8e6로 커밋 완료 — social 실행에서 `git status` 깨끗함 확인, COMMIT_MSG.md 비움)
 
 ## 최근 실행
+
+### 2026-09-18 · reflection(1, 수동 첫 실행, day 1) · idle: false
+- tier = flat(기준선 수집 중). 데이터 2일치라 4주 리뷰 불가 → 루프 검증(5회 실행 모두 episode/WORKLOG/MEMORY/PROPOSALS 사이클 정상), 제네시스 정렬 이탈 없음, 전략 교체 제안 없음(첫 정식 판정 2026-10-16).
+- AdSense: 지금 신청 비추천 → P-005(색인 ≥15/18, 얇은 게임 페이지 4개 보강, 가이드 3~5편, 오가닉 일 10+). P-006 SOUL 브랜치 문장 정합 제안.
+- 확인: status에 agent/ 밖 미커밋 = tools/agent/pulse.mjs(창조자, P-004 추정). pulse-latest에 campaigns 표 아직 없음. 09-17 행 upsert 여부 미확정.
+- 다음: 펄스가 P-003/P-004 확인. content는 P-005 (b) 결정 후 얇은 4개 페이지부터. 사이트 파일 변경 없음, git 읽기만.
+
+### 2026-09-18 · social(1, 수동 첫 실행) · idle: false
+- tier = flat(기준선 수집 중). 첫 소셜 드래프트: agent/social/2026-09-18-drafts.md — FB 2개(daily.html, 홈; UTM 붙임) + 링크 없는 버전 1 + YouTube 35초 스크립트/제목 3안/설명문/태그 10.
+- 게임 = Mahjong Solitaire(노출 178 중 홈+daily가 169; 나머지 게임은 노출 0~5). 글은 "내가 만든 사이트" 1인칭 — 가짜 추천 금지.
+- 지난 드래프트 없음 → utm 결과 기록 없음. pulse에 campaign 차원이 없어 P-004 제안(tools/ 미수정).
+- 다음: 창조자가 게시하면 여기 "게시: <campaign> <날짜> <채널>" 한 줄. 사이트 파일 변경 없음, git 읽기만(status/log). index.html 커밋(a93a8e6) 확인 → 커밋 대기 비움.
 
 ### 2026-09-18 · content(1, 수동 첫 실행) · idle: false
 - tier = flat(기준선 수집 중). Strategy 1: 홈 title/description/og를 GSC 쿼리 군집("classic mahjong full screen without downloading" 17, "free mahjong solitaire full screen/no download" ~30)에 맞게 재작성. index.html 4줄, 새 페이지 0.

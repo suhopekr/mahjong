@@ -43,3 +43,15 @@
 - Claude 세션(클라우드, 데스크톱 브리지 VM 모두)은 Google API·GitHub 등 외부 네트워크에 못 나간다. 데이터 수집은 Mac launchd, push는 창조자 (2026-09-17)
 - 예약 작업 프롬프트는 agent/prompts/*.md가 원본. 스케줄러의 프롬프트는 그 파일을 읽으라는 한 줄뿐이다 (2026-09-17)
 - GSC 색인 보고서(2026-09-18, 창조자 확인): 색인 6 / 미색인 14. 9/4쯤 미색인이 5→14로 급증 = 새 게임 9개 페이지가 사이트맵에 오른 시점. 사유: Discovered-not indexed 11(크롤 대기, 창조자가 색인 요청 중), Page with redirect 3(정상). 색인 보고서는 API로 못 보므로 펄스는 GSC "노출 받는 페이지 수"를 대리 지표로 쓴다 (2026-09-18)
+
+## 소셜
+- 첫 소셜 드래프트 2026-09-18: agent/social/2026-09-18-drafts.md, 캠페인 daily-2026-09-18 / mahjong-2026-09-18 / mahjong-tutorial-2026-09-18. 게시 여부는 창조자가 WORKLOG에 적기 전까지 미상 (social, 2026-09-18)
+- tools/agent/pulse.mjs의 GA4 차원은 date×channel, date×eventName, landingPagePlusQueryString뿐 — utm_campaign별 세션은 랜딩 페이지 상위 표에 쿼리스트링으로 걸릴 때만 보인다. P-004 (social, 2026-09-18)
+
+## AdSense 준비 상태
+- 필수 페이지 about/contact/privacy/terms 모두 있음. ads.txt·광고 스크립트 없음(승인 후 필요). ad-slot div는 8페이지에 예약 (저장소, reflection 2026-09-18)
+- sitemap.xml 19 URL, 고유 18 (/daily.html이 펜스 밖 수동 항목으로 중복) (저장소, reflection 2026-09-18)
+- 게임 페이지 본문: 8개는 1,100~1,400단어+FAQ JSON-LD; 4개는 얇음 — dots-and-boxes 361, four-ball-billiards 391, stone-flick 398, shuffleboard 309단어, FAQ 없음 (저장소, reflection 2026-09-18)
+- 가이드는 guides/index + how-to-play-mahjong-solitaire(793단어) 1편뿐 (저장소, reflection 2026-09-18)
+- 리플렉션 운용: 첫 정식 4주 판정은 2026-10-16. 그 전 리플렉션은 루프 검증용 (reflection, 2026-09-18)
+
